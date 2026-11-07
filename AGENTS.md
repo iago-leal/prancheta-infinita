@@ -1,0 +1,30 @@
+# Prancheta Infinita
+
+Quadro infinito pessoal, nascido como artefato do claude.ai, que está sendo transformado em aplicação independente, hospedada na VPS do autor e pensada para escrita à mão em e-ink, sobretudo no Boox Note Air4 C.
+
+## Estado atual
+
+O arquivo abaixo é importado em toda sessão e resume onde o projeto está.
+
+@acompanhamento/estado.md
+
+## Protocolo de acompanhamento
+
+O andamento do projeto fica em `acompanhamento/`. Os modelos de arquivo e os passos detalhados estão na skill `acompanhamento`, em `.claude/skills/acompanhamento/SKILL.md`.
+
+1. Ao iniciar uma sessão, além do estado acima, leia as entradas mais recentes de `acompanhamento/progresso.md`, rode `git log --oneline -15` e, se houver plano ativo, leia o `plano.md` e a etapa atual.
+2. Trabalhe em uma etapa por vez e registre na seção Registro da etapa o que foi feito, as descobertas e os desvios.
+3. Critérios de conclusão, depois de escritos, só podem ser marcados. Nunca edite nem remova um critério; se ele se mostrar errado, registre o problema e consulte o autor.
+4. Só marque uma etapa como `concluida` depois de verificar todos os critérios, e registre como cada um foi verificado.
+5. Ao encerrar a sessão, acrescente uma entrada no topo de `acompanhamento/progresso.md` e atualize `acompanhamento/estado.md`, que deve ficar com no máximo 60 linhas.
+6. Inclua as atualizações de acompanhamento no mesmo commit do trabalho a que se referem.
+
+## Convenções
+
+- Escreva documentação, mensagens de commit e comentários em português.
+- Use datas no formato AAAA-MM-DD.
+- Proponha mudanças no ambiente de nuvem `prancheta-infinita` somente diante de uma necessidade concreta, como um bloqueio real da rede, e salve-as apenas com a aprovação do autor.
+
+## Comandos
+
+Ainda não há código. À medida que surgirem, registre aqui os comandos de instalação, compilação e teste.
