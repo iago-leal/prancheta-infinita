@@ -129,6 +129,7 @@ class MainActivity : Activity() {
         webView.loadUrl(PRANCHETA)
 
         atualizador = Atualizador(this)
+        atualizador.avisarVersaoNova()
         atualizador.tratarRetorno(intent)
     }
 

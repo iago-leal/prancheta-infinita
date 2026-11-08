@@ -21,6 +21,17 @@ data class Atualizacao(val codigo: Long, val nome: String, val endereco: String)
         const val ENDERECO_DA_ULTIMA = "https://api.github.com/repos/$REPOSITORIO/releases/latest"
 
         private val ETIQUETA = Regex("""casca-(\d+)""")
+
+        /**
+         * Mensagem mostrada ao abrir a casca numa versão diferente da última que
+         * abriu, para o autor saber que a atualização entrou; `null` quando a
+         * versão é a mesma.
+         */
+        fun mensagemDeVersao(codigoAnterior: Long?, codigoAtual: Long, nomeAtual: String): String? = when (codigoAnterior) {
+            codigoAtual -> null
+            null -> "Prancheta na versão $nomeAtual."
+            else -> "Prancheta atualizada para a versão $nomeAtual."
+        }
         private const val PREFIXO_DOS_ANEXOS = "https://github.com/$REPOSITORIO/releases/download/"
 
         /**

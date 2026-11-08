@@ -52,6 +52,13 @@ class AtualizacaoTest {
     }
 
     @Test
+    fun `avisa a versão só quando ela muda`() {
+        assertEquals("Prancheta atualizada para a versão 0.3.1.", Atualizacao.mensagemDeVersao(4, 5, "0.3.1"))
+        assertEquals("Prancheta na versão 0.3.1.", Atualizacao.mensagemDeVersao(null, 5, "0.3.1"))
+        assertNull(Atualizacao.mensagemDeVersao(5, 5, "0.3.1"))
+    }
+
+    @Test
     fun `só oferece versões mais novas que a instalada`() {
         val versao = Atualizacao(5, "Casca 0.3.1", "https://github.com/iago-leal/prancheta-infinita/releases/download/casca-5/a.apk")
         assertTrue(versao.maisNovaQue(4))

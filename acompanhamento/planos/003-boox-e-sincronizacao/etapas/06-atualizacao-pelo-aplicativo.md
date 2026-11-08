@@ -43,5 +43,6 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 - Para confirmar que uma versão publicada não é substituída, o fluxo foi disparado de novo na `main`, sem mudar o `versionCode`. A execução 42485335472 terminou com sucesso, inclusive o passo de publicação, e a versão `casca-4` continuou com um único anexo, de mesmo identificador, 724026042, e mesmo horário de atualização, 2026-11-08T13:29:24Z; o passo encontrou a etiqueta e não publicou nada.
 
 - A versão 0.3.1, código 5, com as correções da etapa 02, será a primeira entregue ao autor pela atualização dentro do aplicativo, depois da mescla na `main`.
+- A pedido do autor, que perguntou como saber se a atualização entrou, a casca passou a avisar, na primeira abertura de cada versão nova, "Prancheta atualizada para a versão X.", guardando nas preferências do aplicativo o último `versionCode` aberto. Como a 0.3.0 não guardava nada, a primeira abertura da 0.3.1 mostra "Prancheta na versão 0.3.1.". Um teste JUnit novo cobre a mensagem; são 22 ao todo.
 
 ## Resultado
