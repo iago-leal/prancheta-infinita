@@ -1,6 +1,7 @@
 // Banco local da Prancheta: documentos e coleções guardados em IndexedDB,
 // com a interface que o código do artefato usa do claude.ai, descrita em
-// web/inventario-claude.md. Funciona sem rede, no Boox e no computador.
+// web/inventario-claude.md. Funciona sem rede, no Boox e no computador, e
+// também dentro do service worker, que o usa para entregar os arquivos enviados.
 //
 // Para a sincronização com a VPS, prevista para o plano 003, cada documento
 // guarda versão, horário e aparelho da última gravação; as exclusões deixam
@@ -333,13 +334,17 @@
     } catch (e) {
       throw traduzir(e);
     }
-    let meta = await aguardar(idb.transaction('meta').objectStore('meta').get('dispositivo'));
+    // Lê e cria o identificador do aparelho na mesma transação, para que a
+    // página e o service worker, abrindo o banco ao mesmo tempo, fiquem com o mesmo.
+    const transacao = idb.transaction('meta', 'readwrite');
+    const fim = concluida(transacao);
+    fim.catch(() => {});
+    let meta = await aguardar(transacao.objectStore('meta').get('dispositivo'));
     if (!meta) {
       meta = { chave: 'dispositivo', valor: novoId(8) };
-      const transacao = idb.transaction('meta', 'readwrite');
       transacao.objectStore('meta').put(meta);
-      await concluida(transacao);
     }
+    await fim;
     // Pede ao navegador que não apague os dados para liberar espaço.
     try {
       if (navigator.storage && navigator.storage.persist) await navigator.storage.persist();

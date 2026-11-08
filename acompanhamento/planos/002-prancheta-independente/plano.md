@@ -2,9 +2,9 @@
 tipo: plano
 id: "002"
 titulo: Prancheta independente do claude.ai
-status: em_andamento
+status: concluido
 criado_em: 2026-11-08
-concluido_em:
+concluido_em: 2026-11-08
 ---
 
 # Plano 002: Prancheta independente do claude.ai
@@ -30,7 +30,7 @@ A casca Android foi validada no plano 001, e o que falta para usar a Prancheta d
 | [03](etapas/03-servidor-de-compatibilidade.md) | Servidor de compatibilidade | descartada |
 | [04](etapas/04-cliente-de-compatibilidade.md) | Cliente de compatibilidade e Prancheta rodando fora do claude.ai | descartada |
 | [05](etapas/05-banco-local.md) | Banco local no navegador | concluida |
-| [06](etapas/06-prancheta-sem-internet.md) | Cliente de compatibilidade e Prancheta sem internet | pendente |
+| [06](etapas/06-prancheta-sem-internet.md) | Cliente de compatibilidade e Prancheta sem internet | concluida |
 
 ## Mudança de escopo
 
@@ -52,3 +52,9 @@ Ainda em 2026-11-08, o autor decidiu que quer usar a Prancheta sem internet no B
 - Empacotar a Prancheta real dentro da casca Android, para abrir sem internet no Boox, também previsto para o plano 003.
 - Modo e-ink e ferramentas de reorganização, previstos para o plano 004.
 - Conversa com o Claude, conectores MCP, comentários e autopublicação do código.
+
+## Resultado
+
+Plano concluído em 2026-11-08. As etapas 01, 02, 05 e 06 foram concluídas, e as etapas 03 e 04 foram descartadas antes de começar, pelos motivos da Mudança de escopo.
+
+O critério de conclusão continua sem marca, porque o trecho "com os quadros exportados do artefato" foi dispensado pelo autor; o restante foi verificado. A Prancheta, em `web/app/`, roda fora do claude.ai, entregue por um servidor local de arquivos estáticos que apenas entrega a página, e guarda e lê os dados no banco local, mesmo com esse servidor fora do ar. Os testes registram todos os pedidos do navegador e confirmam que nenhum sai da origem da página. A bateria `node --test web/testes/*.test.cjs`, com 20 testes, passa, assim como os testes da casca e da exportação e a conferência dos hashes do original.
