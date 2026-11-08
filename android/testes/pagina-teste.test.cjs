@@ -52,10 +52,12 @@ async function abrir() {
   // Ponte nativa simulada: registra o que a página envia à casca.
   await pagina.addInitScript(() => {
     window.__transformacoes = [];
+    window.__areas = [];
     window.__prontas = 0;
     window.Casca = {
       pronta: () => { window.__prontas += 1; },
       transformacao: (json) => { window.__transformacoes.push(JSON.parse(json)); },
+      areasReservadas: (json) => { window.__areas.push(JSON.parse(json)); },
     };
   });
   await pagina.goto(`${base}/pagina-teste.html`);
@@ -106,6 +108,19 @@ test('carrega só com arquivos locais e avisa a casca', async () => {
   assert.deepEqual(erros, []);
   await pagina.waitForFunction(() => window.__transformacoes.length >= 1);
   assert.deepEqual(await pagina.evaluate(() => window.__transformacoes.at(-1)), { x: 0, y: 0, k: 1 });
+  // A barra, com 52 px de altura no topo, é informada como área reservada.
+  assert.deepEqual(await pagina.evaluate(() => window.__areas.at(-1)), [{ x: 0, y: 0, largura: 800, altura: 52 }]);
+  await contexto.close();
+});
+
+test('a casca define a tinta ativa, e a área reservada acompanha o tamanho da tela', async () => {
+  const { contexto, pagina } = await abrir();
+  assert.equal(await pagina.evaluate(() => window.prancheta.tinta()), 'web');
+  await pagina.evaluate(() => window.prancheta.definirTinta('nativa'));
+  assert.equal(await pagina.evaluate(() => window.prancheta.tinta()), 'nativa');
+  assert.match(await pagina.textContent('#info'), /tinta nativa/);
+  await pagina.setViewportSize({ width: 600, height: 500 });
+  await pagina.waitForFunction(() => window.__areas.at(-1)?.[0]?.largura === 600);
   await contexto.close();
 });
 

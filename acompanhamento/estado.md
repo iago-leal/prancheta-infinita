@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-08
 fase: experimento da casca Android
 plano_ativo: acompanhamento/planos/001-casca-android/plano.md
-etapa_atual: acompanhamento/planos/001-casca-android/etapas/03-camada-onyx.md
+etapa_atual: acompanhamento/planos/001-casca-android/etapas/04-teste-no-boox.md
 bloqueios: []
 ---
 
@@ -25,11 +25,11 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 
 ## Em andamento
 
-Plano 001, experimento da casca Android. As etapas 01 e 02 estão concluídas, e a etapa 03 ainda não foi iniciada.
+Plano 001, experimento da casca Android. As etapas 01, 02 e 03 estão concluídas; falta a etapa 04, o teste no Boox.
 
 ## Próximo passo
 
-No início da próxima sessão, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe. Em seguida, iniciar a etapa 03, começando por descobrir de onde obter o SDK da Onyx: o `repo.boox.com` está bloqueado e só foi visto por HTTP, e o Boox E-Ink Draw depende de classes extraídas do aplicativo de notas.
+Definir com o autor como o APK chegará ao Boox e iniciar a etapa 04. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
@@ -40,11 +40,11 @@ No início da próxima sessão, confirmar que o script de configuração rodou, 
 
 ## Ambiente de nuvem
 
-Ambiente pessoal `prancheta-infinita`: rede limitada, com registros de pacotes, servidores MCP e o host `dl.google.com` liberados; nenhuma variável ou segredo. O script de configuração instala o Android SDK em `/opt/android-sdk` e, se a pasta `android/` existir no branch carregado, cria o `local.properties` e compila a casca.
+Ambiente pessoal `prancheta-infinita`: rede limitada, com registros de pacotes, servidores MCP e os hosts `dl.google.com` e `repo.boox.com` liberados; nenhuma variável ou segredo. O script de configuração instala o Android SDK em `/opt/android-sdk` e, se a pasta `android/` existir no branch carregado, cria o `local.properties` e compila a casca.
 
 ## Dúvidas em aberto
 
-- Como usar o SDK da Onyx sem copiar classes extraídas do aplicativo de notas da Boox?
 - A camada da Onyx funciona sobre uma WebView sem bloquear os toques dos dedos?
 - O salto entre o traço provisório do sistema e o traço final da Prancheta é tolerável?
 - Como o APK chegará ao Boox: release do GitHub, artefato de CI ou outro meio?
+- O que fazer quando o plugin Android 10 remover o Jetifier, se o SDK da Onyx ainda depender de bibliotecas anteriores ao AndroidX?

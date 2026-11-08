@@ -27,7 +27,7 @@ Verificar, no Boox Note Air4 C do autor, se uma casca Android que exibe a Pranch
 |---|---|---|
 | [01](etapas/01-ambiente-compilando-apk.md) | Ambiente de nuvem compilando um APK mínimo | concluida |
 | [02](etapas/02-webview-e-pagina-de-teste.md) | WebView com página de teste e ponte JavaScript | concluida |
-| [03](etapas/03-camada-onyx.md) | Camada de tinta da Onyx ligada à página | pendente |
+| [03](etapas/03-camada-onyx.md) | Camada de tinta da Onyx ligada à página | concluida |
 | [04](etapas/04-teste-no-boox.md) | Teste no Boox e decisão | pendente |
 
 ## Riscos

@@ -6,6 +6,32 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 03 concluída: camada de tinta da Onyx
+
+### Feito
+
+- Mesclado o PR #2 no `main`, a pedido do autor; o branch de trabalho recomeçou a partir dele.
+- Liberado o host `repo.boox.com` no ambiente, com aprovação do autor, e adicionado ao Gradle o SDK da Onyx: `onyxsdk-pen` 1.5.9, `onyxsdk-base` 1.8.10 e `onyxsdk-device` 1.3.7.
+- Concluída a etapa 03 do plano 001: a `CamadaOnyx` desenha com o `TouchHelper` sobre a WebView e entrega os traços à página; o `RoteadorDeToques` separa caneta e dedos e suspende a camada nos gestos de dois dedos; a `PranchetaApp` faz a inicialização que o SDK exige.
+- Criados seis testes JUnit para o roteador e um teste novo da página; a suíte da página tem agora cinco testes. Todos passam.
+
+### Decidido
+
+- **SDK pelo repositório Maven da Boox.** O autor escolheu essa opção. Ela resolveu a dúvida de licença: o SDK publicado já traz as classes nativas da caneta, que o Boox E-Ink Draw extraía do aparelho.
+- **Jetifier ligado.** É a forma de usar as bibliotecas antigas de que o SDK depende sem removê-las; fica o risco de o plugin Android 10 retirar a opção.
+- **Endereço padrão do Maven Central mantido.** Trocá-lo para contornar o 429 invalidou o cache e piorou o problema; as repetições configuradas no `gradle.properties`, somadas a uma nova tentativa manual, resolvem.
+
+### Pendências
+
+- Definir com o autor como o APK chegará ao Boox e executar a etapa 04.
+- Reduzir o APK, hoje com 21 MB, limitando as bibliotecas nativas às arquiteturas ARM.
+
+### Referências
+
+- Etapa 03: `acompanhamento/planos/001-casca-android/etapas/03-camada-onyx.md`
+- PR #2, mesclado: https://github.com/iago-leal/prancheta-infinita/pull/2
+- Repositório Maven da Boox: https://repo.boox.com/repository/maven-public/
+
 ## 2026-11-08 · Etapa 02 concluída: WebView, página de teste e ponte
 
 ### Feito
