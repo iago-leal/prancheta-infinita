@@ -17,7 +17,7 @@ data class Tinta(val marcaTexto: Boolean, val cor: Int, val larguraCss: Float) {
      * normal, mas não aceita uma cor mais escura para compensar: na casca 0.3.2,
      * que escurecia a cor da caneta em 0,65, o vermelho continuou vermelho e o
      * verde saiu preto. Ao que parece, o modo rápido só acende ou apaga cada
-     * canal de cor, com o limite entre os 90 do verde escurecido e os 128 do
+     * canal de cor, com o limite entre os 90 do verde escurecido e os 136 do
      * vermelho escurecido, numa escala até 255; assim, o tom do traço provisório
      * não pode ser ajustado, e a cor vai sem mudança.
      */
