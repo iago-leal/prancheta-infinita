@@ -3,7 +3,7 @@ tipo: etapa
 plano: "002"
 etapa: "04"
 titulo: Cliente de compatibilidade e Prancheta rodando fora do claude.ai
-status: pendente
+status: descartada
 depende_de: ["03"]
 iniciada_em:
 concluida_em:
@@ -29,5 +29,8 @@ Criar o `window.claude.use(nome)` que a página carrega antes do código do arte
 ### 2026-11-08
 
 - Decisão do autor: a Prancheta independente começa com o banco limpo. O critério "Os quadros importados na etapa 03 abrem e mostram o mesmo número de itens que tinham no artefato." fica dispensado pelo autor e não será marcado.
+- Etapa descartada antes de começar: o autor decidiu usar a Prancheta sem internet no Boox. Os dados passam a ficar num banco local no próprio aparelho, em IndexedDB dentro da página, e a VPS vira o destino da sincronização, no plano 003. A etapa 06, cliente de compatibilidade e Prancheta sem internet, a substitui, com critérios ligados ao banco local em vez do servidor.
 
 ## Resultado
+
+Etapa descartada por decisão do autor, sem nenhum critério verificado; o motivo está no Registro.
