@@ -26,4 +26,12 @@ Sobrepor à WebView a camada de tinta da Onyx, de modo que a caneta desenhe com 
 
 ## Registro
 
+### 2026-11-08
+
+Descobertas feitas durante a etapa 01, ao consultar o Boox E-Ink Draw, que usa o SDK da Onyx no Note Air4 C:
+
+- O projeto usa as bibliotecas `onyxsdk-base` 1.8.4, `onyxsdk-pen` 1.5.2 e `onyxsdk-device` 1.3.3 como arquivos `.aar` locais em `app/libs/`, além de RxJava 1 e 2 e da `hiddenapibypass` 4.3.
+- Ele também inclui um `.jar` com classes nativas da caneta extraídas do aplicativo de notas do próprio aparelho, porque faltam no `onyxsdk-pen` publicado. Copiar esse arquivo levanta dúvidas de licença; a alternativa precisa ser estudada antes de usá-lo.
+- O repositório Maven da Boox é acessado por HTTP sem criptografia, em `repo.boox.com`. Pela rede do ambiente, `repo.boox.com` e `jitpack.io` estão bloqueados hoje, e o acesso por HTTP pode não passar pelo proxy.
+
 ## Resultado

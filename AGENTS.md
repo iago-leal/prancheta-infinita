@@ -27,4 +27,6 @@ O andamento do projeto fica em `acompanhamento/`. Os modelos de arquivo e os pas
 
 ## Comandos
 
-Ainda não há código. À medida que surgirem, registre aqui os comandos de instalação, compilação e teste.
+- Compilar a casca Android: `cd android && ./gradlew assembleDebug`. O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`.
+- O Android SDK fica em `/opt/android-sdk`, instalado pelo script de configuração do ambiente. Se `android/local.properties` não existir, crie-o com `echo "sdk.dir=/opt/android-sdk" > android/local.properties`.
+- O Maven Central às vezes responde 429, excesso de requisições; nesse caso, repita a compilação.

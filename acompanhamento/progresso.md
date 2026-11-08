@@ -6,6 +6,30 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 01 concluída: ambiente compilando a casca Android
+
+### Feito
+
+- Concluída a etapa 01 do plano 001: há um projeto Android mínimo em `android/`, que compila com `./gradlew assembleDebug`. Os detalhes estão no Registro da etapa.
+- Liberado o host `dl.google.com` no ambiente `prancheta-infinita`, com aprovação do autor.
+- Salvo no ambiente, com aprovação do autor, o script de configuração que instala o Android SDK e faz a compilação inicial, depois de testado do zero nesta sessão.
+- Registrados no `AGENTS.md` os comandos de compilação.
+
+### Decidido
+
+- **Plugin Android 9.5.1 com Kotlin embutido e Gradle 9.9.0.** São as versões estáveis mais recentes e compilaram na primeira tentativa; começar nelas evita uma migração logo adiante.
+- **Caminho do SDK no `local.properties`.** Gravar `ANDROID_HOME` no perfil do shell foi barrado pelo sistema de permissões; por isso, o script cria o arquivo, que fica fora do Git.
+
+### Pendências
+
+- Confirmar, no início da próxima sessão, que o script de configuração rodou no contêiner novo.
+- Estudar como obter as classes do SDK da Onyx sem copiar o `.jar` extraído pelo Boox E-Ink Draw, conforme o Registro da etapa 03.
+
+### Referências
+
+- Etapa 01: `acompanhamento/planos/001-casca-android/etapas/01-ambiente-compilando-apk.md`
+- PR #1: https://github.com/iago-leal/prancheta-infinita/pull/1
+
 ## 2026-11-07 · Ambiente, brainstorm e estrutura de acompanhamento
 
 ### Feito
