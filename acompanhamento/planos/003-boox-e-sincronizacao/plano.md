@@ -30,7 +30,7 @@ O plano 002 deixou a Prancheta funcionando sem internet no navegador, mas o uso 
 | [03](etapas/03-servidor-de-sincronizacao.md) | Servidor de sincronização | pendente |
 | [04](etapas/04-sincronizacao-no-banco-local.md) | Sincronização no banco local | pendente |
 | [05](etapas/05-publicacao-na-vps.md) | Publicação na VPS e acesso protegido | pendente |
-| [06](etapas/06-atualizacao-pelo-aplicativo.md) | Atualização da casca pelo próprio aplicativo | em_andamento |
+| [06](etapas/06-atualizacao-pelo-aplicativo.md) | Atualização da casca pelo próprio aplicativo | concluida |
 
 As etapas 01 e 02 tratam do Boox, e as etapas 03 a 05, da sincronização; as duas frentes podem avançar em paralelo, mas a etapa 05 só fecha com a casca sincronizando.
 

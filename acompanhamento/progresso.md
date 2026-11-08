@@ -15,8 +15,11 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 
 ### Pendências
 
-- O autor confirmar que os quadros continuaram depois da atualização e que a Prancheta abre sem internet.
 - O autor testar o traço na 0.3.1 e enviar um vídeo com traços de pressão leve, média e forte.
+
+### Concluído depois
+
+- O autor confirmou que os quadros continuaram depois da atualização e que a Prancheta abre sem internet; a etapa 06 do plano 003 foi concluída.
 
 ## 2026-11-08 · Primeira publicação pelo GitHub e casca 0.3.1
 
