@@ -52,4 +52,10 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 - O traço provisório sai mais claro: contraste com o fundo de cerca de 58 níveis antes da troca e de 89 depois, como o autor observou, com o verde ficando mais escuro na atualização. O modo rápido da tela colorida mostra as cores mais pálidas.
 - Versão 0.3.2, código 6: a cor da caneta vai escurecida para a camada da Onyx, multiplicada por 0,65, a proporção inversa do contraste medido, por `Tinta.AJUSTE_DE_COR`; o marca-texto segue com a cor original. Um teste JUnit novo cobre a cor da camada; são 23 ao todo.
 
+### 2026-11-08, versão 0.3.2 no Boox
+
+- O autor atualizou para a 0.3.2 e relatou que o traço provisório da caneta verde passou a sair preto e só fica verde na atualização da tela; o vermelho continuou vermelho, e só o verde escureceu.
+- Interpretação: o modo rápido da tela colorida parece só acender ou apagar cada canal de cor, sem tons intermediários. O verde da caneta, `#2E8B57`, escurecido em 0,65, fica com o canal verde em 90 numa escala até 255 e se apaga por inteiro; o vermelho escurecido fica com o canal vermelho em 128 e continua aceso. O limite estaria entre esses dois valores, e o tom do traço provisório não pode ser ajustado pela cor enviada à camada: escurecer só faz a cor virar preto.
+- Versão 0.3.3, código 7: a camada da Onyx volta a receber a cor da página sem mudança, como na 0.3.1, em que o verde provisório saía mais claro, mas verde. O teste da cor da camada passou a conferir que ela é igual à da página; seguem 23 testes JUnit.
+
 ## Resultado

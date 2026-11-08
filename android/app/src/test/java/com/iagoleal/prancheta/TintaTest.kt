@@ -45,15 +45,13 @@ class TintaTest {
     }
 
     @Test
-    fun `a caneta vai mais escura para a camada, e o marca-texto não`() {
+    fun `a camada usa a cor da página, sem escurecer`() {
+        // Escurecido, o verde saía preto no modo rápido da tela colorida, na casca 0.3.2.
         val verde = Tinta.lerCor("#2E8B57")!!
         val caneta = Tinta(marcaTexto = false, cor = verde, larguraCss = 3f)
         val marca = Tinta(marcaTexto = true, cor = verde, larguraCss = 20f)
-        assertEquals(Tinta.escurecer(verde, Tinta.AJUSTE_DE_COR), caneta.corDaCamada())
+        assertEquals(verde, caneta.corDaCamada())
         assertEquals(verde, marca.corDaCamada())
-        // 0x2E, 0x8B e 0x57 vezes 0,65 dão 0x1D, 0x5A e 0x38, com a opacidade mantida.
-        assertEquals(0xFF1D5A38.toInt(), Tinta.escurecer(verde, 0.65f))
-        assertEquals(Tinta.PRETO, Tinta.escurecer(Tinta.PRETO, 0.65f))
     }
 
     @Test
