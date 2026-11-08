@@ -33,11 +33,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 003, Prancheta no Boox e sincronização com a VPS: a etapa 01 está concluída, com a Prancheta real na casca. As etapas 02, traço sensível à pressão, e 06, atualização pelo próprio aplicativo, estão em andamento, com a casca 0.3.0 entregue ao autor para o teste. Faltam o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
+Plano 003, Prancheta no Boox e sincronização com a VPS: a etapa 01 está concluída, com a Prancheta real na casca. A etapa 06 está concluída: as versões da casca chegam ao Boox pela atualização dentro do aplicativo. A etapa 02, traço sensível à pressão, está em andamento, com a casca 0.3.1. Faltam o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
 
 ## Próximo passo
 
-Mesclar a versão 0.3.1 da casca, que corrige a troca do traço provisório e a linha fantasma, e o autor recebê-la pela atualização dentro do aplicativo, o primeiro teste da etapa 06; depois, medir os traços de pressão leve, média e forte para a etapa 02. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor testar no Boox a versão 0.3.1: a troca do traço provisório, a linha fantasma e a medição dos traços de pressão leve, média e forte, para a etapa 02. As etapas 03 a 05, da sincronização, podem começar em paralelo. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

@@ -3,10 +3,10 @@ tipo: etapa
 plano: "003"
 etapa: "06"
 titulo: Atualização da casca pelo próprio aplicativo
-status: em_andamento
+status: concluida
 depende_de: ["01"]
 iniciada_em: 2026-11-08
-concluida_em:
+concluida_em: 2026-11-08
 ---
 
 # Etapa 06: atualização da casca pelo próprio aplicativo
@@ -18,11 +18,11 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 ## Critérios de conclusão
 
 - [x] A cada envio à `main` que mude a casca ou a Prancheta, o GitHub testa e compila o APK, assinado com a mesma chave das versões instaladas, e o publica como versão do repositório, sem substituir uma versão já publicada.
-- [ ] Ao abrir com internet, a casca consulta a última versão e, se houver uma mais nova, oferece atualizar; sem internet, abre normalmente, sem atraso nem erro.
-- [ ] A atualização é baixada e instalada por dentro do aplicativo, com a confirmação do Android, e mantém os quadros do aparelho.
+- [x] Ao abrir com internet, a casca consulta a última versão e, se houver uma mais nova, oferece atualizar; sem internet, abre normalmente, sem atraso nem erro.
+- [x] A atualização é baixada e instalada por dentro do aplicativo, com a confirmação do Android, e mantém os quadros do aparelho.
 - [x] A casca só baixa APKs anexados às versões deste repositório.
 - [x] Testes JUnit cobrem a leitura da versão publicada e a decisão de atualizar.
-- [ ] O autor atualiza o aplicativo no Boox por dentro dele, sem receber o APK por outro meio.
+- [x] O autor atualiza o aplicativo no Boox por dentro dele, sem receber o APK por outro meio.
 
 ## Registro
 
@@ -46,4 +46,20 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 - A pedido do autor, que perguntou como saber se a atualização entrou, a casca passou a avisar, na primeira abertura de cada versão nova, "Prancheta atualizada para a versão X.", guardando nas preferências do aplicativo o último `versionCode` aberto. Como a 0.3.0 não guardava nada, a primeira abertura da 0.3.1 mostra "Prancheta na versão 0.3.1.". Um teste JUnit novo cobre a mensagem; são 22 ao todo.
 - O intervalo mínimo entre consultas de versão nova caiu de 6 horas para 30 minutos, para que uma correção chegue ao autor no mesmo dia; a consulta é um único pedido à API do GitHub.
 
+### 2026-11-08, primeira atualização pelo aplicativo
+
+- Mesclado o PR #13, o fluxo publicou a versão `casca-5`, Casca 0.3.1, com `versionCode` 5 e a mesma assinatura das versões instaladas, conferida com `apksigner` no APK baixado da versão.
+- O autor abriu a Prancheta com internet no Boox, recebeu a oferta da versão nova, atualizou por dentro do aplicativo e viu a mensagem da versão 0.3.1 ao abrir de novo, sem receber o APK por outro meio.
+- Faltam a confirmação de que os quadros continuaram no aparelho depois da atualização e de que, sem internet, a Prancheta abre normalmente, para os critérios 2 e 3.
+- O autor confirmou que os quadros continuaram depois da atualização e que a Prancheta abre sem internet.
+
 ## Resultado
+
+Etapa concluída. Verificação de cada critério:
+
+1. O envio do PR #12 à `main` fez o fluxo `.github/workflows/casca.yml` testar, compilar e publicar a versão `casca-4`, e o do PR #13, a `casca-5`; os APKs baixados das versões têm a mesma assinatura das versões instaladas, conferida com `apksigner`. Disparado de novo sem mudar o `versionCode`, o fluxo terminou com sucesso e deixou a `casca-4` intacta.
+2. O autor abriu a Prancheta com internet e recebeu a oferta da versão 0.3.1, e confirmou que, sem internet, ela abre normalmente.
+3. O autor atualizou por dentro do aplicativo, com a confirmação do Android, viu a mensagem da versão 0.3.1 ao abrir de novo e confirmou que os quadros continuaram no aparelho.
+4. A classe `Atualizacao` só aceita anexos de `https://github.com/iago-leal/prancheta-infinita/releases/download/`, coberta pelo teste "só aceita APK anexado a este repositório".
+5. `AtualizacaoTest` cobre a leitura da versão publicada, inclusive com a resposta real da API do GitHub, a decisão de atualizar e a mensagem da versão nova; os testes acusam as mutações introduzidas.
+6. O autor recebeu a versão 0.3.1 no Boox pela atualização dentro do aplicativo, sem receber o APK por outro meio.
