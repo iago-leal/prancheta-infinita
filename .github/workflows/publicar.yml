@@ -1,5 +1,5 @@
-# Leva cada versão da main à VPS. As sessões na nuvem saem por um proxy web e
-# não alcançam SSH, por isso a conexão parte do GitHub.
+# Leva cada versão da main à VPS. As sessões na nuvem saem por um proxy web, que
+# não prevê SSH, por isso a conexão parte do GitHub.
 #
 # O repositório é público, e os registros das execuções também: o endereço e a
 # chave ficam em segredos, e a VPS só aceita esta chave para uma ação fixa.
@@ -9,7 +9,7 @@ name: Publicar na VPS
 
 on:
   push:
-    branches: [main, claude/canal-publicacao-vps]
+    branches: [main]
   workflow_dispatch:
 
 permissions: {}
