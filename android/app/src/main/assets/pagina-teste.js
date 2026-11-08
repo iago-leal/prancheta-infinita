@@ -6,7 +6,8 @@
 // A página chama window.Casca.pronta() ao carregar,
 // window.Casca.transformacao(json) quando a vista muda e
 // window.Casca.areasReservadas(json) com as áreas, como a barra, em que a
-// caneta não deve desenhar pela camada nativa. A casca chama
+// caneta não deve desenhar pela camada nativa, e window.Casca.redesenharTela()
+// quando apaga traços, para a casca limpar a tela inteira. A casca chama
 // window.prancheta.receberTraco(pontos) e window.prancheta.definirTinta(modo).
 
 import { getStroke } from './vendor/perfect-freehand/index.js';
@@ -215,6 +216,9 @@ function limpar() {
   tracoAtual = null;
   mundo.replaceChildren();
   atualizarInfo();
+  // No Boox, os traços provisórios do controlador da tela continuam visíveis
+  // até a casca redesenhar a tela inteira.
+  window.Casca?.redesenharTela?.();
 }
 
 function reiniciarVista() {

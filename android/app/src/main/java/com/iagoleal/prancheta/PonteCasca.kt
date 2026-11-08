@@ -24,6 +24,7 @@ class PonteCasca(private val webView: WebView) {
         fun aoMudarTransformacao(transformacao: Transformacao) {}
         fun aoMudarAreasReservadas(areas: List<Retangulo>) {}
         fun aoDesenharTraco() {}
+        fun aoPedirRedesenho() {}
     }
 
     var ouvinte: Ouvinte? = null
@@ -67,6 +68,12 @@ class PonteCasca(private val webView: WebView) {
             Retangulo(x, y, x + (o.getDouble("largura") * d).toFloat(), y + (o.getDouble("altura") * d).toFloat())
         }
         webView.post { ouvinte?.aoMudarAreasReservadas(areas) }
+    }
+
+    /** A página pede que a tela inteira seja redesenhada, por exemplo depois de apagar traços. */
+    @JavascriptInterface
+    fun redesenharTela() {
+        webView.post { ouvinte?.aoPedirRedesenho() }
     }
 
     /** Informa à página se a tinta vem da camada da Onyx, "nativa", ou dela mesma, "web". */
