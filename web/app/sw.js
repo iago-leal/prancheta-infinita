@@ -10,10 +10,12 @@
 
 importScripts('compat/banco-local.js');
 
-const VERSAO = 'prancheta-app-3';
+const VERSAO = 'prancheta-app-4';
 const ARQUIVOS = [
   'index.html',
   'compat/banco-local.js',
+  'compat/combinar.js',
+  'compat/sincronizacao.js',
   'compat/claude.js',
   'compat/casca.js',
   'compat/traco-onyx.js',

@@ -517,3 +517,137 @@ test('os dados sobrevivem a fechar e reabrir o navegador', async () => {
     fs.rmSync(pasta, { recursive: true, force: true });
   }
 });
+
+// ---- Operações da sincronização, etapa 04 do plano 003 ----
+
+const OUTRO_APARELHO = 'bbbbbbbbbbbbbbbb';
+
+test('a gravação da página combina com uma mudança do servidor que ela ainda não viu', async () => {
+  const contexto = await navegador.newContext();
+  const { pagina, erros } = await abrirPagina(contexto);
+  const r = await pagina.evaluate(async (outro) => {
+    const caminho = 'canvas-shards/a-1';
+    const doc = banco.doc(caminho);
+    await doc.set({ items: [{ id: 'c1', t: 'um' }], rev: 'p1', by: 'a' });
+    const [m] = await banco.mudancas();
+    await banco._confirmarEnvio(caminho, m.seq, 1, await banco._ler(caminho));
+    const podado = (await banco.mudancas()).length;
+    // Outro aparelho acrescentou c2, e a sincronização aplica a versão do servidor.
+    const atual = await banco._ler(caminho);
+    const estado = await banco._aplicarDoServidor({
+      ...atual, dados: { items: [{ id: 'c1', t: 'um' }, { id: 'c2', t: 'dois' }], rev: 'r2', by: 'b' },
+      versao: 2, atualizadoEm: Date.now(), dispositivo: outro,
+    }, 2);
+    // A página, que ainda não aplicou c2, grava a cópia dela, com c1 editado.
+    await doc.set({ items: [{ id: 'c1', t: 'um, editado' }], rev: 'p2', by: 'a' });
+    const combinado = (await doc.get()).data();
+    // Depois de aplicar o resultado, a página grava de novo: nada mais a combinar.
+    await doc.set({ items: [{ id: 'c1', t: 'um, editado' }, { id: 'c2', t: 'dois' }, { id: 'c3', t: 'três' }], rev: 'p3', by: 'a' });
+    const seguinte = (await doc.get()).data();
+    return { podado, estado, combinado, seguinte };
+  }, OUTRO_APARELHO);
+  assert.equal(r.podado, 0);
+  assert.equal(r.estado, 'aplicada');
+  assert.deepEqual(r.combinado.items, [{ id: 'c1', t: 'um, editado' }, { id: 'c2', t: 'dois' }]);
+  // O rev novo faz a página aplicar o resultado em vez de tomá-lo pela própria gravação.
+  assert.notEqual(r.combinado.rev, 'p2');
+  assert.deepEqual(r.seguinte, { items: [{ id: 'c1', t: 'um, editado' }, { id: 'c2', t: 'dois' }, { id: 'c3', t: 'três' }], rev: 'p3', by: 'a' });
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('uma versão do servidor, com mudanças locais pendentes, é combinada item a item e fica pendente', async () => {
+  const contexto = await navegador.newContext();
+  const { pagina, erros } = await abrirPagina(contexto);
+  const r = await pagina.evaluate(async (outro) => {
+    const caminho = 'canvas-shards/a-1';
+    const doc = banco.doc(caminho);
+    await doc.set({ items: [{ id: 'c1', t: 'um' }], rev: 'p1', by: 'a' });
+    const [m] = await banco.mudancas();
+    await banco._confirmarEnvio(caminho, m.seq, 1, await banco._ler(caminho));
+    // Aqui, c3 entra sem rede; no outro aparelho, c2 entra e c1 é editado, antes.
+    await doc.set({ items: [{ id: 'c1', t: 'um' }, { id: 'c3', t: 'três' }], rev: 'p2', by: 'a' });
+    const remoto = {
+      caminho, dados: { items: [{ id: 'c1', t: 'um, revisto' }, { id: 'c2', t: 'dois' }], rev: 'r2', by: 'b' },
+      apagado: false, versao: 2, atualizadoEm: Date.now() - 60000, dispositivo: outro,
+    };
+    const estado = await banco._aplicarDoServidor(remoto, 2);
+    const combinado = await banco._ler(caminho);
+    const base = await banco._lerMeta(`base:${caminho}`);
+    const pendentes = await banco._pendentes();
+    const repetido = await banco._aplicarDoServidor(remoto, 2);
+    // O servidor devolve o próprio resultado combinado: nada mais fica pendente.
+    const final = await banco._aplicarDoServidor({ ...combinado, versao: combinado.versao, atualizadoEm: Date.now() }, 3);
+    return {
+      estado, combinado, base, repetido, final,
+      pendentes: { documentos: [...pendentes.documentos.keys()], arquivos: pendentes.arquivos.size },
+      restantes: (await banco.mudancas()).length,
+    };
+  }, OUTRO_APARELHO);
+  assert.equal(r.estado, 'combinada');
+  assert.deepEqual(r.combinado.dados.items.map((it) => it.id), ['c1', 'c3', 'c2']);
+  assert.equal(r.combinado.dados.items[0].t, 'um, revisto');
+  assert.equal(r.combinado.dispositivo, await pagina.evaluate(() => banco.dispositivo));
+  assert.equal(r.combinado.versao, 3);
+  assert.equal(r.base.pos, 2);
+  assert.deepEqual(r.pendentes, { documentos: ['canvas-shards/a-1'], arquivos: 0 });
+  assert.equal(r.repetido, 'conhecida');
+  assert.equal(r.final, 'aplicada');
+  assert.equal(r.restantes, 0);
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('confirmar um envio poda só as mudanças que ele inclui', async () => {
+  const contexto = await navegador.newContext();
+  const { pagina, erros } = await abrirPagina(contexto);
+  const r = await pagina.evaluate(async () => {
+    await banco.doc('a/1').set({ v: 1 });
+    await banco.doc('b/1').set({ v: 1 });
+    const { id } = await banco.guardarArquivo(new Blob(['x'], { type: 'text/plain' }));
+    await banco.doc('a/1').set({ v: 2 });
+    const antes = await banco._pendentes();
+    const seqDeA = antes.documentos.get('a/1');
+    // O servidor confirma a primeira versão de a/1, enviada antes da segunda.
+    const primeira = (await banco.mudancas()).find((m) => m.caminho === 'a/1');
+    await banco._confirmarEnvio('a/1', primeira.seq, 1, { dados: { v: 1 }, apagado: false });
+    const meio = (await banco.mudancas()).map((m) => m.caminho);
+    await banco._confirmarEnvio('a/1', seqDeA, 4, { dados: { v: 2 }, apagado: false });
+    await banco._confirmarArquivo(id, antes.arquivos.get(id));
+    return {
+      antes: { documentos: Object.fromEntries(antes.documentos), arquivos: [...antes.arquivos.keys()] },
+      id, meio, fim: (await banco.mudancas()).map((m) => m.caminho), base: await banco._lerMeta('base:a/1'),
+    };
+  });
+  assert.deepEqual(Object.keys(r.antes.documentos).sort(), ['a/1', 'b/1']);
+  assert.deepEqual(r.antes.arquivos, [r.id]);
+  assert.deepEqual(r.meio, ['b/1', `_arquivos/${r.id}`, 'a/1']);
+  assert.deepEqual(r.fim, ['b/1']);
+  assert.deepEqual({ pos: r.base.pos, dados: r.base.dados }, { pos: 4, dados: { v: 2 } });
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('uma versão de outro aparelho com o mesmo número de versão avisa as assinaturas', async () => {
+  const contexto = await navegador.newContext();
+  const { pagina, erros } = await abrirPagina(contexto);
+  await instalarRegistro(pagina);
+  await pagina.evaluate(async (outro) => {
+    const caminho = 'notas/n1';
+    await banco.doc(caminho).set({ texto: 'daqui' });
+    const [m] = await banco.mudancas();
+    await banco._confirmarEnvio(caminho, m.seq, 1, await banco._ler(caminho));
+    banco.doc(caminho).onSnapshot((s) => eventos.push(resumirDocumento(s)));
+    banco.collection('notas').onSnapshot((s) => eventos.push(resumirColecao(s)));
+    await new Promise((pronto) => setTimeout(pronto, 100));
+    // Também versão 1, gravada no outro aparelho e recebida do servidor.
+    await banco._aplicarDoServidor({ caminho, dados: { texto: 'de lá' }, apagado: false, versao: 1, atualizadoEm: Date.now(), dispositivo: outro }, 2);
+  }, OUTRO_APARELHO);
+  await esperar(pagina, () => eventos.length >= 4);
+  const eventos = await pagina.evaluate(() => eventos);
+  assert.deepEqual(eventos.filter((e) => e.data && e.data.texto).map((e) => e.data.texto), ['daqui', 'de lá']);
+  const modificada = eventos.find((e) => e.changes && e.changes.some((c) => c.type === 'modified'));
+  assert.deepEqual(modificada.changes[0].data, { texto: 'de lá' });
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});

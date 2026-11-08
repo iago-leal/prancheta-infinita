@@ -23,6 +23,12 @@ Todo pedido leva `Authorization: Bearer <chave>`. Sem ela, ou com outra, o servi
 
 A única exceção é a consulta prévia que o navegador faz antes de um pedido com a chave vindo de outra origem, como a página da casca Android: ela não traz a chave nem recebe dados, e só é respondida, com 204 e o corpo vazio, para as origens de `PRANCHETA_ORIGENS`; para as demais, também é 401.
 
+## Aparelhos
+
+Em cada aparelho, a Prancheta recebe o endereço do servidor e a chave uma única vez, pelo botão "Sincronizar", ao lado do indicador "Salvo", e os guarda no banco local, fora do código. A partir daí, ela sincroniza sozinha sempre que há rede, pelo módulo `web/app/compat/sincronizacao.js`, e o botão mostra a situação: "Sincronizado", "Sincronizando…", "Sem rede" ou "Erro ao sincronizar". O endereço é a raiz do servidor, sem `/sync`.
+
+A página da Prancheta precisa ter a origem aceita pelo servidor: a da casca Android já vem no padrão; no navegador do computador, a Prancheta servida pelo mesmo endereço do servidor não precisa de nada, e servida de outro endereço precisa entrar em `PRANCHETA_ORIGENS`.
+
 ## Rotas
 
 ### `GET /sync/estado`

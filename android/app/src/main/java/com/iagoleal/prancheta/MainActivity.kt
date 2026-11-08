@@ -141,6 +141,7 @@ class MainActivity : Activity() {
 
     override fun dispatchTouchEvent(evento: MotionEvent): Boolean {
         val camadaAtiva = camada ?: return super.dispatchTouchEvent(evento)
+        if (ehCaneta(evento)) camadaAtiva.sinalDaCaneta(evento.eventTime)
         return when (roteador.rotear(evento)) {
             Destino.CAMADA_ONYX -> {
                 camadaAtiva.onTouchEvent(evento)
@@ -151,15 +152,20 @@ class MainActivity : Activity() {
         }
     }
 
-    // A caneta pairando chega como evento genérico; o roteador usa esse sinal
-    // para reconhecer a palma apoiada enquanto se escreve.
+    // A caneta pairando chega como evento genérico. O roteador usa esse sinal
+    // para reconhecer a palma apoiada enquanto se escreve, e a camada, para
+    // trocar o traço provisório só com a caneta afastada.
     override fun dispatchGenericMotionEvent(evento: MotionEvent): Boolean {
-        val ehCaneta = (0 until evento.pointerCount).any {
-            val tipo = evento.getToolType(it)
-            tipo == MotionEvent.TOOL_TYPE_STYLUS || tipo == MotionEvent.TOOL_TYPE_ERASER
+        if (ehCaneta(evento)) {
+            roteador.registrarCanetaPerto(evento.eventTime)
+            camada?.sinalDaCaneta(evento.eventTime)
         }
-        if (ehCaneta) roteador.registrarCanetaPerto(evento.eventTime)
         return super.dispatchGenericMotionEvent(evento)
+    }
+
+    private fun ehCaneta(evento: MotionEvent) = (0 until evento.pointerCount).any {
+        val tipo = evento.getToolType(it)
+        tipo == MotionEvent.TOOL_TYPE_STYLUS || tipo == MotionEvent.TOOL_TYPE_ERASER
     }
 
     override fun onResume() {
