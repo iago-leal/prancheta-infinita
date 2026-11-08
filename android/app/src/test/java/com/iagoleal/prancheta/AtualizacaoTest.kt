@@ -29,6 +29,15 @@ class AtualizacaoTest {
     }
 
     @Test
+    fun `lê a resposta real da API do GitHub para a versão casca-4`() {
+        val json = javaClass.getResource("/ultima-versao-casca-4.json")!!.readText()
+        assertEquals(
+            Atualizacao(4, "Casca 0.3.0", "https://github.com/iago-leal/prancheta-infinita/releases/download/casca-4/prancheta-casca-0.3.0.apk"),
+            Atualizacao.ler(json),
+        )
+    }
+
+    @Test
     fun `ignora versões que não são da casca ou não trazem APK`() {
         assertNull(Atualizacao.ler(resposta("v1.0")))
         assertNull(Atualizacao.ler(resposta("casca-5", anexo = "prancheta.zip")))

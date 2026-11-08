@@ -35,4 +35,11 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 - Testes: 4 JUnit da `Atualizacao`, que acusam as 3 mutações introduzidas.
 - A versão 0.3.0 é a última enviada ao autor à mão; as seguintes chegam pelo próprio aplicativo depois que o segredo for cadastrado e o fluxo publicar a primeira versão.
 
+### 2026-11-08, primeira publicação
+
+- O autor cadastrou o segredo `CASCA_CHAVE_BASE64`, e o PR #12 foi mesclado. O envio à `main` disparou o fluxo, que testou, compilou e publicou a versão `casca-4`, com o nome Casca 0.3.0 e o anexo `prancheta-casca-0.3.0.apk`, de 21.990.910 bytes e SHA-256 `d48a6ff75a145a4b2cbcc2ca75b08ce73cec515a61d983155f2cc1e9b5cc8b80`.
+- O APK publicado, baixado do endereço da versão, tem `versionCode` 4, `versionName` 0.3.0 e a mesma assinatura das versões instaladas, com certificado de SHA-256 `2293585a45487e21a0fd43c45278d84efbf9beee3ba0c7cfd81e73a85936748b`, conferida com `apksigner`.
+- A resposta real da API do GitHub para essa versão virou um teste JUnit, em `android/app/src/test/resources/ultima-versao-casca-4.json`, e a `Atualizacao` a lê corretamente; são 20 testes JUnit ao todo.
+- Para confirmar que uma versão publicada não é substituída, o fluxo foi disparado de novo na `main`, sem mudar o `versionCode`.
+
 ## Resultado
