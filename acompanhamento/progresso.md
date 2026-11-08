@@ -6,6 +6,17 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Casca 0.3.2: cor do traço provisório
+
+### Feito
+
+- Analisado o vídeo do autor com a 0.3.1: a troca do traço acontece cerca de 1 s depois de levantar a caneta, sem a tela piscar, a linha fantasma não apareceu, e a espessura antes e depois da troca difere menos de 2%.
+- O verde provisório saía mais claro que o definitivo; a 0.3.2 manda à camada da Onyx a cor da caneta escurecida em 0,65.
+
+### Pendências
+
+- Mesclar a 0.3.2, conferir a cor e medir traços de pressão leve, média e forte.
+
 ## 2026-11-08 · Primeira atualização da casca pelo próprio aplicativo
 
 ### Feito

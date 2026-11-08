@@ -44,4 +44,12 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 - Uma linha grossa e escura, que o autor viu aparecer e sumir na atualização da tela, não foi gravada pela Prancheta: depois da atualização, não sobra nem traço nem faixa de marca-texto. A causa provável é a casca reabrir a camada da Onyx a cada mudança das áreas reservadas, que acontece, por exemplo, quando o indicador "Salvando…"/"Salvo" muda de largura depois de cada traço; reabrir a camada, ou mudá-la durante um traço, pode fazer a Onyx perder o fim de um traço e ligá-lo ao seguinte.
 - Versão 0.3.1, código 5: as mudanças de áreas reservadas, cor, espessura e zoom passam a ser aplicadas sem reabrir a camada, por `setExcludeRect` e pelos ajustes de traço, e esperam o traço em andamento terminar; mudanças iguais às atuais são ignoradas. Depois de levantar a caneta, a casca desliga a camada por 100 ms e atualiza a região escrita no modo GU, para trocar o provisório pelo definitivo no tempo fixo, sem o piscar completo. O contorno definitivo é engrossado em 20%, por `Tinta.AJUSTE_DO_CONTORNO`, conforme a medição acima. Um teste JUnit novo cobre o ajuste; são 21 ao todo.
 
+### 2026-11-08, vídeo do autor com a versão 0.3.1
+
+- O autor recebeu a 0.3.1 pela atualização dentro do aplicativo e gravou o vídeo IMG_5256, de 16 s, com a caneta verde.
+- A troca do traço provisório pelo definitivo passou a acontecer cerca de 1 s depois de levantar a caneta, nos quatro traços do vídeo, sem o piscar da tela inteira. A linha fantasma não apareceu.
+- Medição do primeiro traço, nos quadros sem a mão: 7.744 pixels escuros antes da troca, aos 4,0 s, e 7.612 depois, aos 5,5 s, uma diferença menor que 2%; o ajuste de 20% no contorno igualou a espessura.
+- O traço provisório sai mais claro: contraste com o fundo de cerca de 58 níveis antes da troca e de 89 depois, como o autor observou, com o verde ficando mais escuro na atualização. O modo rápido da tela colorida mostra as cores mais pálidas.
+- Versão 0.3.2, código 6: a cor da caneta vai escurecida para a camada da Onyx, multiplicada por 0,65, a proporção inversa do contraste medido, por `Tinta.AJUSTE_DE_COR`; o marca-texto segue com a cor original. Um teste JUnit novo cobre a cor da camada; são 23 ao todo.
+
 ## Resultado

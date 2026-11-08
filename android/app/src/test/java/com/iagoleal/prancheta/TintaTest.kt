@@ -45,6 +45,18 @@ class TintaTest {
     }
 
     @Test
+    fun `a caneta vai mais escura para a camada, e o marca-texto não`() {
+        val verde = Tinta.lerCor("#2E8B57")!!
+        val caneta = Tinta(marcaTexto = false, cor = verde, larguraCss = 3f)
+        val marca = Tinta(marcaTexto = true, cor = verde, larguraCss = 20f)
+        assertEquals(Tinta.escurecer(verde, Tinta.AJUSTE_DE_COR), caneta.corDaCamada())
+        assertEquals(verde, marca.corDaCamada())
+        // 0x2E, 0x8B e 0x57 vezes 0,65 dão 0x1D, 0x5A e 0x38, com a opacidade mantida.
+        assertEquals(0xFF1D5A38.toInt(), Tinta.escurecer(verde, 0.65f))
+        assertEquals(Tinta.PRETO, Tinta.escurecer(Tinta.PRETO, 0.65f))
+    }
+
+    @Test
     fun `a espessura fica entre os limites aceitos pela camada`() {
         val fina = Tinta(marcaTexto = false, cor = Tinta.PRETO, larguraCss = 1f)
         val grossa = Tinta(marcaTexto = true, cor = Tinta.PRETO, larguraCss = 40f)
