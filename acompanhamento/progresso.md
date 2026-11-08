@@ -6,6 +6,31 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 05 do plano 002 concluída: banco local no navegador
+
+### Feito
+
+- Mesclado o PR #6 no `main`, a pedido do autor.
+- Criado `web/compat/banco-local.js`, o banco local em IndexedDB com documentos, coleções, assinaturas em tempo real, arquivos enviados e registro de mudanças, na forma que o código do artefato espera.
+- Criados 11 testes no Chromium, em `web/testes/banco-local.test.cjs`, que cobrem cada operação, os avisos entre abas, os arquivos sem rede e a persistência ao recarregar a página e ao fechar e reabrir o navegador. O servidor estático dos testes passou para `web/testes/apoio/servidor.cjs`.
+- Verificação por mutação: os testes acusam os 16 defeitos introduzidos no banco, depois de ganharem dois testes para os casos que tinham escapado.
+
+### Decidido
+
+- **Formato pronto para sincronizar.** Cada documento guarda versão, horário e aparelho; as exclusões deixam marca; e cada gravação entra num registro de mudanças, para que o plano 003 sincronize com a VPS sem mudar o formato dos dados.
+- **Erros com os códigos que o artefato trata.** A falta de espaço sai como `quota_exceeded` e as demais falhas como `unavailable`, porque um `invalid_argument` deixaria o quadro somente para leitura.
+
+### Pendências
+
+- Etapa 06: ligar o código do artefato ao banco local por `claude.use(...)`, entregar `/_blob/<id>` a partir do banco e servir a fonte e a `perfect-freehand` junto com a página.
+- Plano 003: podar o registro de mudanças depois de cada sincronização e não ordenar mudanças só pelo horário dos aparelhos.
+
+### Referências
+
+- Etapa 05: `acompanhamento/planos/002-prancheta-independente/etapas/05-banco-local.md`
+- Banco local: `web/compat/banco-local.js`
+- Testes: `web/testes/banco-local.test.cjs`
+
 ## 2026-11-08 · Plano 002 reestruturado: Prancheta sem internet
 
 ### Feito
