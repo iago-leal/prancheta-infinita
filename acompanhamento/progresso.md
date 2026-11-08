@@ -6,6 +6,21 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 03 do plano 003 concluída e casca 0.3.2 publicada
+
+### Feito
+
+- Mesclado o PR #15 no `main`, a pedido do autor, com a casca 0.3.2 e o servidor de sincronização; o GitHub publicou a versão `casca-6`, que a Prancheta passa a oferecer ao abrir com internet.
+- Concluída a etapa 03: marcado o critério 3, depois da decisão do autor, e escrito o Resultado, com o teste que verifica cada critério.
+
+### Decidido
+
+- **Consulta prévia do navegador aceita.** O autor aceitou que a consulta prévia, que não leva a chave, seja respondida com 204 e sem dados quando vem da origem da casca; qualquer outro pedido sem a chave recebe 401. Assim, a etapa 04 sincroniza pela própria página, sem um caminho nativo na casca.
+
+### Pendências
+
+- O autor atualizar para a 0.3.2, conferir a cor do traço provisório e medir traços de pressão leve, média e forte, para a etapa 02.
+
 ## 2026-11-08 · Etapa 03 do plano 003: servidor de sincronização
 
 ### Feito
