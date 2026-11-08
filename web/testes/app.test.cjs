@@ -97,7 +97,7 @@ const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2
 
 test('a página independente é o original com as mudanças listadas, cada uma com motivo', () => {
   assert.equal(fs.readFileSync(DESTINO, 'utf8'), montar(), 'web/app/index.html difere da montagem; rode node web/montagem/montar.cjs');
-  assert.equal(mudancas.length, 9);
+  assert.equal(mudancas.length, 10);
   for (const m of mudancas) assert.ok(m.motivo.length > 40, `motivo curto: ${m.motivo}`);
   // Os endereços externos que a página carregava não aparecem mais. Restam
   // citações a CDNs só nos desenhos por código e nas instruções da conversa,

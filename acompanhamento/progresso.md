@@ -6,6 +6,31 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapas 02 e 06 do plano 003: traço da Onyx e atualização pelo aplicativo
+
+### Feito
+
+- Mesclado o PR #11 no `main`, a pedido do autor, e iniciada a etapa 02 do plano 003.
+- A camada da Onyx passou a usar a caneta-tinteiro sensível à pressão, com a cor e a espessura escolhidas na Prancheta, e um tempo fixo de 600 ms para a troca pelo traço definitivo.
+- A casca calcula, com o motor de canetas da Onyx, a espessura de cada ponto do traço, e a Prancheta desenha o traço definitivo com ela, pelo novo `web/app/compat/traco-onyx.js`.
+- A pedido do autor, criada a etapa 06: o fluxo `.github/workflows/casca.yml` compila e publica cada versão da casca, e o `Atualizador` da casca oferece a atualização ao abrir e a instala por dentro do aplicativo.
+- Compilada a versão 0.3.0, a última enviada ao autor à mão.
+
+### Decidido
+
+- **Atualizações pelo GitHub, por enquanto.** As versões ficam nas versões do repositório, que funcionam sem configurar a VPS; a VPS pode guardá-las depois, na etapa 05.
+- **A mesma chave das versões instaladas.** O GitHub assina com a chave de depuração usada desde o plano 001, guardada num segredo, para que a atualização não exija desinstalar o aplicativo e apagar os quadros do Boox.
+
+### Pendências
+
+- O autor cadastrar o segredo `CASCA_CHAVE_BASE64` no GitHub.
+- O autor testar a versão 0.3.0 e enviar fotos dos traços para a medição da etapa 02.
+
+### Referências
+
+- Etapa 02: `acompanhamento/planos/003-boox-e-sincronizacao/etapas/02-traco-sensivel-a-pressao.md`
+- Etapa 06: `acompanhamento/planos/003-boox-e-sincronizacao/etapas/06-atualizacao-pelo-aplicativo.md`
+
 ## 2026-11-08 · Etapa 01 do plano 003 concluída: Prancheta real na casca
 
 ### Feito

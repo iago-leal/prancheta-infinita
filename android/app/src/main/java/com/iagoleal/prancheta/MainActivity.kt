@@ -43,6 +43,7 @@ class MainActivity : Activity() {
     private var camada: CamadaOnyx? = null
     private val roteador = RoteadorDeToques { suspensa -> camada?.suspender(suspensa) }
     private var escolhaDeArquivos: ValueCallback<Array<Uri>>? = null
+    private lateinit var atualizador: Atualizador
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,7 +89,7 @@ class MainActivity : Activity() {
 
         camada = CamadaOnyx.criar(
             alvo = webView,
-            aoTerminarTraco = { pontos -> ponte.enviarTraco(pontos) },
+            aoTerminarTraco = { pontos, contorno -> ponte.enviarTraco(pontos, contorno) },
             aoFalhar = { usarTintaWeb() },
         )
         ponte.ouvinte = object : PonteCasca.Ouvinte {
@@ -104,6 +105,10 @@ class MainActivity : Activity() {
             override fun aoMudarCaneta(escreve: Boolean) {
                 roteador.canetaEscreve = escreve
                 camada?.definirAtiva(escreve)
+            }
+
+            override fun aoMudarTinta(tinta: Tinta) {
+                camada?.definirTinta(tinta)
             }
 
             override fun aoDesenharTraco() {
@@ -122,6 +127,15 @@ class MainActivity : Activity() {
         Log.i(TAG, if (camada != null) "camada da Onyx ativa" else "sem camada da Onyx; tinta web")
 
         webView.loadUrl(PRANCHETA)
+
+        atualizador = Atualizador(this)
+        atualizador.tratarRetorno(intent)
+    }
+
+    // O instalador do Android devolve o andamento da atualização por um intent.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        atualizador.tratarRetorno(intent)
     }
 
     override fun dispatchTouchEvent(evento: MotionEvent): Boolean {
@@ -150,6 +164,8 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         camada?.retomar()
+        atualizador.aoVoltar()
+        atualizador.verificar()
     }
 
     override fun onPause() {

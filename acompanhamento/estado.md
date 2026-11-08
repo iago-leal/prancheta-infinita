@@ -28,15 +28,16 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - Traço sensível à pressão, por decisão do autor, com o traço provisório da Onyx e o definitivo da página na mesma forma, para que nada mude quando a tela do Boox se atualiza.
 - A Prancheta independente começa com o banco limpo: os dados do artefato não serão migrados, por decisão do autor.
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
+- Atualizações da casca pelo próprio aplicativo: o GitHub compila e publica cada versão, assinada com a chave das versões instaladas, e a casca oferece a atualização ao abrir com internet.
 - Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` chama a VPS a cada envio à `main`, com uma chave guardada nos segredos do repositório e restrita a uma ação fixa. Por enquanto, a ação só confirma o canal; publicar de fato entra no plano 003.
 
 ## Em andamento
 
-Plano 003, Prancheta no Boox e sincronização com a VPS: a etapa 01 está concluída, e a casca 0.2.0 já traz a Prancheta real, aprovada pelo autor no Boox. Faltam o traço sensível à pressão igual na Onyx e na página, o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
+Plano 003, Prancheta no Boox e sincronização com a VPS: a etapa 01 está concluída, com a Prancheta real na casca. As etapas 02, traço sensível à pressão, e 06, atualização pelo próprio aplicativo, estão em andamento, com a casca 0.3.0 entregue ao autor para o teste. Faltam o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
 
 ## Próximo passo
 
-Iniciar a etapa 02 do plano 003 quando o autor pedir: traço provisório da Onyx com a mesma forma e a mesma cor do definitivo, e tempo fixo de atualização depois de levantar a caneta. A etapa 03, o servidor de sincronização, também pode começar, porque não depende da 02. Os ícones selecionados, pouco legíveis no e-ink, ficam para o modo e-ink do plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor instalar a casca 0.3.0, testar o traço e enviar fotos dos traços antes e depois da atualização da tela, para a medição da etapa 02; e cadastrar no GitHub o segredo `CASCA_CHAVE_BASE64`, para que as próximas versões cheguem pelo próprio aplicativo. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
@@ -51,7 +52,6 @@ Ambiente pessoal `prancheta-infinita`: rede limitada, com registros de pacotes, 
 
 ## Dúvidas em aberto
 
-- Como distribuir as próximas versões do APK: release do GitHub, artefato de CI ou o aplicativo do Claude, como até agora?
 - O que fazer quando o plugin Android 10 remover o Jetifier, se o SDK da Onyx ainda depender de bibliotecas anteriores ao AndroidX?
 - O APK tem 21 MB por trazer bibliotecas nativas de cinco arquiteturas; vale restringi-lo às arquiteturas ARM?
 - Qual será o endereço da Prancheta na VPS, e que servidor web com HTTPS já atende lá? A etapa 05 do plano 003 depende disso.

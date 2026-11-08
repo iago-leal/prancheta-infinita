@@ -26,12 +26,17 @@ O plano 002 deixou a Prancheta funcionando sem internet no navegador, mas o uso 
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-prancheta-na-casca.md) | Prancheta real dentro da casca | concluida |
-| [02](etapas/02-traco-sensivel-a-pressao.md) | Traço sensível à pressão igual na Onyx e na página | pendente |
+| [02](etapas/02-traco-sensivel-a-pressao.md) | Traço sensível à pressão igual na Onyx e na página | em_andamento |
 | [03](etapas/03-servidor-de-sincronizacao.md) | Servidor de sincronização | pendente |
 | [04](etapas/04-sincronizacao-no-banco-local.md) | Sincronização no banco local | pendente |
 | [05](etapas/05-publicacao-na-vps.md) | Publicação na VPS e acesso protegido | pendente |
+| [06](etapas/06-atualizacao-pelo-aplicativo.md) | Atualização da casca pelo próprio aplicativo | em_andamento |
 
 As etapas 01 e 02 tratam do Boox, e as etapas 03 a 05, da sincronização; as duas frentes podem avançar em paralelo, mas a etapa 05 só fecha com a casca sincronizando.
+
+## Mudança de escopo
+
+Em 2026-11-08, durante a etapa 02, o autor pediu que as atualizações da casca passassem a ser feitas por dentro do próprio aplicativo, sem receber o APK por outro meio. Foi criada a etapa 06, em que o GitHub compila e publica cada versão e a casca oferece a atualização ao abrir. A VPS pode passar a guardar as versões depois, na etapa 05.
 
 ## Riscos
 

@@ -9,12 +9,15 @@
 //   Casca.transformacao(json) quando a vista muda; Casca.areasReservadas(json)
 //   com as barras, menus e painéis em que a caneta deve agir sobre a página
 //   em vez de escrever; Casca.canetaEscreve(booleano) conforme a ferramenta
-//   ativa; e Casca.redesenharTela() quando o traço provisório da Onyx pode ter
-//   ficado fora do lugar, porque a vista mudou ou traços foram movidos ou
-//   apagados;
-// - a casca chama prancheta.receberTraco(pontos), com x, y, pressão p de 0 a
-//   1 e tempo t em milissegundos, e prancheta.definirTinta(modo), com
-//   'nativa' quando a camada da Onyx desenha e 'web' quando não há camada.
+//   ativa; Casca.tinta(json) com a ferramenta de tinta, a cor e a espessura
+//   escolhidas, para a camada da Onyx desenhar igual; e Casca.redesenharTela()
+//   quando o traço provisório da Onyx pode ter ficado fora do lugar, porque a
+//   vista mudou ou traços foram movidos ou apagados;
+// - a casca chama prancheta.receberTraco(pontos, contorno), com x, y, pressão
+//   p de 0 a 1 e tempo t em milissegundos e, quando há, o contorno calculado
+//   pelo motor de canetas da Onyx, com x, y e a espessura l de cada ponto; e
+//   prancheta.definirTinta(modo), com 'nativa' quando a camada da Onyx
+//   desenha e 'web' quando não há camada.
 //
 // Usa o estado e as funções globais do artefato, como S, toWorld e flushInk,
 // sem mudá-los; deve ser carregado antes do código do artefato e só começa
@@ -42,6 +45,7 @@
   let ultimaVista = '';
   let ultimasAreas = '';
   let ultimaCaneta = null;
+  let ultimaTinta = '';
 
   function chamar(nome, ...argumentos) {
     try {
@@ -74,6 +78,15 @@
     return areas;
   }
 
+  // A tinta que a casca deve usar: a do marca-texto quando ele está ativo, e
+  // a da caneta nos demais casos, com a cor já resolvida para o valor final.
+  function tintaAtiva() {
+    const ferramenta = S.tool === 'hl' ? 'hl' : 'pen';
+    const cfg = S.ink[ferramenta];
+    const cor = getComputedStyle(document.documentElement).getPropertyValue(`--${cfg.c}`).trim();
+    return { ferramenta, cor, largura: cfg.w };
+  }
+
   function canetaEscreve() {
     return !S.ro && FERRAMENTAS_EM_QUE_A_CANETA_ESCREVE.has(S.tool);
   }
@@ -95,6 +108,11 @@
     if (escreve !== ultimaCaneta) {
       ultimaCaneta = escreve;
       chamar('canetaEscreve', escreve);
+    }
+    const tinta = JSON.stringify(tintaAtiva());
+    if (tinta !== ultimaTinta) {
+      ultimaTinta = tinta;
+      chamar('tinta', tinta);
     }
   }
 
@@ -135,8 +153,9 @@
   }
 
   // Recebe da casca um traço feito pela camada da Onyx e o grava como um
-  // traço da Prancheta, pelo mesmo caminho dos traços feitos na página.
-  function receberTraco(pontos) {
+  // traço da Prancheta, pelo mesmo caminho dos traços feitos na página. O
+  // contorno da Onyx, quando vem, fica no campo nf e define a forma do traço.
+  function receberTraco(pontos, contorno) {
     if (!Array.isArray(pontos) || pontos.length === 0 || S.ro) return false;
     const ferramenta = S.tool === 'hl' ? 'hl' : 'pen';
     const cfg = S.ink[ferramenta];
@@ -153,7 +172,17 @@
     const dur = Number.isFinite(inicio) && Number.isFinite(fim) && fim >= inicio ? Math.round(fim - inicio) : 0;
     if (typeof exitEdit === 'function') exitEdit();
     if (S.sel.size && typeof select === 'function') select([]);
-    S.pend.push({ tool: ferramenta, c: cfg.c, w: cfg.w, sim: false, p, k: S.view.k, em: Date.now() - dur, dur });
+    let nf = null;
+    if (ferramenta === 'pen' && Array.isArray(contorno) && contorno.length) {
+      nf = [];
+      for (const c of contorno) {
+        const q = toWorld(Number(c.x), Number(c.y));
+        const l = Number(c.l) / S.view.k;
+        if (Number.isFinite(q.x) && Number.isFinite(q.y) && Number.isFinite(l)) nf.push(q.x, q.y, l);
+      }
+      if (!nf.length) nf = null;
+    }
+    S.pend.push({ tool: ferramenta, c: cfg.c, w: cfg.w, sim: false, p, k: S.view.k, em: Date.now() - dur, dur, ...(nf ? { nf } : {}) });
     flushInk();
     tintaProvisoria = true;
     return true;

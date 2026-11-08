@@ -1,0 +1,71 @@
+# Compila e testa a casca Android a cada mudança nela ou na Prancheta e, na
+# main, publica o APK como versão do repositório, com a etiqueta
+# casca-<versionCode>. A própria casca consulta a última versão e se atualiza.
+#
+# O APK é assinado com a mesma chave das versões já instaladas, guardada no
+# segredo CASCA_CHAVE_BASE64. Sem essa chave, uma atualização não instalaria
+# por cima da versão do aparelho, e os quadros guardados nele se perderiam;
+# por isso, sem o segredo, o fluxo compila e testa, mas não publica.
+name: Casca Android
+
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', 'web/app/**', '.github/workflows/casca.yml']
+  pull_request:
+    paths: ['android/**', 'web/app/**', '.github/workflows/casca.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: casca-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compilar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar a chave de assinatura
+        env:
+          CHAVE: ${{ secrets.CASCA_CHAVE_BASE64 }}
+        run: |
+          if [ -n "$CHAVE" ]; then
+            install -m 700 -d ~/.android
+            printf '%s' "$CHAVE" | base64 -d > ~/.android/debug.keystore
+            echo "ASSINADA=1" >> "$GITHUB_ENV"
+          else
+            echo "Sem o segredo CASCA_CHAVE_BASE64: o APK será compilado, mas não publicado."
+          fi
+
+      - name: Testar e compilar
+        working-directory: android
+        run: ./gradlew testDebugUnitTest assembleDebug --console=plain
+
+      - name: Publicar a versão
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && env.ASSINADA == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CODIGO=$(sed -n 's/^ *versionCode = \([0-9]*\).*/\1/p' android/app/build.gradle.kts)
+          NOME=$(sed -n 's/^ *versionName = "\(.*\)".*/\1/p' android/app/build.gradle.kts)
+          if gh release view "casca-$CODIGO" > /dev/null 2>&1; then
+            echo "A versão casca-$CODIGO já foi publicada; para publicar outra, aumente o versionCode."
+            exit 0
+          fi
+          cp android/app/build/outputs/apk/debug/app-debug.apk "prancheta-casca-$NOME.apk"
+          gh release create "casca-$CODIGO" "prancheta-casca-$NOME.apk" \
+            --target "$GITHUB_SHA" \
+            --title "Casca $NOME" \
+            --notes "Versão $NOME da casca Android. A própria Prancheta oferece a atualização ao abrir com internet."
