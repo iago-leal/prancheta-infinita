@@ -17,8 +17,8 @@ Instalar o APK no Boox Note Air4 C do autor, testar a escrita e os gestos e regi
 
 ## Critérios de conclusão
 
-- [ ] O meio de levar o APK ao Boox está definido, registrado e funcionando.
-- [ ] O APK está instalado no Boox Note Air4 C do autor.
+- [x] O meio de levar o APK ao Boox está definido, registrado e funcionando.
+- [x] O APK está instalado no Boox Note Air4 C do autor.
 - [ ] A latência percebida foi comparada com a do app de notas nativo, e o resultado está registrado.
 - [ ] Os traços caem no lugar certo depois de mover e ampliar a área de desenho.
 - [ ] Os toques dos dedos chegam à página enquanto a caneta está ativa, permitindo mover e ampliar com dois dedos.
@@ -37,5 +37,6 @@ Instalar o APK no Boox Note Air4 C do autor, testar a escrita e os gestos e regi
   3. Mover e ampliar com dois dedos e escrever de novo, conferindo se o traço cai sob a caneta.
   4. Observar se o traço provisório some e o definitivo aparece sem salto incômodo.
   5. Tocar em "Limpar" e "Reiniciar vista" com a caneta e com o dedo.
+- Primeiro relato do autor: o APK foi instalado no Boox, a barra mostra "tinta nativa" e a escrita está rápida. Isso confirma que o aparelho foi reconhecido como Onyx, que o SDK carregou sem cair na tinta web e que a camada desenha com latência baixa sobre a WebView. Faltam a comparação direta com o aplicativo de notas da Boox, o teste depois de mover e ampliar, os gestos de dois dedos e a avaliação do salto ao levantar a caneta.
 
 ## Resultado
