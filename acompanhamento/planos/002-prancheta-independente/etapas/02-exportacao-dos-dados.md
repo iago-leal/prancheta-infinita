@@ -34,6 +34,10 @@ Extrair do banco e do armazenamento de arquivos do artefato todos os dados do au
 - Resultado: 38 documentos, 9 arquivos, 16 fragmentos e 722 itens; os 5 quadros da biblioteca têm metadados exportados. Três arquivos estão ligados aos fragmentos que os citam; seis não são citados por nenhum documento atual, um deles cópia idêntica de outro, e foram incluídos mesmo assim. Nenhum item cita arquivo ausente.
 - O pacote `prancheta-exportacao-2026-11-08.zip`, com 669 KB e SHA-256 `326cc6004dfec695ed30913d2eca71af1cf1c6ed21a3288bb2c79794072b8c0e`, passou no teste de integridade do `unzip` e foi enviado ao autor. Ele existe só no espaço temporário desta sessão; numa sessão nova, a etapa 03 vai precisar que o autor reenvie o pacote, ou que a exportação seja refeita conforme `web/exportacao/formato.md`.
 
+### 2026-11-08, depois da conclusão
+
+- O autor decidiu que a Prancheta independente começa com o banco limpo, sem migrar os dados do artefato. As cópias temporárias da exportação nesta sessão foram apagadas; o pacote enviado ao autor e o artefato original continuam intactos. O montador e a descrição do formato ficam no repositório, caso o autor mude de ideia.
+
 ## Resultado
 
 Etapa concluída. Verificação de cada critério:

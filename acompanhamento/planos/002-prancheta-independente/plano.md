@@ -30,6 +30,10 @@ A casca Android foi validada no plano 001, e o que falta para usar a Prancheta d
 | [03](etapas/03-servidor-de-compatibilidade.md) | Servidor de compatibilidade | pendente |
 | [04](etapas/04-cliente-de-compatibilidade.md) | Cliente de compatibilidade e Prancheta rodando fora do claude.ai | pendente |
 
+## Mudança de escopo
+
+Em 2026-11-08, depois da exportação da etapa 02, o autor decidiu que a Prancheta independente começa com o banco limpo: os dados do artefato não serão migrados. Por isso, ficam dispensados pelo autor o trecho "com os quadros exportados do artefato" do critério de conclusão do plano, o critério de importação da etapa 03 e o critério dos quadros importados da etapa 04. Os textos dos critérios ficam como foram escritos, e o Resultado de cada etapa aponta o que foi dispensado. A exportação já feita e suas ferramentas continuam no repositório, caso o autor mude de ideia.
+
 ## Riscos
 
 - A interface exata dos recursos do claude.ai não é documentada publicamente; a camada imita apenas o que o código do artefato usa, conforme o inventário da etapa 01.

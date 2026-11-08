@@ -25,4 +25,8 @@ Criar um servidor que sirva a Prancheta e responda às operações de banco e de
 
 ## Registro
 
+### 2026-11-08
+
+- Decisão do autor: a Prancheta independente começa com o banco limpo. O critério "A exportação da etapa 02 é importada, e as contagens de documentos e arquivos importados batem com as exportadas." fica dispensado pelo autor e não será marcado.
+
 ## Resultado

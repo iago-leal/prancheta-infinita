@@ -26,4 +26,8 @@ Criar o `window.claude.use(nome)` que a página carrega antes do código do arte
 
 ## Registro
 
+### 2026-11-08
+
+- Decisão do autor: a Prancheta independente começa com o banco limpo. O critério "Os quadros importados na etapa 03 abrem e mostram o mesmo número de itens que tinham no artefato." fica dispensado pelo autor e não será marcado.
+
 ## Resultado

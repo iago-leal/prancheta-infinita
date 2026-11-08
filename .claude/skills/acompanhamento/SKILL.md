@@ -57,6 +57,10 @@ Acrescente à seção Registro da etapa uma entrada `### AAAA-MM-DD` com o que f
 3. Se um critério se mostrou errado, não o altere: registre o problema e consulte o autor. Se a etapa não puder avançar, use `bloqueada` e informe o motivo em `bloqueios` no estado.
 4. Atualize a tabela do plano e aponte `etapa_atual` para a etapa seguinte. Se era a última, verifique o critério do plano e conclua-o.
 
+### Dispensar um critério
+
+Só o autor dispensa um critério. Quando isso acontecer, não altere nem marque o critério: registre a decisão, com a data e o texto do critério, no Registro da etapa, ou numa seção "Mudança de escopo" do plano, quando afetar o plano. No Resultado, aponte o critério como dispensado pelo autor. Uma etapa pode ser concluída quando todos os critérios restantes foram verificados.
+
 ### Encerrar uma sessão
 
 1. Acrescente no topo de `progresso.md`, logo abaixo do parágrafo de abertura, uma entrada baseada no modelo abaixo.

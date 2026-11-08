@@ -20,9 +20,13 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 - **Exportação fora do Git.** O autor escolheu receber o pacote e guardá-lo onde preferir, já que contém dados pessoais.
 - **Exportação reproduzível.** O processo e o montador estão documentados, porque o autor continua usando o artefato até a migração terminar e precisará de uma exportação final.
 
+### Mudança de escopo
+
+- Depois da exportação, o autor decidiu começar a Prancheta independente com o banco limpo. A importação foi dispensada nas etapas 03 e 04, e as cópias temporárias dos dados foram apagadas. A skill de acompanhamento ganhou uma regra para critérios dispensados pelo autor.
+
 ### Pendências
 
-- Iniciar a etapa 03, o servidor de compatibilidade. Numa sessão nova, a importação vai precisar que o autor reenvie o pacote.
+- Iniciar a etapa 03, o servidor de compatibilidade, com o banco começando vazio.
 
 ### Referências
 

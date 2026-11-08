@@ -22,16 +22,16 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 - No Boox, a caneta escreve, um dedo seleciona e arrasta, e dois dedos movem e ampliam o quadro.
 - Reorganização pensada para e-ink já na primeira versão: contorno durante o arrasto, mover por toque e modo e-ink sem sombras, animações ou transparências.
 - Cada traço guarda identificador, posição e horário, para permitir agrupamento e transcrição no futuro.
-- Os dados exportados do artefato ficam fora do Git, com o autor, porque são pessoais.
+- A Prancheta independente começa com o banco limpo: os dados do artefato não serão migrados, por decisão do autor.
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 
 ## Em andamento
 
-Plano 002, Prancheta independente do claude.ai: as etapas 01 e 02 estão concluídas: o código do artefato está em `web/`, com o inventário, e os dados foram exportados para um pacote entregue ao autor, fora do Git. O plano 001, experimento da casca Android, foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
+Plano 002, Prancheta independente do claude.ai: as etapas 01 e 02 estão concluídas: o código do artefato está em `web/`, com o inventário, e os dados foram exportados, mas o autor decidiu começar com o banco limpo, então a importação foi dispensada. O plano 001, experimento da casca Android, foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
 
 ## Próximo passo
 
-Iniciar a etapa 03, o servidor de compatibilidade. A importação precisa do pacote de exportação: numa sessão nova, pedir ao autor que o reenvie, ou refazê-lo conforme `web/exportacao/formato.md`. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Iniciar a etapa 03, o servidor de compatibilidade, com o banco começando vazio. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
