@@ -1,0 +1,46 @@
+# Leva cada versão da main à VPS. As sessões na nuvem saem por um proxy web e
+# não alcançam SSH, por isso a conexão parte do GitHub.
+#
+# O repositório é público, e os registros das execuções também: o endereço e a
+# chave ficam em segredos, e a VPS só aceita esta chave para uma ação fixa.
+# Por enquanto, a ação apenas confirma o canal; publicar entra quando a
+# Prancheta tiver servidor.
+name: Publicar na VPS
+
+on:
+  push:
+    branches: [main, claude/canal-publicacao-vps]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: publicar-vps
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    if: github.repository == 'iago-leal/prancheta-infinita'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Preparar a conexão
+        env:
+          CHAVE: ${{ secrets.VPS_PRANCHETA_CHAVE }}
+          HOSTS_CONHECIDOS: ${{ secrets.VPS_PRANCHETA_HOSTS_CONHECIDOS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/chave
+          chmod 600 ~/.ssh/chave
+          printf '%s\n' "$HOSTS_CONHECIDOS" > ~/.ssh/known_hosts
+
+      - name: Chamar a VPS
+        env:
+          ENDERECO: ${{ secrets.VPS_PRANCHETA_ENDERECO }}
+        run: |
+          ssh -i ~/.ssh/chave \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=20 \
+            "prancheta@$ENDERECO" verificar
