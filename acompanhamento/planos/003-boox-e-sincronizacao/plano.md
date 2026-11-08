@@ -27,7 +27,7 @@ O plano 002 deixou a Prancheta funcionando sem internet no navegador, mas o uso 
 |---|---|---|
 | [01](etapas/01-prancheta-na-casca.md) | Prancheta real dentro da casca | concluida |
 | [02](etapas/02-traco-sensivel-a-pressao.md) | Traço sensível à pressão igual na Onyx e na página | em_andamento |
-| [03](etapas/03-servidor-de-sincronizacao.md) | Servidor de sincronização | em_andamento |
+| [03](etapas/03-servidor-de-sincronizacao.md) | Servidor de sincronização | concluida |
 | [04](etapas/04-sincronizacao-no-banco-local.md) | Sincronização no banco local | pendente |
 | [05](etapas/05-publicacao-na-vps.md) | Publicação na VPS e acesso protegido | pendente |
 | [06](etapas/06-atualizacao-pelo-aplicativo.md) | Atualização da casca pelo próprio aplicativo | concluida |
