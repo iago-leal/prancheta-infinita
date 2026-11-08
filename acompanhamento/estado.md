@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-08
 fase: Prancheta no Boox e sincronização com a VPS
 plano_ativo: acompanhamento/planos/003-boox-e-sincronizacao/plano.md
-etapa_atual: acompanhamento/planos/003-boox-e-sincronizacao/etapas/01-prancheta-na-casca.md
+etapa_atual: acompanhamento/planos/003-boox-e-sincronizacao/etapas/02-traco-sensivel-a-pressao.md
 bloqueios: []
 ---
 
@@ -32,11 +32,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 003, Prancheta no Boox e sincronização com a VPS, aberto com cinco etapas: a Prancheta real dentro da casca, o traço sensível à pressão igual na Onyx e na página, o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
+Plano 003, Prancheta no Boox e sincronização com a VPS: a etapa 01 está concluída, e a casca 0.2.0 já traz a Prancheta real, aprovada pelo autor no Boox. Faltam o traço sensível à pressão igual na Onyx e na página, o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
 
 ## Próximo passo
 
-O autor confirmar os itens restantes do teste da versão 0.2.0 no Boox, que já foi aprovada quanto à rapidez da escrita, para decidir os critérios restantes da etapa 01. Os ícones selecionados ficam pouco legíveis no e-ink, assunto do modo e-ink do plano 004. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Iniciar a etapa 02 do plano 003 quando o autor pedir: traço provisório da Onyx com a mesma forma e a mesma cor do definitivo, e tempo fixo de atualização depois de levantar a caneta. A etapa 03, o servidor de sincronização, também pode começar, porque não depende da 02. Os ícones selecionados, pouco legíveis no e-ink, ficam para o modo e-ink do plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

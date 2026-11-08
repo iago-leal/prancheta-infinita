@@ -3,10 +3,10 @@ tipo: etapa
 plano: "003"
 etapa: "01"
 titulo: Prancheta real dentro da casca
-status: em_andamento
+status: concluida
 depende_de: []
 iniciada_em: 2026-11-08
-concluida_em:
+concluida_em: 2026-11-08
 ---
 
 # Etapa 01: Prancheta real dentro da casca
@@ -17,12 +17,12 @@ Trocar a página de teste da casca pela Prancheta de `web/app/`, entregue de den
 
 ## Critérios de conclusão
 
-- [ ] A compilação do APK copia a pasta `web/app/` do repositório para dentro dele, sem uma segunda cópia no Git, e a casca abre a Prancheta a partir dessa cópia, sem internet.
-- [ ] Os traços feitos pela camada da Onyx viram traços da Prancheta, no lugar e na escala certos para qualquer zoom, guardados no banco local com identificador, pontos, pressão e horário.
-- [ ] Um dedo seleciona e arrasta, dois dedos movem e ampliam o quadro, e a camada da Onyx acompanha a vista e não escreve sobre as barras da Prancheta.
-- [ ] Imagens e arquivos enviados ficam no banco local e voltam a aparecer depois de fechar e reabrir o aplicativo.
+- [x] A compilação do APK copia a pasta `web/app/` do repositório para dentro dele, sem uma segunda cópia no Git, e a casca abre a Prancheta a partir dessa cópia, sem internet.
+- [x] Os traços feitos pela camada da Onyx viram traços da Prancheta, no lugar e na escala certos para qualquer zoom, guardados no banco local com identificador, pontos, pressão e horário.
+- [x] Um dedo seleciona e arrasta, dois dedos movem e ampliam o quadro, e a camada da Onyx acompanha a vista e não escreve sobre as barras da Prancheta.
+- [x] Imagens e arquivos enviados ficam no banco local e voltam a aparecer depois de fechar e reabrir o aplicativo.
 - [x] Testes no Chromium cobrem a ponte com uma casca simulada, e testes JUnit cobrem a parte nativa nova.
-- [ ] O autor confirma no Boox, sem internet, que escreve, reorganiza e reencontra o quadro depois de fechar e reabrir o aplicativo.
+- [x] O autor confirma no Boox, sem internet, que escreve, reorganiza e reencontra o quadro depois de fechar e reabrir o aplicativo.
 
 ## Registro
 
@@ -47,4 +47,18 @@ Trocar a página de teste da casca pela Prancheta de `web/app/`, entregue de den
 - O contraste dos ícones selecionados é assunto do modo e-ink, previsto para o plano 004, salvo decisão do autor de antecipá-lo.
 - Os critérios 1, 2, 3, 4 e 6 continuam sem marca até o autor confirmar os itens do teste: sem internet, seleção e arrasto com um dedo, movimento e zoom com dois dedos, borracha com a caneta, mão apoiada sem mover o quadro, e imagem e quadro presentes depois de fechar e reabrir o aplicativo.
 
+### 2026-11-08, confirmação do autor
+
+- O autor confirmou que todos os itens do teste funcionam no Boox: a Prancheta sem internet; um dedo selecionando e arrastando cartões e dois dedos movendo e ampliando o quadro; a borracha apagando com a caneta; a mão apoiada sem mover o quadro; e a imagem e o quadro presentes depois de fechar e reabrir o aplicativo.
+- O autor decidiu não antecipar o contraste dos ícones selecionados, que fica no modo e-ink do plano 004.
+
 ## Resultado
+
+Etapa concluída. Verificação de cada critério:
+
+1. A tarefa `copiarPrancheta` do Gradle copia `web/app/` para os assets na compilação, e `android/` não guarda outra cópia da Prancheta; a pasta `assets/app/` do APK 0.2.0 é idêntica a `web/app/`, conferida com `diff -r`. O autor confirmou que a Prancheta abre e funciona no Boox sem internet.
+2. O autor confirmou que a escrita funciona no Boox, com resposta rápida, e que o quadro reaparece depois de fechar e reabrir o aplicativo. O teste "o traço da casca vira traço da Prancheta no lugar certo, com pressão e horário" confirma, com zoom 2 e a vista deslocada, que os pontos são gravados em coordenadas do quadro, que o traço aparece na tela onde a caneta passou, que a pressão segue a curva do artefato e que o traço guarda identificador, horário de início e duração.
+3. O autor confirmou que um dedo seleciona e arrasta, que dois dedos movem e ampliam o quadro e que a borracha funciona com a caneta. Os testes do adaptador confirmam que a vista, as áreas reservadas das barras e menus e a ferramenta ativa chegam à casca, e os testes JUnit, que a caneta vai para a página nas áreas reservadas e com as ferramentas que não escrevem.
+4. O autor confirmou que uma imagem inserida continua aparecendo depois de fechar e reabrir o aplicativo. Os arquivos que não são imagens seguem o mesmo caminho de armazenamento, coberto pelos testes da etapa 06 do plano 002.
+5. `web/testes/casca.test.cjs` traz 6 testes com uma casca simulada, e `RoteadorDeToquesTest` ganhou 4 testes JUnit, com 10 no total; os testes acusam as 17 mutações introduzidas.
+6. O autor confirmou no Boox, sem internet, que escreve, reorganiza e reencontra o quadro depois de fechar e reabrir o aplicativo.

@@ -6,6 +6,21 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 01 do plano 003 concluída: Prancheta real na casca
+
+### Feito
+
+- O autor confirmou no Boox, com a casca 0.2.0, todos os itens do teste: a Prancheta sem internet, um dedo selecionando e arrastando, dois dedos movendo e ampliando, a borracha com a caneta, a mão apoiada sem mover o quadro, e a imagem e o quadro presentes depois de fechar e reabrir o aplicativo.
+- Concluída a etapa 01 do plano 003, com a verificação de cada critério.
+
+### Decidido
+
+- **Ícones no plano 004.** O autor decidiu não antecipar o contraste dos ícones selecionados, que fica no modo e-ink.
+
+### Pendências
+
+- Etapa 02: traço provisório da Onyx com a mesma forma e cor do definitivo e tempo fixo de atualização depois de levantar a caneta.
+
 ## 2026-11-08 · Primeiro teste da casca 0.2.0 no Boox
 
 ### Feito
