@@ -1,6 +1,7 @@
 // Servidor de sincronização da Prancheta: guarda a cópia central dos quadros
 // e troca mudanças com cada aparelho, no formato do banco local. Só atende
-// quem apresenta a chave de acesso do autor, em Authorization: Bearer <chave>.
+// quem apresenta uma chave de acesso válida, em Authorization: Bearer <chave>.
+// Com PRANCHETA_WEB, entrega também a página, noutra porta, por servidor/pagina.cjs.
 //
 // Rotas, todas sob /sync e todas com a chave:
 // - GET  /sync/estado                      → { posicao }
@@ -10,18 +11,29 @@
 // - GET  /sync/arquivos/<id>               → devolve um arquivo enviado
 //
 // Configuração por variáveis de ambiente, nunca no repositório:
-// - PRANCHETA_CHAVE: a chave de acesso, com pelo menos 32 caracteres;
+// - PRANCHETA_CHAVES_ARQUIVO: o arquivo com o resumo da chave de cada aparelho,
+//   descrito em servidor/chaves.cjs; ou, para rodar localmente,
+//   PRANCHETA_CHAVE: uma chave única, com pelo menos 32 caracteres;
 // - PRANCHETA_DADOS: a pasta dos dados, por padrão ./dados;
 // - PRANCHETA_PORTA e PRANCHETA_ENDERECO: onde ouvir, por padrão 127.0.0.1:8787;
 // - PRANCHETA_ORIGENS: origens de navegador aceitas, separadas por vírgula,
-//   por padrão a da casca Android, https://appassets.androidplatform.net.
+//   por padrão a da casca Android, https://appassets.androidplatform.net;
+// - PRANCHETA_WEB e PRANCHETA_PORTA_DA_PAGINA: a pasta da página e a porta em
+//   que ela é entregue, por padrão 8788;
+// - PRANCHETA_VERSAO: o atalho para a versão publicada; quando ele passa a
+//   apontar para outra versão, o servidor termina, e o contêiner o reinicia
+//   com o código novo;
+// - PRANCHETA_HISTORICO_DIAS: por quantos dias as versões antigas dos
+//   documentos ficam guardadas, por padrão 30.
 
 'use strict';
 
 const http = require('node:http');
-const crypto = require('node:crypto');
+const fs = require('node:fs');
 const path = require('node:path');
 const { Armazem, ID_DE_ARQUIVO } = require('./armazem.cjs');
+const { criarVerificador } = require('./chaves.cjs');
+const { criarServidorDaPagina } = require('./pagina.cjs');
 
 const LIMITE_DO_JSON = 25 * 1024 * 1024;
 const LIMITE_DO_ARQUIVO = 25 * 1024 * 1024;
@@ -29,17 +41,45 @@ const LIMITE_DA_LISTA = 500;
 const DISPOSITIVO = /^[0-9a-f]{8,64}$/;
 const CABECALHOS_PERMITIDOS = 'Authorization, Content-Type, X-Prancheta-Dispositivo, X-Prancheta-Criado-Em';
 
-const resumo = (texto) => crypto.createHash('sha256').update(texto).digest();
+const SEGURANCA = {
+  'X-Content-Type-Options': 'nosniff',
+  'Strict-Transport-Security': 'max-age=31536000',
+};
 
 function responder(res, status, corpo, cabecalhos = {}) {
   const texto = corpo === undefined ? '' : JSON.stringify(corpo);
   res.writeHead(status, {
+    ...SEGURANCA,
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
     'Content-Length': Buffer.byteLength(texto),
     ...cabecalhos,
   });
   res.end(texto);
+}
+
+// Tipo de arquivo no formato tipo/subtipo, em minúsculas, sem parâmetros; o
+// que fugir disso vira application/octet-stream.
+function tipoSeguro(tipo) {
+  const t = String(tipo || '').toLowerCase().split(';')[0].trim();
+  return /^[a-z0-9.+-]{1,60}\/[a-z0-9.+-]{1,80}$/.test(t) ? t : 'application/octet-stream';
+}
+
+const IMAGENS_EXIBIVEIS = /^image\/(png|jpeg|gif|webp|avif|bmp)$/;
+
+// Um arquivo enviado nunca executa código na origem de quem o abre: fora do
+// PDF, que o navegador exibe no próprio leitor, ele vai com uma política que
+// o isola; só imagens e PDF abrem no navegador, e o resto é baixado.
+function cabecalhosDeArquivo(tipo) {
+  const seguro = tipoSeguro(tipo);
+  const pdf = seguro === 'application/pdf';
+  const cabecalhos = {
+    'Content-Type': seguro,
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Disposition': pdf || IMAGENS_EXIBIVEIS.test(seguro) ? 'inline' : 'attachment',
+  };
+  if (!pdf) cabecalhos['Content-Security-Policy'] = "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'";
+  return cabecalhos;
 }
 
 // Lê o corpo até o limite. Acima dele, descarta o resto e responde 413 no fim,
@@ -92,15 +132,20 @@ function validarMudanca(m) {
   return null;
 }
 
-function criarServidor({ armazem, chave, origens = [] }) {
-  if (typeof chave !== 'string' || chave.length < 32) throw new Error('a chave de acesso precisa ter pelo menos 32 caracteres');
-  const chaveEsperada = resumo(chave);
+/**
+ * @param opcoes.armazem o armazém dos dados.
+ * @param opcoes.chave uma chave única, para rodar localmente; ou
+ * @param opcoes.verificar a função de servidor/chaves.cjs, que confere a chave de cada aparelho.
+ * @param opcoes.origens as origens de navegador aceitas.
+ */
+function criarServidor({ armazem, chave, verificar, origens = [] }) {
+  const conferir = verificar || criarVerificador({ chave });
   const origensAceitas = new Set(origens);
 
   function autorizado(req) {
     const cabecalho = req.headers.authorization || '';
     if (!cabecalho.startsWith('Bearer ')) return false;
-    return crypto.timingSafeEqual(resumo(cabecalho.slice('Bearer '.length)), chaveEsperada);
+    return Boolean(conferir(cabecalho.slice('Bearer '.length)));
   }
 
   function cabecalhosDeOrigem(req) {
@@ -171,7 +216,7 @@ function criarServidor({ armazem, chave, origens = [] }) {
           return responder(res, e.status || 400, { erro: e.status === 413 ? 'grande_demais' : 'corpo_invalido' }, origem);
         }
         const criadoEm = Number(req.headers['x-prancheta-criado-em']) || Date.now();
-        const tipo = (req.headers['content-type'] || 'application/octet-stream').slice(0, 200);
+        const tipo = tipoSeguro(req.headers['content-type']);
         try {
           const r = await armazem.guardarArquivo(id, conteudo, { tipo, dispositivo, criadoEm });
           return responder(res, r.estado === 'aplicado' ? 201 : 200, r, origem);
@@ -183,7 +228,10 @@ function criarServidor({ armazem, chave, origens = [] }) {
       if (req.method === 'GET') {
         const dados = await armazem.lerDadosDoArquivo(id);
         if (!dados) return responder(res, 404, { erro: 'arquivo_inexistente' }, origem);
-        res.writeHead(200, { ...origem, 'Content-Type': dados.tipo, 'Content-Length': dados.bytes, 'Cache-Control': 'private, max-age=31536000, immutable' });
+        res.writeHead(200, {
+          ...SEGURANCA, ...origem, ...cabecalhosDeArquivo(dados.tipo),
+          'Content-Length': dados.bytes, 'Cache-Control': 'private, max-age=31536000, immutable',
+        });
         armazem.abrirLeituraDoArquivo(id).pipe(res);
         return undefined;
       }
@@ -201,29 +249,83 @@ function criarServidor({ armazem, chave, origens = [] }) {
   });
 }
 
-async function iniciar(ambiente = process.env) {
+function verificadorDoAmbiente(ambiente) {
+  if (ambiente.PRANCHETA_CHAVES_ARQUIVO) return criarVerificador({ arquivo: ambiente.PRANCHETA_CHAVES_ARQUIVO });
   const chave = ambiente.PRANCHETA_CHAVE;
   if (!chave || chave.length < 32) {
-    throw new Error('defina PRANCHETA_CHAVE com pelo menos 32 caracteres; a chave nunca fica no repositório');
+    throw new Error('defina PRANCHETA_CHAVES_ARQUIVO, ou PRANCHETA_CHAVE com pelo menos 32 caracteres; a chave nunca fica no repositório');
   }
+  return criarVerificador({ chave });
+}
+
+/**
+ * Chama `aoMudar` quando o atalho `caminho` passa a apontar para outro lugar,
+ * conferindo a cada `intervalo` ms. Devolve a função que para a vigia.
+ */
+function vigiarVersao(caminho, aoMudar, intervalo = 5000) {
+  const inicial = fs.realpathSync(caminho);
+  const relogio = setInterval(() => {
+    let atual;
+    try {
+      atual = fs.realpathSync(caminho);
+    } catch (e) {
+      return;
+    }
+    if (atual !== inicial) {
+      clearInterval(relogio);
+      aoMudar(atual);
+    }
+  }, intervalo);
+  relogio.unref();
+  return () => clearInterval(relogio);
+}
+
+const ouvir = (servidor, porta, endereco) => new Promise((pronto, falha) => {
+  servidor.once('error', falha);
+  servidor.listen(porta, endereco, pronto);
+});
+
+async function iniciar(ambiente = process.env) {
+  const verificar = verificadorDoAmbiente(ambiente);
   const pasta = path.resolve(ambiente.PRANCHETA_DADOS || 'dados');
   const porta = Number(ambiente.PRANCHETA_PORTA || 8787);
   const endereco = ambiente.PRANCHETA_ENDERECO || '127.0.0.1';
   const origens = (ambiente.PRANCHETA_ORIGENS || 'https://appassets.androidplatform.net').split(',').map((o) => o.trim()).filter(Boolean);
-  const armazem = await Armazem.abrir(pasta);
-  const servidor = criarServidor({ armazem, chave, origens });
-  await new Promise((pronto) => servidor.listen(porta, endereco, pronto));
-  console.log(`servidor da Prancheta em http://${endereco}:${servidor.address().port}, posição ${armazem.posicao}`);
-  return servidor;
+  const diasDeHistorico = Number(ambiente.PRANCHETA_HISTORICO_DIAS || 30);
+  const armazem = await Armazem.abrir(pasta, { diasDeHistorico });
+  const servidores = [];
+  const servidor = criarServidor({ armazem, verificar, origens });
+  await ouvir(servidor, porta, endereco);
+  servidores.push(servidor);
+  console.log(`sincronização da Prancheta em http://${endereco}:${servidor.address().port}, posição ${armazem.posicao}`);
+  if (ambiente.PRANCHETA_WEB) {
+    const pagina = criarServidorDaPagina({ pasta: ambiente.PRANCHETA_WEB });
+    await ouvir(pagina, Number(ambiente.PRANCHETA_PORTA_DA_PAGINA || 8788), endereco);
+    servidores.push(pagina);
+    console.log(`página da Prancheta em http://${endereco}:${pagina.address().port}`);
+  }
+  const fechar = () => Promise.all(servidores.map((s) => new Promise((pronto) => {
+    s.close(() => pronto());
+    s.closeIdleConnections();
+  })));
+  if (ambiente.PRANCHETA_VERSAO) {
+    vigiarVersao(ambiente.PRANCHETA_VERSAO, (nova) => {
+      console.log(`versão nova publicada em ${nova}; o servidor termina para recomeçar com ela`);
+      const limite = setTimeout(() => process.exit(0), 5000);
+      limite.unref();
+      fechar().then(() => process.exit(0));
+    }, Number(ambiente.PRANCHETA_VIGIA_MS || 5000));
+  }
+  return { servidores, fechar };
 }
 
 if (require.main === module) {
-  iniciar().then((servidor) => {
-    for (const sinal of ['SIGINT', 'SIGTERM']) process.on(sinal, () => servidor.close(() => process.exit(0)));
+  iniciar().then(({ fechar }) => {
+    for (const sinal of ['SIGINT', 'SIGTERM']) process.on(sinal, () => fechar().then(() => process.exit(0)));
   }, (e) => {
     console.error(e.message);
     process.exit(1);
   });
 }
 
-module.exports = { criarServidor, iniciar };
+module.exports = { criarServidor, iniciar, tipoSeguro, cabecalhosDeArquivo, vigiarVersao };

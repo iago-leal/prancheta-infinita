@@ -6,6 +6,26 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 05 do plano 003: publicação na VPS preparada
+
+### Feito
+
+- Mesclado o PR #18 no `main`, a pedido do autor, com a casca 0.3.4 e a sincronização.
+- Levantadas a VPS e, depois, o WebDAV, por uma sessão do Mac, a pedido do autor; o autor autorizou esta sessão a falar com as sessões do computador, o que a limita aos aparelhos confiáveis dele.
+- Debate de segurança com oito agentes, a pedido do autor, sobre como expor a Prancheta; o autor aceitou a recomendação: página aberta, quadros com a chave, reforço de base agora, e rede privada e cifra no aparelho antes dos livros.
+- Iniciada a etapa 05: página entregue pelo servidor, chaves por aparelho, cabeçalhos de segurança, arquivos isolados, versão nova só quando o autor pede, histórico de 30 dias, cópia de segurança puxada pelo computador, contêiner sem privilégios, publicação pela conta `prancheta` sem Docker, roteiro do administrador e ações do GitHub fixadas por hash. 14 testes novos, que acusam as 14 mutações introduzidas.
+
+### Decidido
+
+- **Página aberta, quadros com a chave.** A página é o código público; a proteção está na chave de cada aparelho, na política da página e no isolamento dos arquivos.
+- **Livros no WebDAV.** A biblioteca de livros e PDFs do futuro deve ficar no WebDAV da VPS, que o KOReader já usa, e não no servidor da Prancheta; as marcações ficam na sincronização.
+- **Endereço fora do repositório.** O nome escolhido identifica a máquina e fica só no ambiente da VPS e num segredo do GitHub.
+
+### Pendências
+
+- O autor executar o roteiro na VPS, acrescentar a rede ao arquivo do Traefik, criar as chaves, cadastrar o segredo do endereço, fazer a primeira publicação e confirmar a sincronização entre o Boox e o computador.
+- Receber o levantamento do WebDAV, pedido à sessão do Mac, para o plano dos livros.
+
 ## 2026-11-08 · Etapa 04 do plano 003: sincronização no banco local
 
 ### Feito

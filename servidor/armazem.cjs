@@ -6,7 +6,10 @@
 //   o aparelho e o número da mudança nele; é o índice, lido inteiro ao abrir;
 // - documentos/<sha256 do caminho>.json: a versão atual de cada documento,
 //   com o registro exatamente como o aparelho o enviou;
-// - arquivos/<id>.bin e arquivos/<id>.json: os arquivos enviados e os dados deles.
+// - arquivos/<id>.bin e arquivos/<id>.json: os arquivos enviados e os dados deles;
+// - historico/<AAAA-MM-DD>.jsonl: cada versão aceita, com o registro inteiro,
+//   num arquivo por dia, em UTC, apagado depois de `diasDeHistorico` dias; serve
+//   para recuperar um documento sobrescrito ou apagado, por servidor/historico.cjs.
 //
 // Cada documento é gravado num arquivo temporário e renomeado, e só depois a
 // linha do registro é acrescentada. Ao abrir, uma linha cortada no fim do
@@ -42,9 +45,13 @@ async function gravarAtomico(destino, conteudo) {
   await fsp.rename(temporario, destino);
 }
 
+const DIA = 24 * 60 * 60 * 1000;
+const dataDe = (ms) => new Date(ms).toISOString().slice(0, 10);
+
 class Armazem {
-  constructor(pasta) {
+  constructor(pasta, { diasDeHistorico = 30 } = {}) {
     this.pasta = pasta;
+    this.diasDeHistorico = diasDeHistorico;
     this.posicao = 0;
     // Última posição e autoria de cada caminho, inclusive _arquivos/<id>.
     this.ultimas = new Map();
@@ -53,13 +60,56 @@ class Armazem {
     this._fila = Promise.resolve();
   }
 
-  static async abrir(pasta) {
-    const armazem = new Armazem(pasta);
+  static async abrir(pasta, opcoes = {}) {
+    const armazem = new Armazem(pasta, opcoes);
     await fsp.mkdir(path.join(pasta, 'documentos'), { recursive: true });
     await fsp.mkdir(path.join(pasta, 'arquivos'), { recursive: true });
+    await fsp.mkdir(path.join(pasta, 'historico'), { recursive: true });
     await armazem._lerRegistro();
     await armazem._recuperar();
+    await armazem._podarHistorico();
     return armazem;
+  }
+
+  // Guarda a versão aceita no arquivo do dia.
+  async _arquivarVersao(entrada, registro) {
+    const destino = path.join(this.pasta, 'historico', `${dataDe(entrada.em)}.jsonl`);
+    const arquivo = await fsp.open(destino, 'a');
+    try {
+      await arquivo.appendFile(`${JSON.stringify({ ...entrada, registro })}\n`);
+      await arquivo.sync();
+    } finally {
+      await arquivo.close();
+    }
+  }
+
+  // Apaga os arquivos de histórico mais antigos que o prazo.
+  async _podarHistorico(agora = Date.now()) {
+    if (!Number.isFinite(this.diasDeHistorico)) return;
+    const limite = dataDe(agora - this.diasDeHistorico * DIA);
+    for (const nome of await fsp.readdir(path.join(this.pasta, 'historico'))) {
+      const m = nome.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/);
+      if (m && m[1] < limite) await fsp.unlink(path.join(this.pasta, 'historico', nome));
+    }
+  }
+
+  /** As versões guardadas de um documento, da mais antiga para a mais nova. */
+  async historico(caminho) {
+    const versoes = [];
+    const nomes = (await fsp.readdir(path.join(this.pasta, 'historico'))).filter((n) => n.endsWith('.jsonl')).sort();
+    for (const nome of nomes) {
+      for (const linha of (await fsp.readFile(path.join(this.pasta, 'historico', nome), 'utf8')).split('\n')) {
+        if (!linha) continue;
+        let entrada;
+        try {
+          entrada = JSON.parse(linha);
+        } catch (e) {
+          continue;
+        }
+        if (entrada.caminho === caminho) versoes.push(entrada);
+      }
+    }
+    return versoes.sort((a, b) => a.pos - b.pos);
   }
 
   get _registro() {
@@ -189,8 +239,10 @@ class Armazem {
           continue;
         }
         const pos = this.posicao + 1;
+        const entrada = { pos, caminho, dispositivo, seq: m.seq, tipo: m.registro.apagado ? 'delete' : 'set', em: Date.now() };
         await gravarAtomico(this._arquivoDoDocumento(caminho), JSON.stringify({ pos, caminho, dispositivo, seq: m.seq, registro: m.registro }));
-        await this._acrescentar({ pos, caminho, dispositivo, seq: m.seq, tipo: m.registro.apagado ? 'delete' : 'set', em: Date.now() });
+        await this._arquivarVersao(entrada, m.registro);
+        await this._acrescentar(entrada);
         resultados.push({ seq: m.seq, estado: 'aplicada', pos });
       }
       return { posicao: this.posicao, resultados };

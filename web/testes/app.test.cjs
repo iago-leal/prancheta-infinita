@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const http = require('node:http');
 const { chromium } = require('playwright');
 const { servirWeb } = require('./apoio/servidor.cjs');
-const { montar, DESTINO } = require('../montagem/montar.cjs');
+const { montar, carimbarServiceWorker, DESTINO, SERVICE_WORKER } = require('../montagem/montar.cjs');
 const mudancas = require('../montagem/mudancas.cjs');
 
 let servidor;
@@ -97,6 +97,9 @@ const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2
 
 test('a página independente é o original com as mudanças listadas, cada uma com motivo', () => {
   assert.equal(fs.readFileSync(DESTINO, 'utf8'), montar(), 'web/app/index.html difere da montagem; rode node web/montagem/montar.cjs');
+  // A versão do cache do service worker corresponde aos arquivos que ele guarda.
+  const sw = fs.readFileSync(SERVICE_WORKER, 'utf8');
+  assert.equal(sw, carimbarServiceWorker(sw), 'a VERSAO de web/app/sw.js está desatualizada; rode node web/montagem/montar.cjs');
   assert.equal(mudancas.length, 10);
   for (const m of mudancas) assert.ok(m.motivo.length > 40, `motivo curto: ${m.motivo}`);
   // Os endereços externos que a página carregava não aparecem mais. Restam

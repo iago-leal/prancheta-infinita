@@ -34,6 +34,8 @@
   const MUDANCAS_POR_LOTE = 100;
   const MAXIMO_DE_RODADAS = 5;
   const PRAZO_DO_PEDIDO = 30000;
+  // Só o próprio computador pode ser chamado sem https, para testar localmente.
+  const LOCAIS = new Set(['localhost', '127.0.0.1', '[::1]']);
 
   function erro(codigo, mensagem, extra = {}) {
     const e = new Error(mensagem);
@@ -49,7 +51,9 @@
     } catch (e) {
       throw erro('invalid_argument', 'endereço do servidor inválido');
     }
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') throw erro('invalid_argument', 'o endereço precisa começar com https://');
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && LOCAIS.has(url.hostname))) {
+      throw erro('invalid_argument', 'o endereço precisa começar com https://');
+    }
     if (typeof chave !== 'string' || chave.trim().length < 32) throw erro('invalid_argument', 'a chave de acesso tem pelo menos 32 caracteres');
     return { endereco: url.href.replace(/\/+$/, ''), chave: chave.trim() };
   }

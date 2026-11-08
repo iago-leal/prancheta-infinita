@@ -651,3 +651,30 @@ test('uma versão de outro aparelho com o mesmo número de versão avisa as assi
   assert.deepEqual(erros, []);
   await contexto.close();
 });
+
+test('o horário de uma versão recebida fica limitado ao relógio deste aparelho, e o tipo dos arquivos é normalizado', async () => {
+  const contexto = await navegador.newContext();
+  const { pagina, erros } = await abrirPagina(contexto);
+  const r = await pagina.evaluate(async (outro) => {
+    const umAno = 365 * 24 * 60 * 60 * 1000;
+    await banco._aplicarDoServidor({ caminho: 'notas/n1', dados: { t: 'do futuro' }, apagado: false, versao: 1, atualizadoEm: Date.now() + umAno, dispositivo: outro }, 1);
+    const guardado = await banco._ler('notas/n1');
+    await banco._guardarArquivoDoServidor({ id: 'aaaaaaaaaaaaaaaa', tipo: '<script>', criadoEm: 1, dispositivo: outro }, new Blob(['x']));
+    await banco._guardarArquivoDoServidor({ id: 'bbbbbbbbbbbbbbbb', tipo: 'Image/PNG; q=1', criadoEm: 1, dispositivo: outro }, new Blob(['x']));
+    const local = await banco.guardarArquivo(new Blob(['y'], { type: 'Text/Plain;charset=utf-8' }));
+    return {
+      folga: guardado.atualizadoEm - Date.now(),
+      tipos: [
+        (await banco.lerArquivo('aaaaaaaaaaaaaaaa')).type,
+        (await banco.lerArquivo('bbbbbbbbbbbbbbbb')).type,
+        (await banco.lerArquivo(local.id)).type,
+      ],
+      seguro: BancoLocal.tipoSeguro('application/pdf'),
+    };
+  }, OUTRO_APARELHO);
+  assert.ok(r.folga <= 5 * 60 * 1000, `folga de ${r.folga} ms`);
+  assert.deepEqual(r.tipos, ['application/octet-stream', 'image/png', 'text/plain']);
+  assert.equal(r.seguro, 'application/pdf');
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});

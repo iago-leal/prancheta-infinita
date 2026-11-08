@@ -1,0 +1,134 @@
+#!/bin/bash
+# Comando forçado da conta prancheta na VPS. A chave do GitHub, em
+# authorized_keys, com restrict,command="/usr/local/bin/prancheta-publicar",
+# só consegue executar este script, que só aceita estas ações:
+#
+#   verificar          confirma o canal de publicação;
+#   publicar <commit>  recebe pela entrada o pacote da versão, um tar.gz com
+#                      web/app e servidor, e passa a usá-lo;
+#   versoes            lista as versões guardadas, marcando a atual;
+#   voltar <commit>    volta a uma versão guardada.
+#
+# A conta não tem privilégios nem acesso ao Docker: publicar só troca o atalho
+# /home/prancheta/publicado/atual, e o servidor, no contêiner, percebe a troca
+# e recomeça com a versão nova. Ficam guardadas as cinco versões mais recentes.
+#
+# Instalado pelo roteiro preparar-vps.sh em /usr/local/bin, como administrador.
+
+set -euo pipefail
+umask 022
+
+PUBLICADO="${PRANCHETA_PUBLICADO:-/home/prancheta/publicado}"
+LIMITE=$(( ${PRANCHETA_LIMITE_MB:-80} * 1024 * 1024 ))
+GUARDAR=5
+OBRIGATORIOS=(web/app/index.html web/app/sw.js servidor/servidor.cjs servidor/armazem.cjs servidor/pagina.cjs servidor/chaves.cjs)
+
+falhar() {
+  echo "$1" >&2
+  exit "${2:-1}"
+}
+
+commit_valido() {
+  [[ "${1:-}" =~ ^[0-9a-f]{40}$ ]]
+}
+
+trocar_atual() {
+  ln -sfn "versoes/$1" "$PUBLICADO/.atual.novo"
+  mv -Tf "$PUBLICADO/.atual.novo" "$PUBLICADO/atual"
+}
+
+atual() {
+  if [[ -L "$PUBLICADO/atual" ]]; then basename "$(readlink "$PUBLICADO/atual")"; fi
+}
+
+publicar() {
+  local commit="$1" versoes="$PUBLICADO/versoes" tmp tamanho linha nome
+  mkdir -p "$versoes"
+  if [[ "$(atual)" == "$commit" && -d "$versoes/$commit" ]]; then
+    cat > /dev/null
+    echo "ja publicado $commit"
+    return
+  fi
+  tmp="$(mktemp -d "$versoes/.recebendo.XXXXXX")"
+  trap 'rm -rf "$tmp"' EXIT
+
+  head -c $(( LIMITE + 1 )) > "$tmp/pacote.tgz"
+  tamanho=$(stat -c %s "$tmp/pacote.tgz")
+  (( tamanho > 0 )) || falhar "pacote vazio"
+  (( tamanho <= LIMITE )) || falhar "pacote maior que o limite"
+
+  # Só arquivos e pastas comuns, dentro de web/app e servidor, sem caminhos
+  # absolutos nem "..": nada de atalhos que levem para fora da versão.
+  tar -tvzf "$tmp/pacote.tgz" > "$tmp/listagem" 2>/dev/null || falhar "pacote ilegivel"
+  while IFS= read -r linha; do
+    case "${linha:0:1}" in
+      -|d) ;;
+      *) falhar "pacote com entrada que nao e arquivo nem pasta" ;;
+    esac
+  done < "$tmp/listagem"
+  tar -tzf "$tmp/pacote.tgz" > "$tmp/nomes"
+  while IFS= read -r nome; do
+    case "$nome" in
+      /*|..|../*|*/..|*/../*) falhar "pacote com caminho invalido: $nome" ;;
+      web/|web/app/|web/app/*|servidor/|servidor/*) ;;
+      *) falhar "pacote com caminho fora de web/app e servidor: $nome" ;;
+    esac
+  done < "$tmp/nomes"
+
+  mkdir "$tmp/versao"
+  tar -xzf "$tmp/pacote.tgz" -C "$tmp/versao" --no-same-owner --no-same-permissions
+  for nome in "${OBRIGATORIOS[@]}"; do
+    [[ -f "$tmp/versao/$nome" ]] || falhar "pacote sem $nome"
+  done
+  # A página responde com a versão, para o GitHub conferir que ela entrou no ar.
+  printf '%s\n' "$commit" > "$tmp/versao/web/app/versao.txt"
+  chmod -R a+rX "$tmp/versao"
+
+  rm -rf "${versoes:?}/$commit"
+  mv "$tmp/versao" "$versoes/$commit"
+  trocar_atual "$commit"
+  rm -rf "$tmp"
+  trap - EXIT
+
+  # Guarda as mais recentes, além da atual.
+  local guardadas=0
+  while IFS= read -r nome; do
+    [[ -n "$nome" ]] || continue
+    guardadas=$(( guardadas + 1 ))
+    if (( guardadas > GUARDAR )) && [[ "$nome" != "$commit" ]]; then rm -rf "${versoes:?}/$nome"; fi
+  done < <(ls -1t "$versoes")
+  echo "publicado $commit"
+}
+
+read -r -a ARGS <<< "${SSH_ORIGINAL_COMMAND:-}"
+ACAO="${ARGS[0]:-}"
+
+case "$ACAO" in
+  verificar)
+    (( ${#ARGS[@]} == 1 )) || falhar "acao nao permitida" 2
+    echo "canal de publicacao ok"
+    ;;
+  publicar)
+    (( ${#ARGS[@]} == 2 )) && commit_valido "${ARGS[1]}" || falhar "acao nao permitida" 2
+    publicar "${ARGS[1]}"
+    ;;
+  versoes)
+    (( ${#ARGS[@]} == 1 )) || falhar "acao nao permitida" 2
+    em_uso="$(atual)"
+    if [[ -d "$PUBLICADO/versoes" ]]; then
+      while IFS= read -r nome; do
+        [[ -n "$nome" ]] || continue
+        if [[ "$nome" == "$em_uso" ]]; then echo "$nome atual"; else echo "$nome"; fi
+      done < <(ls -1t "$PUBLICADO/versoes")
+    fi
+    ;;
+  voltar)
+    (( ${#ARGS[@]} == 2 )) && commit_valido "${ARGS[1]}" || falhar "acao nao permitida" 2
+    [[ -d "$PUBLICADO/versoes/${ARGS[1]}" ]] || falhar "versao nao guardada"
+    trocar_atual "${ARGS[1]}"
+    echo "em uso ${ARGS[1]}"
+    ;;
+  *)
+    falhar "acao nao permitida" 2
+    ;;
+esac

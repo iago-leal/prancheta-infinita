@@ -1,18 +1,27 @@
-# Leva cada versão da main à VPS. As sessões na nuvem saem por um proxy web, que
-# não prevê SSH, por isso a conexão parte do GitHub.
+# Publica na VPS a Prancheta, web/app, e o servidor de sincronização a cada
+# mudança deles na main. As sessões na nuvem saem por um proxy web, que não
+# prevê SSH, por isso a conexão parte do GitHub.
 #
 # O repositório é público, e os registros das execuções também: o endereço e a
-# chave ficam em segredos, e a VPS só aceita esta chave para uma ação fixa.
-# Por enquanto, a ação apenas confirma o canal; publicar entra quando a
-# Prancheta tiver servidor.
+# chave ficam em segredos. A chave só executa o comando forçado
+# /usr/local/bin/prancheta-publicar, de servidor/implantacao, numa conta sem
+# privilégios e sem acesso ao Docker; ele recebe o pacote da versão e troca o
+# atalho da versão em uso, e o servidor recomeça com ela. As ações de
+# administrador ficam no roteiro servidor/implantacao/preparar-vps.sh.
+#
+# Segredos: VPS_PRANCHETA_ENDERECO, VPS_PRANCHETA_CHAVE e
+# VPS_PRANCHETA_HOSTS_CONHECIDOS, para a conexão; VPS_PRANCHETA_ANFITRIAO,
+# opcional, o endereço da Prancheta, para conferir que a versão entrou no ar.
 name: Publicar na VPS
 
 on:
   push:
     branches: [main]
+    paths: ['web/app/**', 'servidor/**', '.github/workflows/publicar.yml']
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: publicar-vps
@@ -22,8 +31,23 @@ jobs:
   publicar:
     if: github.repository == 'iago-leal/prancheta-infinita'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Testar o servidor
+        run: node --test servidor/testes/*.test.cjs
+
+      - name: Conferir a página montada
+        run: node web/montagem/montar.cjs --conferir
+
+      - name: Montar o pacote
+        run: git archive --format=tar.gz -o "$RUNNER_TEMP/pacote.tgz" HEAD web/app servidor
+
       - name: Preparar a conexão
         env:
           CHAVE: ${{ secrets.VPS_PRANCHETA_CHAVE }}
@@ -34,7 +58,7 @@ jobs:
           chmod 600 ~/.ssh/chave
           printf '%s\n' "$HOSTS_CONHECIDOS" > ~/.ssh/known_hosts
 
-      - name: Chamar a VPS
+      - name: Publicar
         env:
           ENDERECO: ${{ secrets.VPS_PRANCHETA_ENDERECO }}
         run: |
@@ -43,4 +67,22 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=20 \
-            "prancheta@$ENDERECO" verificar
+            "prancheta@$ENDERECO" "publicar $GITHUB_SHA" < "$RUNNER_TEMP/pacote.tgz"
+
+      - name: Conferir a versão no ar
+        env:
+          ANFITRIAO: ${{ secrets.VPS_PRANCHETA_ANFITRIAO }}
+        run: |
+          if [ -z "$ANFITRIAO" ]; then
+            echo "::notice::cadastre o segredo VPS_PRANCHETA_ANFITRIAO para conferir cada publicação"
+            exit 0
+          fi
+          for tentativa in $(seq 1 36); do
+            if [ "$(curl -fsS --max-time 10 "https://$ANFITRIAO/versao.txt" 2>/dev/null)" = "$GITHUB_SHA" ]; then
+              echo "a versão $GITHUB_SHA responde no endereço da Prancheta"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "a versão publicada não respondeu no endereço em 3 minutos"
+          exit 1
