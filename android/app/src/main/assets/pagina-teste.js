@@ -3,9 +3,11 @@
 //
 // Contrato com a casca: as coordenadas de tela são pixels CSS relativos ao
 // canto superior esquerdo da página, e a vista segue tela = quadro * k + (x, y).
-// A página chama window.Casca.pronta() ao carregar e
-// window.Casca.transformacao(json) quando a vista muda; a casca chama
-// window.prancheta.receberTraco(pontos).
+// A página chama window.Casca.pronta() ao carregar,
+// window.Casca.transformacao(json) quando a vista muda e
+// window.Casca.areasReservadas(json) com as áreas, como a barra, em que a
+// caneta não deve desenhar pela camada nativa. A casca chama
+// window.prancheta.receberTraco(pontos) e window.prancheta.definirTinta(modo).
 
 import { getStroke } from './vendor/perfect-freehand/index.js';
 
@@ -27,6 +29,7 @@ let proximoId = 1;
 let tracoAtual = null;
 let gesto = null;
 let avisoPendente = false;
+let modoTinta = 'web';
 
 function telaParaQuadro(x, y) {
   return { x: (x - vista.x) / vista.k, y: (y - vista.y) / vista.k };
@@ -76,7 +79,14 @@ function agendarDesenho(traco) {
 }
 
 function atualizarInfo() {
-  info.textContent = `${tracos.length} traços · zoom ${vista.k.toFixed(2)}`;
+  info.textContent = `${tracos.length} traços · zoom ${vista.k.toFixed(2)} · tinta ${modoTinta}`;
+}
+
+// Informa à casca as áreas em que a caneta deve agir sobre a página, e não
+// desenhar pela camada nativa.
+function avisarAreasReservadas() {
+  const r = document.getElementById('barra').getBoundingClientRect();
+  window.Casca?.areasReservadas?.(JSON.stringify([{ x: r.left, y: r.top, largura: r.width, altura: r.height }]));
 }
 
 function avisarCasca() {
@@ -212,18 +222,28 @@ function reiniciarVista() {
   aplicarVista();
 }
 
+// A casca informa se a tinta vem da camada da Onyx, 'nativa', ou da página, 'web'.
+function definirTinta(modo) {
+  modoTinta = modo === 'nativa' ? 'nativa' : 'web';
+  atualizarInfo();
+}
+
 document.getElementById('limpar').addEventListener('click', limpar);
 document.getElementById('reiniciar').addEventListener('click', reiniciarVista);
+window.addEventListener('resize', avisarAreasReservadas);
 
 window.prancheta = Object.freeze({
   receberTraco,
+  definirTinta,
   telaParaQuadro,
   quadroParaTela,
   vista: () => ({ ...vista }),
+  tinta: () => modoTinta,
   tracos: () => tracos.map(({ id, origem, criadoEm, pontos }) => ({ id, origem, criadoEm, pontos: pontos.map((p) => [...p]) })),
   limpar,
   reiniciarVista,
 });
 
 aplicarVista();
+avisarAreasReservadas();
 window.Casca?.pronta();

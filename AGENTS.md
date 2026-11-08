@@ -29,5 +29,6 @@ O andamento do projeto fica em `acompanhamento/`. Os modelos de arquivo e os pas
 
 - Compilar a casca Android: `cd android && ./gradlew assembleDebug`. O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`.
 - O Android SDK fica em `/opt/android-sdk`, instalado pelo script de configuração do ambiente. Se `android/local.properties` não existir, crie-o com `echo "sdk.dir=/opt/android-sdk" > android/local.properties`.
-- O Maven Central às vezes responde 429, excesso de requisições; nesse caso, repita a compilação.
+- O Maven Central às vezes responde 429, excesso de requisições, mesmo com as repetições configuradas no `android/gradle.properties`; nesse caso, repita a compilação, que aproveita o que já foi baixado. Não troque o endereço do Maven Central: isso invalida o cache.
+- Testar a lógica nativa com JUnit: `cd android && ./gradlew testDebugUnitTest`.
 - Testar a página da casca no Chromium, a partir da raiz do repositório: `node --test android/testes/*.test.cjs`. Usa o Playwright e o Chromium já instalados na máquina.
