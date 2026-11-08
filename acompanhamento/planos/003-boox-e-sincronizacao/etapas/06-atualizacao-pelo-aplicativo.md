@@ -17,7 +17,7 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 
 ## Critérios de conclusão
 
-- [ ] A cada envio à `main` que mude a casca ou a Prancheta, o GitHub testa e compila o APK, assinado com a mesma chave das versões instaladas, e o publica como versão do repositório, sem substituir uma versão já publicada.
+- [x] A cada envio à `main` que mude a casca ou a Prancheta, o GitHub testa e compila o APK, assinado com a mesma chave das versões instaladas, e o publica como versão do repositório, sem substituir uma versão já publicada.
 - [ ] Ao abrir com internet, a casca consulta a última versão e, se houver uma mais nova, oferece atualizar; sem internet, abre normalmente, sem atraso nem erro.
 - [ ] A atualização é baixada e instalada por dentro do aplicativo, com a confirmação do Android, e mantém os quadros do aparelho.
 - [x] A casca só baixa APKs anexados às versões deste repositório.
@@ -40,6 +40,6 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 - O autor cadastrou o segredo `CASCA_CHAVE_BASE64`, e o PR #12 foi mesclado. O envio à `main` disparou o fluxo, que testou, compilou e publicou a versão `casca-4`, com o nome Casca 0.3.0 e o anexo `prancheta-casca-0.3.0.apk`, de 21.990.910 bytes e SHA-256 `d48a6ff75a145a4b2cbcc2ca75b08ce73cec515a61d983155f2cc1e9b5cc8b80`.
 - O APK publicado, baixado do endereço da versão, tem `versionCode` 4, `versionName` 0.3.0 e a mesma assinatura das versões instaladas, com certificado de SHA-256 `2293585a45487e21a0fd43c45278d84efbf9beee3ba0c7cfd81e73a85936748b`, conferida com `apksigner`.
 - A resposta real da API do GitHub para essa versão virou um teste JUnit, em `android/app/src/test/resources/ultima-versao-casca-4.json`, e a `Atualizacao` a lê corretamente; são 20 testes JUnit ao todo.
-- Para confirmar que uma versão publicada não é substituída, o fluxo foi disparado de novo na `main`, sem mudar o `versionCode`.
+- Para confirmar que uma versão publicada não é substituída, o fluxo foi disparado de novo na `main`, sem mudar o `versionCode`. A execução 42485335472 terminou com sucesso, inclusive o passo de publicação, e a versão `casca-4` continuou com um único anexo, de mesmo identificador, 724026042, e mesmo horário de atualização, 2026-11-08T13:29:24Z; o passo encontrou a etiqueta e não publicou nada.
 
 ## Resultado
