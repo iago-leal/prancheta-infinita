@@ -37,7 +37,7 @@ Plano 003, Prancheta no Boox e sincronização com a VPS: a etapa 01 está concl
 
 ## Próximo passo
 
-Mesclar a versão 0.3.1 da casca, que corrige a troca do traço provisório e a linha fantasma, e o autor recebê-la pela atualização dentro do aplicativo, o primeiro teste da etapa 06; depois, medir os traços de pressão leve, média e forte para a etapa 02. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor testar no Boox a versão 0.3.1, já recebida pela atualização dentro do aplicativo: a troca do traço provisório, a linha fantasma e a medição dos traços de pressão leve, média e forte, para a etapa 02; e confirmar que os quadros continuaram depois da atualização e que a Prancheta abre sem internet, para a etapa 06. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

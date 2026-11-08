@@ -6,6 +6,18 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Primeira atualização da casca pelo próprio aplicativo
+
+### Feito
+
+- Mesclado o PR #13; o GitHub publicou a versão `casca-5`, a 0.3.1, com a assinatura das versões instaladas.
+- O autor recebeu a 0.3.1 pela atualização dentro do aplicativo no Boox, sem receber o APK por outro meio, e viu a mensagem da versão nova ao abrir.
+
+### Pendências
+
+- O autor confirmar que os quadros continuaram depois da atualização e que a Prancheta abre sem internet.
+- O autor testar o traço na 0.3.1 e enviar um vídeo com traços de pressão leve, média e forte.
+
 ## 2026-11-08 · Primeira publicação pelo GitHub e casca 0.3.1
 
 ### Feito
