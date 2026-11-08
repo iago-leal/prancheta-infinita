@@ -25,7 +25,7 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 
 ## Em andamento
 
-Plano 001, experimento da casca Android. As etapas 01, 02 e 03 estão concluídas, e a etapa 04, o teste no Boox, está em andamento: no Boox, a camada da Onyx foi ativada, a escrita está rápida e o zoom funciona; a versão 0.1.1 corrige a tela que não se limpava depois do "Limpar".
+Plano 001, experimento da casca Android. As etapas 01, 02 e 03 estão concluídas, e a etapa 04, o teste no Boox, está em andamento: no Boox, a camada da Onyx foi ativada, a escrita está rápida e o zoom funciona; a versão 0.1.1 corrigiu a tela que não se limpava depois do "Limpar", o que o autor confirmou.
 
 ## Próximo passo
 
