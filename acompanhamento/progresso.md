@@ -6,6 +6,24 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 04 do plano 003: sincronização no banco local
+
+### Feito
+
+- Criada a sincronização em `web/app/compat/sincronizacao.js`: com rede, o banco local recebe o que mudou no servidor, envia arquivos e documentos pendentes, combina os conflitos e poda o registro de mudanças conforme o servidor confirma; sem rede, a Prancheta segue igual e retoma sozinha quando a rede volta.
+- Criada a combinação em três vias em `web/app/compat/combinar.js`, item a item pelo id e campo a campo, usada também na gravação da página, para que uma gravação feita a partir da cópia na memória não apague o que chegou do outro aparelho.
+- Botão "Sincronizar" ao lado do indicador "Salvo", com o diálogo do endereço e da chave, guardados no banco local de cada aparelho.
+- 23 testes novos, 6 deles com dois perfis do Chromium e o servidor; os testes acusam as 14 mutações introduzidas. Concluída a etapa 04.
+
+### Decidido
+
+- **Mesmo campo mudado nos dois aparelhos.** Prevalece a gravação mais recente, pelo horário de cada aparelho, e, no empate, a do servidor; apagar de um lado e mudar do outro mantém a mudança.
+- **Sem mudar o esquema do banco.** O que a sincronização guarda fica na loja `meta`, para não quebrar o service worker de uma versão anterior.
+
+### Pendências
+
+- Etapa 05: publicar a Prancheta e o servidor na VPS, o que depende do endereço e do servidor web de lá. A casca 0.3.4 já leva a sincronização ao Boox.
+
 ## 2026-11-08 · Casca 0.3.4: troca do traço só com a caneta afastada
 
 ### Feito

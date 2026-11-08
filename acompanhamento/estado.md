@@ -30,15 +30,16 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 - Atualizações da casca pelo próprio aplicativo: o GitHub compila e publica cada versão, assinada com a chave das versões instaladas, e a casca oferece a atualização ao abrir com internet.
 - Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` chama a VPS a cada envio à `main`, com uma chave guardada nos segredos do repositório e restrita a uma ação fixa. Por enquanto, a ação só confirma o canal; publicar de fato entra no plano 003.
-- Servidor de sincronização em Node puro, sem dependências e com os dados em arquivos: numera as mudanças, devolve os conflitos para o aparelho combinar item a item e só atende com a chave; a única exceção, aceita pelo autor, é a consulta prévia do navegador vinda da casca, que não recebe dados.
+- Servidor de sincronização em Node puro, sem dependências e com os dados em arquivos: numera as mudanças, devolve os conflitos para o aparelho combinar e só atende com a chave; a única exceção, aceita pelo autor, é a consulta prévia do navegador vinda da casca, que não recebe dados.
+- Sincronização no próprio banco local, em segundo plano: combina item a item, pelo id; no mesmo campo mudado nos dois aparelhos, prevalece a gravação mais recente; a gravação da página também é combinada com o que chegou do servidor desde a anterior; endereço e chave ficam no banco de cada aparelho.
 
 ## Em andamento
 
-Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Prancheta real na casca, 03, servidor de sincronização, em `servidor/`, e 06, atualização pelo próprio aplicativo, estão concluídas. Está em andamento a 02, traço sensível à pressão. Faltam a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
+Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Prancheta real na casca, 03, servidor de sincronização, em `servidor/`, 04, sincronização no banco local, e 06, atualização pelo próprio aplicativo, estão concluídas. Está em andamento a 02, traço sensível à pressão. Falta a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
 
 ## Próximo passo
 
-Mesclar a casca 0.3.4, que só troca o traço provisório pelo definitivo com a caneta afastada, e o autor confirmar no Boox que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca, para fechar a etapa 02. Depois, a etapa 04, a sincronização no banco local, que conversa com o servidor da etapa 03 pela própria página. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar a casca 0.3.4, que só troca o traço provisório pelo definitivo com a caneta afastada, e o autor confirmar no Boox que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca, para fechar a etapa 02. Depois, a etapa 05: publicar a Prancheta e o servidor na VPS, o que depende do endereço e do servidor web de lá; a casca 0.3.4 já leva a sincronização ao Boox. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

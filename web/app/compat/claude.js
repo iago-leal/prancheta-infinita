@@ -2,7 +2,9 @@
 // window.claude.use(nome), a mesma porta que o código do artefato usa no
 // claude.ai, com recursos que funcionam sem rede:
 //
-// - db: o banco local em IndexedDB, de compat/banco-local.js;
+// - db: o banco local em IndexedDB, de compat/banco-local.js, sincronizado
+//   com o servidor da Prancheta por compat/sincronizacao.js quando o aparelho
+//   tem um servidor configurado;
 // - assets: guarda os arquivos enviados nesse banco; o service worker, em
 //   sw.js, entrega cada um de volta em /_blob/<id>, como o artefato espera;
 // - downloads: baixa o arquivo pelo próprio navegador;
@@ -13,7 +15,8 @@
 // autopublicação (artifact) não têm equivalente: claude.use recusa esses
 // nomes, e o artefato desliga e esconde o que depende deles.
 //
-// Deve ser carregado depois de compat/banco-local.js e antes do código do artefato.
+// Deve ser carregado depois de compat/banco-local.js, compat/combinar.js e
+// compat/sincronizacao.js, e antes do código do artefato.
 
 (function () {
   'use strict';
@@ -56,7 +59,13 @@
   function abrirBanco() {
     if (!banco) {
       banco = BancoLocal.abrir({ nome: NOME_DO_BANCO });
-      banco.catch(() => { banco = null; });
+      banco.then((b) => {
+        // A sincronização fica disponível em window.sincronizacaoDaPrancheta, para
+        // diagnóstico; os testes encurtam os intervalos por window.opcoesDaSincronizacao.
+        if (window.SincronizacaoPrancheta && !window.sincronizacaoDaPrancheta) {
+          window.sincronizacaoDaPrancheta = window.SincronizacaoPrancheta.ligar(b, window.opcoesDaSincronizacao);
+        }
+      }, () => { banco = null; });
     }
     return banco;
   }
