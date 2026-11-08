@@ -27,12 +27,11 @@ O andamento do projeto fica em `acompanhamento/`. Os modelos de arquivo e os pas
 
 ## Comandos
 
-- Compilar a casca Android: `cd android && ./gradlew assembleDebug`. O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`.
+- Compilar a casca Android: `cd android && ./gradlew assembleDebug`. O APK sai em `android/app/build/outputs/apk/debug/app-debug.apk`. A compilação copia `web/app/` para dentro do APK; não há outra cópia da Prancheta em `android/`.
 - O Android SDK fica em `/opt/android-sdk`, instalado pelo script de configuração do ambiente. Se `android/local.properties` não existir, crie-o com `echo "sdk.dir=/opt/android-sdk" > android/local.properties`.
 - O Maven Central às vezes responde 429, excesso de requisições, mesmo com as repetições configuradas no `android/gradle.properties`; nesse caso, repita a compilação, que aproveita o que já foi baixado. Não troque o endereço do Maven Central: isso invalida o cache.
 - Testar a lógica nativa com JUnit: `cd android && ./gradlew testDebugUnitTest`.
-- Testar a página da casca no Chromium, a partir da raiz do repositório: `node --test android/testes/*.test.cjs`. Usa o Playwright e o Chromium já instalados na máquina.
-- Testar a Prancheta e o banco local em `web/` no Chromium, a partir da raiz do repositório: `node --test web/testes/*.test.cjs`.
+- Testar a Prancheta, o banco local e a ponte com a casca, simulada, no Chromium, a partir da raiz do repositório: `node --test web/testes/*.test.cjs`. Usa o Playwright e o Chromium já instalados na máquina.
 - Conferir que `web/` guarda a versão publicada do artefato: `sha256sum -c web/artefato-publicado.sha256`.
 - Montar a Prancheta independente em `web/app/` a partir do original: `node web/montagem/montar.cjs`. Não edite `web/app/index.html` à mão: cada mudança no código do artefato entra em `web/montagem/mudancas.cjs`, com o motivo, e `node web/montagem/montar.cjs --conferir` confirma que a página montada está em dia.
 - Testar o montador da exportação: `python3 -m unittest discover -s web/exportacao`. Os dados exportados nunca vão para o Git.

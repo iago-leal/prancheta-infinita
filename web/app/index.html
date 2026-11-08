@@ -2,6 +2,7 @@
 <title>Prancheta Infinita</title>
 <script src="compat/banco-local.js"></script>
 <script src="compat/claude.js"></script>
+<script src="compat/casca.js"></script>
 <link rel="stylesheet" href="fontes/inter.css">
 <style>
 /* Layout: mesa infinita em tela cheia, com o título fixo no canto e ferramentas flutuando nas bordas. */
@@ -631,7 +632,7 @@ function wipeLive(){lctx.setTransform(1,0,0,1,0,0);lctx.clearRect(0,0,liveC.widt
 /* traços recém-feitos ficam na camada rápida e só entram no quadro na pausa */
 function flushInk(){
   clearTimeout(pendT);const list=S.pend;if(!list.length)return;S.pend=[];
-  for(const q of list){const p=(q.tool==='hl'?rdp(q.p,.2/q.k):spaced(q.p,1/q.k)).map((v,i)=>i%3===2?v:f1(v));begin();add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),d:encode(p)});commit()}
+  for(const q of list){const p=(q.tool==='hl'?rdp(q.p,.2/q.k):spaced(q.p,1/q.k)).map((v,i)=>i%3===2?v:f1(v));begin();add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),...(q.em?{em:q.em,dur:q.dur}:{}),d:encode(p)});commit()}
   if(!S.act||S.act.kind!=='ink')wipeLive();
 }
 const inkColor=c=>getComputedStyle(document.documentElement).getPropertyValue('--'+c).trim();
@@ -1251,7 +1252,7 @@ function onUp(e){
     if(a.tool==='hl'){lctx.globalAlpha=.38;lctx.lineWidth=a.cfg.w;lctx.stroke(new Path2D(hlPath(a.p)));lctx.globalAlpha=1}
     else if(a.p.length===3){lctx.beginPath();lctx.arc(a.p[0],a.p[1],widthOf(a,a.p[2])/2,0,7);lctx.fill()}
     else{const m=a.p.length;lctx.lineWidth=widthOf(a,a.p[m-1]);lctx.beginPath();lctx.moveTo(a.mx,a.my);lctx.lineTo(a.p[m-3],a.p[m-2]);lctx.stroke()}
-    S.pend.push({tool:a.tool,c:a.cfg.c,w:a.cfg.w,sim:a.sim,p:a.p,k:S.view.k});clearTimeout(pendT);pendT=setTimeout(flushInk,1500);return;
+    S.pend.push({tool:a.tool,c:a.cfg.c,w:a.cfg.w,sim:a.sim,p:a.p,k:S.view.k,em:Math.round(performance.timeOrigin+a.stat.t0),dur:Math.round(performance.now()-a.stat.t0)});clearTimeout(pendT);pendT=setTimeout(flushInk,1500);return;
   }
   if(a.kind==='marquee'){a.el.remove();renderSel();return}
   if(a.kind==='create'){a.el.remove();finishCreate(a);return}

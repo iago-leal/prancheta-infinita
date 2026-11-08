@@ -2,7 +2,10 @@ package com.iagoleal.prancheta
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.ApplicationInfo
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -10,21 +13,27 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.webkit.ServiceWorkerClientCompat
+import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebViewAssetLoader
+import androidx.webkit.WebViewFeature
 
 /**
- * Activity da casca Android. Exibe em tela cheia uma WebView com a página
- * de teste, servida dos assets do APK pelo [WebViewAssetLoader] num
- * endereço HTTPS interno, sem acesso à rede nem a arquivos.
+ * Activity da casca Android. Exibe em tela cheia uma WebView com a Prancheta
+ * de `web/app/`, que a compilação copia para os assets do APK e o
+ * [WebViewAssetLoader] serve num endereço HTTPS interno, sem acesso à rede
+ * nem a arquivos. Os dados ficam no banco local da própria página.
  *
  * Em aparelhos Onyx, a [CamadaOnyx] desenha os traços da caneta com
  * latência baixa, e o [RoteadorDeToques] decide quais eventos vão para ela
  * e quais vão para a WebView. Nos demais aparelhos, ou se o SDK falhar,
- * todos os eventos vão para a WebView, e a página desenha com a tinta web.
+ * todos os eventos vão para a WebView, e a Prancheta desenha sozinha.
  */
 class MainActivity : Activity() {
 
@@ -33,6 +42,7 @@ class MainActivity : Activity() {
         private set
     private var camada: CamadaOnyx? = null
     private val roteador = RoteadorDeToques { suspensa -> camada?.suspender(suspensa) }
+    private var escolhaDeArquivos: ValueCallback<Array<Uri>>? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +55,7 @@ class MainActivity : Activity() {
         val carregador = WebViewAssetLoader.Builder()
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
+        prepararServiceWorker(carregador)
 
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -54,6 +65,21 @@ class MainActivity : Activity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                     carregador.shouldInterceptRequest(request.url)
+
+                // Links para fora da Prancheta abrem no navegador do aparelho.
+                override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                    val url = request.url
+                    if (url.host == ENDERECO_INTERNO) return false
+                    abrirFora(url)
+                    return true
+                }
+            }
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowFileChooser(
+                    view: WebView,
+                    retorno: ValueCallback<Array<Uri>>,
+                    parametros: FileChooserParams,
+                ): Boolean = escolherArquivos(retorno, parametros)
             }
         }
         ponte = PonteCasca(webView)
@@ -75,6 +101,11 @@ class MainActivity : Activity() {
                 camada?.definirAreasReservadas(areas)
             }
 
+            override fun aoMudarCaneta(escreve: Boolean) {
+                roteador.canetaEscreve = escreve
+                camada?.definirAtiva(escreve)
+            }
+
             override fun aoDesenharTraco() {
                 camada?.atualizarTela()
             }
@@ -90,7 +121,7 @@ class MainActivity : Activity() {
         ponte.definirTinta(if (camada != null) "nativa" else "web")
         Log.i(TAG, if (camada != null) "camada da Onyx ativa" else "sem camada da Onyx; tinta web")
 
-        webView.loadUrl(PAGINA_TESTE)
+        webView.loadUrl(PRANCHETA)
     }
 
     override fun dispatchTouchEvent(evento: MotionEvent): Boolean {
@@ -103,6 +134,17 @@ class MainActivity : Activity() {
             Destino.DESCARTAR -> true
             Destino.WEBVIEW -> super.dispatchTouchEvent(evento)
         }
+    }
+
+    // A caneta pairando chega como evento genérico; o roteador usa esse sinal
+    // para reconhecer a palma apoiada enquanto se escreve.
+    override fun dispatchGenericMotionEvent(evento: MotionEvent): Boolean {
+        val ehCaneta = (0 until evento.pointerCount).any {
+            val tipo = evento.getToolType(it)
+            tipo == MotionEvent.TOOL_TYPE_STYLUS || tipo == MotionEvent.TOOL_TYPE_ERASER
+        }
+        if (ehCaneta) roteador.registrarCanetaPerto(evento.eventTime)
+        return super.dispatchGenericMotionEvent(evento)
     }
 
     override fun onResume() {
@@ -120,11 +162,76 @@ class MainActivity : Activity() {
         if (hasFocus) esconderBarrasDoSistema()
     }
 
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        if (requestCode != PEDIDO_DE_ARQUIVOS) {
+            super.onActivityResult(requestCode, resultCode, data)
+            return
+        }
+        val retorno = escolhaDeArquivos ?: return
+        escolhaDeArquivos = null
+        retorno.onReceiveValue(if (resultCode == RESULT_OK) urisEscolhidos(data) else null)
+    }
+
     override fun onDestroy() {
+        escolhaDeArquivos?.onReceiveValue(null)
+        escolhaDeArquivos = null
         camada?.encerrar()
         camada = null
         webView.destroy()
         super.onDestroy()
+    }
+
+    /**
+     * Faz o service worker da Prancheta, que entrega os arquivos enviados em
+     * `/_blob/<id>`, também buscar os arquivos da página nos assets.
+     */
+    private fun prepararServiceWorker(carregador: WebViewAssetLoader) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_BASIC_USAGE) ||
+            !WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_SHOULD_INTERCEPT_REQUEST)
+        ) {
+            Log.w(TAG, "a WebView não oferece service worker; as imagens ficam embutidas no quadro")
+            return
+        }
+        val controlador = ServiceWorkerControllerCompat.getInstance()
+        controlador.setServiceWorkerClient(object : ServiceWorkerClientCompat() {
+            override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? =
+                carregador.shouldInterceptRequest(request.url)
+        })
+        val ajustes = controlador.serviceWorkerWebSettings
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_FILE_ACCESS)) ajustes.allowFileAccess = false
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.SERVICE_WORKER_CONTENT_ACCESS)) ajustes.allowContentAccess = false
+    }
+
+    /** Abre o seletor de arquivos do sistema para um `<input type="file">` da Prancheta. */
+    private fun escolherArquivos(retorno: ValueCallback<Array<Uri>>, parametros: WebChromeClient.FileChooserParams): Boolean {
+        escolhaDeArquivos?.onReceiveValue(null)
+        escolhaDeArquivos = retorno
+        val pedido = parametros.createIntent().apply {
+            if (parametros.mode == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE) putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }
+        return try {
+            startActivityForResult(pedido, PEDIDO_DE_ARQUIVOS)
+            true
+        } catch (erro: ActivityNotFoundException) {
+            Log.w(TAG, "nenhum aplicativo escolhe arquivos", erro)
+            escolhaDeArquivos = null
+            retorno.onReceiveValue(null)
+            true
+        }
+    }
+
+    private fun urisEscolhidos(dados: Intent?): Array<Uri>? {
+        if (dados == null) return null
+        dados.clipData?.let { lista -> return Array(lista.itemCount) { lista.getItemAt(it).uri } }
+        return dados.data?.let { arrayOf(it) }
+    }
+
+    private fun abrirFora(url: Uri) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, url))
+        } catch (erro: ActivityNotFoundException) {
+            Log.w(TAG, "nenhum aplicativo abre $url", erro)
+        }
     }
 
     private fun usarTintaWeb() {
@@ -149,6 +256,8 @@ class MainActivity : Activity() {
 
     private companion object {
         const val TAG = "MainActivity"
-        const val PAGINA_TESTE = "https://appassets.androidplatform.net/assets/pagina-teste.html"
+        const val ENDERECO_INTERNO = "appassets.androidplatform.net"
+        const val PRANCHETA = "https://$ENDERECO_INTERNO/assets/app/index.html"
+        const val PEDIDO_DE_ARQUIVOS = 1
     }
 }

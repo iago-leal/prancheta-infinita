@@ -6,6 +6,32 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 01 do plano 003: Prancheta real dentro da casca
+
+### Feito
+
+- Mesclado o PR #10 no `main`, a pedido do autor, e iniciada a etapa 01 do plano 003.
+- A compilação da casca passou a copiar `web/app/` para o APK, e a casca abre a Prancheta real; a página de teste do plano 001 e os testes dela foram removidos.
+- Criado o adaptador `web/app/compat/casca.js`, que liga a ponte da casca ao código do artefato, com 6 testes no Chromium usando uma casca simulada.
+- O roteador de toques ganhou a regra da ferramenta e a rejeição da palma, com 4 testes JUnit novos; a casca ganhou seletor de arquivos, abertura de links externos no navegador e o encaminhamento do service worker.
+- Cada traço passou a guardar horário de início e duração.
+- Compilada a versão 0.2.0 da casca, enviada ao autor para o teste no Boox.
+
+### Decidido
+
+- **Caneta conforme a ferramenta.** Com a seleção, que é a ferramenta inicial, a caneta escreve e um dedo seleciona e arrasta; com a borracha, as formas e o texto, a caneta age sobre a página.
+- **Rejeição da palma na casca.** Um toque de dedo com a caneta encostada ou até 400 ms depois do último sinal dela é descartado, para que a mão apoiada não mova o quadro.
+
+### Pendências
+
+- Teste do autor no Boox com a versão 0.2.0, que decide os critérios restantes da etapa 01.
+- Downloads, como a exportação em PNG, ainda não funcionam na casca.
+
+### Referências
+
+- Etapa 01: `acompanhamento/planos/003-boox-e-sincronizacao/etapas/01-prancheta-na-casca.md`
+- Adaptador: `web/app/compat/casca.js`
+
 ## 2026-11-08 · Plano 003 aberto: Prancheta no Boox e sincronização com a VPS
 
 ### Feito

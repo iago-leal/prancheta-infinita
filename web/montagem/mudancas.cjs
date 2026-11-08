@@ -14,11 +14,12 @@ module.exports = [
     para: `<link rel="stylesheet" href="fontes/inter.css">`,
   },
   {
-    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos.',
+    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; o adaptador da casca Android, que não faz nada fora dela, vem junto.',
     de: `<title>Prancheta Infinita</title>`,
     para: `<title>Prancheta Infinita</title>
 <script src="compat/banco-local.js"></script>
-<script src="compat/claude.js"></script>`,
+<script src="compat/claude.js"></script>
+<script src="compat/casca.js"></script>`,
   },
   {
     motivo: 'O aviso de falha na inicialização oferecia restaurar uma versão anterior pela autopublicação do claude.ai, que não existe fora dele; o botão passa a recarregar a página, e os quadros continuam a salvo no banco local.',
@@ -44,5 +45,15 @@ module.exports = [
     motivo: 'Sem os conectores, cada arquivo enviado ganhava a marca "não foi ao Drive" e uma ação "Enviar ao Drive" que não pode funcionar; sem conectores, a cópia para o Drive simplesmente não é tentada, e o cartão mostra só o tamanho do arquivo.',
     de: `if(!M.mcp){setDrive(it,{ds:'falhou'});return false}`,
     para: `if(!M.mcp)return false;`,
+  },
+  {
+    motivo: 'Cada traço passa a guardar o horário de início, em milissegundos desde 1970, e a duração, para permitir agrupamento e transcrição no futuro, como prevê a decisão sobre os traços. Aqui, o traço feito na página registra esses dados ao terminar.',
+    de: `S.pend.push({tool:a.tool,c:a.cfg.c,w:a.cfg.w,sim:a.sim,p:a.p,k:S.view.k})`,
+    para: `S.pend.push({tool:a.tool,c:a.cfg.c,w:a.cfg.w,sim:a.sim,p:a.p,k:S.view.k,em:Math.round(performance.timeOrigin+a.stat.t0),dur:Math.round(performance.now()-a.stat.t0)})`,
+  },
+  {
+    motivo: 'Continuação da mudança anterior: ao entrar no quadro, o traço leva o horário e a duração, venha da página ou da casca Android.',
+    de: `add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),d:encode(p)})`,
+    para: `add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),...(q.em?{em:q.em,dur:q.dur}:{}),d:encode(p)})`,
   },
 ];
