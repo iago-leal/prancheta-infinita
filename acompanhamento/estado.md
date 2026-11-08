@@ -36,7 +36,7 @@ Plano 003, Prancheta no Boox e sincronização com a VPS, aberto com cinco etapa
 
 ## Próximo passo
 
-O autor testar no Boox a versão 0.2.0 da casca, que já traz a Prancheta real, para decidir os critérios restantes da etapa 01. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor confirmar os itens restantes do teste da versão 0.2.0 no Boox, que já foi aprovada quanto à rapidez da escrita, para decidir os critérios restantes da etapa 01. Os ícones selecionados ficam pouco legíveis no e-ink, assunto do modo e-ink do plano 004. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
@@ -55,3 +55,4 @@ Ambiente pessoal `prancheta-infinita`: rede limitada, com registros de pacotes, 
 - O que fazer quando o plugin Android 10 remover o Jetifier, se o SDK da Onyx ainda depender de bibliotecas anteriores ao AndroidX?
 - O APK tem 21 MB por trazer bibliotecas nativas de cinco arquiteturas; vale restringi-lo às arquiteturas ARM?
 - Qual será o endereço da Prancheta na VPS, e que servidor web com HTTPS já atende lá? A etapa 05 do plano 003 depende disso.
+- Como a camada rápida da Onyx mostra cores na tela colorida do Air4 C? Hoje o traço provisório sai preto e só ganha a cor quando a tela se atualiza; a etapa 02 vai testar a cor e o tempo de atualização depois de levantar a caneta.

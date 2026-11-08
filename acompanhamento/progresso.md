@@ -6,6 +6,23 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Primeiro teste da casca 0.2.0 no Boox
+
+### Feito
+
+- Registrado o primeiro retorno do autor sobre a versão 0.2.0: ficou boa, e a resposta da escrita está bem rápida.
+
+### Observado no aparelho
+
+- Ao escrever em laranja, o traço sai preto e só fica laranja quando a tela se atualiza, porque a casca fixa em preto a cor do traço provisório da Onyx.
+- Os ícones selecionados ficam pouco legíveis na tela e-ink, por causa das cores.
+
+### Pendências
+
+- Na etapa 02, passar à camada da Onyx a cor escolhida, testar como a tela colorida a mostra e fixar o tempo da atualização depois de levantar a caneta.
+- Decidir com o autor se o contraste dos ícones selecionados entra antes do modo e-ink do plano 004.
+- Confirmar com o autor os itens restantes do teste da etapa 01.
+
 ## 2026-11-08 · Etapa 01 do plano 003: Prancheta real dentro da casca
 
 ### Feito

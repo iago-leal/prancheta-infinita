@@ -39,4 +39,12 @@ Trocar a página de teste da casca pela Prancheta de `web/app/`, entregue de den
 - Testes: `web/testes/casca.test.cjs`, com 6 testes e uma casca simulada, e 4 testes JUnit novos do roteador, num total de 10. Verificação por mutação: os testes do adaptador acusam as 12 mutações introduzidas; os do roteador acusam as 5, depois de um ajuste no teste da caneta encostada, que antes só era coberto pela janela de tempo.
 - Falta o teste do autor no Boox, que decide os critérios 1, 2, 3, 4 e 6.
 
+### 2026-11-08, primeiro teste da versão 0.2.0
+
+- O autor instalou a versão 0.2.0 no Boox e avaliou que ficou boa e que a resposta da escrita está bem rápida.
+- Observações do autor: ao escrever em laranja, o traço sai preto e só fica laranja quando a tela se atualiza; e os ícones selecionados não estão bem adaptados à tela e-ink, por causa das cores.
+- Causa do traço preto: a casca fixa a cor do traço provisório da Onyx em preto. O SDK aceita outra cor, por `TouchHelper.setStrokeColor`, e permite fixar o tempo da atualização depois de levantar a caneta, por `setPenUpRefreshTimeMs` e `setPenUpRefreshEnabled`, o que tira a troca da dependência da configuração do tablet. Não se sabe ainda como a camada rápida mostra cores na tela colorida do Air4 C; isso fica para a etapa 02, que já prevê a cor da Prancheta valendo também para a camada da Onyx.
+- O contraste dos ícones selecionados é assunto do modo e-ink, previsto para o plano 004, salvo decisão do autor de antecipá-lo.
+- Os critérios 1, 2, 3, 4 e 6 continuam sem marca até o autor confirmar os itens do teste: sem internet, seleção e arrasto com um dedo, movimento e zoom com dois dedos, borracha com a caneta, mão apoiada sem mover o quadro, e imagem e quadro presentes depois de fechar e reabrir o aplicativo.
+
 ## Resultado
