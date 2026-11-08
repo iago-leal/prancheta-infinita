@@ -29,6 +29,15 @@ class AtualizacaoTest {
     }
 
     @Test
+    fun `lê a resposta real da API do GitHub para a versão casca-4`() {
+        val json = javaClass.getResource("/ultima-versao-casca-4.json")!!.readText()
+        assertEquals(
+            Atualizacao(4, "Casca 0.3.0", "https://github.com/iago-leal/prancheta-infinita/releases/download/casca-4/prancheta-casca-0.3.0.apk"),
+            Atualizacao.ler(json),
+        )
+    }
+
+    @Test
     fun `ignora versões que não são da casca ou não trazem APK`() {
         assertNull(Atualizacao.ler(resposta("v1.0")))
         assertNull(Atualizacao.ler(resposta("casca-5", anexo = "prancheta.zip")))
@@ -40,6 +49,13 @@ class AtualizacaoTest {
     fun `só aceita APK anexado a este repositório`() {
         assertNull(Atualizacao.ler(resposta("casca-5", endereco = "https://exemplo.com/prancheta.apk")))
         assertNull(Atualizacao.ler(resposta("casca-5", endereco = "https://github.com/outra-pessoa/prancheta-infinita/releases/download/casca-5/x.apk")))
+    }
+
+    @Test
+    fun `avisa a versão só quando ela muda`() {
+        assertEquals("Prancheta atualizada para a versão 0.3.1.", Atualizacao.mensagemDeVersao(4, 5, "0.3.1"))
+        assertEquals("Prancheta na versão 0.3.1.", Atualizacao.mensagemDeVersao(null, 5, "0.3.1"))
+        assertNull(Atualizacao.mensagemDeVersao(5, 5, "0.3.1"))
     }
 
     @Test

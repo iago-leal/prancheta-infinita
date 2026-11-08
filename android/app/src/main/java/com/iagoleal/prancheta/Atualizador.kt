@@ -34,6 +34,16 @@ class Atualizador(private val atividade: Activity) {
     private var aguardandoPermissao: Atualizacao? = null
     @Volatile private var baixando = false
 
+    /** Avisa, uma vez, quando a casca abre numa versão diferente da última que abriu. */
+    fun avisarVersaoNova() {
+        val preferencias = atividade.getSharedPreferences(PREFERENCIAS, Activity.MODE_PRIVATE)
+        val atual = codigoInstalado()
+        val anterior = if (preferencias.contains(CHAVE_DA_VERSAO)) preferencias.getLong(CHAVE_DA_VERSAO, 0L) else null
+        val nome = atividade.packageManager.getPackageInfo(atividade.packageName, 0).versionName ?: atual.toString()
+        Atualizacao.mensagemDeVersao(anterior, atual, nome)?.let { avisar(it) }
+        preferencias.edit().putLong(CHAVE_DA_VERSAO, atual).apply()
+    }
+
     /** Consulta a última versão, no máximo uma vez a cada [INTERVALO_MS]. */
     fun verificar() {
         val agora = SystemClock.elapsedRealtime()
@@ -179,8 +189,10 @@ class Atualizador(private val atividade: Activity) {
 
     companion object {
         private const val TAG = "Atualizador"
+        private const val PREFERENCIAS = "casca"
+        private const val CHAVE_DA_VERSAO = "versao_aberta"
         const val ACAO_DE_RETORNO = "com.iagoleal.prancheta.RETORNO_DA_ATUALIZACAO"
-        private const val INTERVALO_MS = 6 * 60 * 60 * 1000L
+        private const val INTERVALO_MS = 30 * 60 * 1000L
         private const val TEMPO_DE_CONEXAO_MS = 5_000
         private const val TEMPO_DE_LEITURA_MS = 20_000
     }

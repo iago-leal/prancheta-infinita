@@ -39,6 +39,12 @@ class TintaTest {
     }
 
     @Test
+    fun `o contorno definitivo é engrossado pelo ajuste medido no Boox`() {
+        assertEquals(12f, Tinta.larguraDefinitiva(10f), 0.001f)
+        assertEquals(10f * Tinta.AJUSTE_DO_CONTORNO, Tinta.larguraDefinitiva(10f), 0.001f)
+    }
+
+    @Test
     fun `a espessura fica entre os limites aceitos pela camada`() {
         val fina = Tinta(marcaTexto = false, cor = Tinta.PRETO, larguraCss = 1f)
         val grossa = Tinta(marcaTexto = true, cor = Tinta.PRETO, larguraCss = 40f)

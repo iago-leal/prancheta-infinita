@@ -49,6 +49,8 @@ class CamadaOnyx private constructor(
     @Volatile private var suspensa = false
     @Volatile private var pausada = false
     @Volatile private var desligadaPelaPagina = false
+    @Volatile private var emTraco = false
+    @Volatile private var ajustePendente = false
     @Volatile private var falhou = false
     @Volatile private var areasExcluidas: List<Rect> = emptyList()
     @Volatile private var tinta = Tinta.PADRAO
@@ -65,8 +67,10 @@ class CamadaOnyx private constructor(
 
     /** Áreas da tela, em pixels físicos, onde a caneta não desenha pela camada. */
     fun definirAreasReservadas(areas: List<Retangulo>) {
-        areasExcluidas = areas.map { Rect(it.esquerda.toInt(), it.topo.toInt(), it.direita.toInt(), it.base.toInt()) }
-        reconfigurar()
+        val novas = areas.map { Rect(it.esquerda.toInt(), it.topo.toInt(), it.direita.toInt(), it.base.toInt()) }
+        if (novas == areasExcluidas) return
+        areasExcluidas = novas
+        ajustar()
     }
 
     /** Ajusta a largura do traço provisório ao zoom da página. */
@@ -74,18 +78,32 @@ class CamadaOnyx private constructor(
         escala = k
         this.densidade = densidade
         larguraTraco = tinta.larguraNaTela(k, densidade)
-        naThread { helper.setStrokeWidth(larguraTraco) }
+        ajustar()
     }
 
     /** Usa no traço provisório a ferramenta, a cor e a espessura escolhidas na Prancheta. */
     fun definirTinta(nova: Tinta) {
         tinta = nova
         larguraTraco = nova.larguraNaTela(escala, densidade)
-        naThread {
-            helper.setStrokeStyle(estilo())
-            helper.setStrokeWidth(larguraTraco)
-            helper.setStrokeColor(nova.cor)
+        ajustar()
+    }
+
+    /**
+     * Aplica estilo, espessura, cor e áreas excluídas sem reabrir a camada.
+     * Reabrir a camada, ou mudá-la durante um traço, pode fazer a Onyx perder o
+     * fim do traço e ligá-lo ao seguinte por uma linha que a Prancheta nunca
+     * recebe; por isso, um ajuste que chega durante um traço espera ele terminar.
+     */
+    private fun ajustar() = naThread {
+        if (emTraco) {
+            ajustePendente = true
+            return@naThread
         }
+        ajustePendente = false
+        helper.setStrokeStyle(estilo())
+        helper.setStrokeWidth(larguraTraco)
+        helper.setStrokeColor(tinta.cor)
+        helper.setExcludeRect(areasExcluidas)
     }
 
     /** Suspende a camada durante gestos de dois dedos. */
@@ -147,6 +165,35 @@ class CamadaOnyx private constructor(
 
     private fun habilitada() = !suspensa && !pausada && !desligadaPelaPagina
 
+    /**
+     * Troca o traço provisório pelo definitivo, que a Prancheta já desenhou,
+     * depois que a caneta sobe. Só redesenhar a WebView não apaga a camada da
+     * Onyx: ela é desligada por um instante, como no gesto de dois dedos, e a
+     * região escrita é atualizada, sem o piscar da tela inteira. Durante um
+     * traço, a troca fica para o próximo aviso da Onyx.
+     */
+    private fun trocarPeloDefinitivo(area: RectF?) {
+        if (emTraco) return
+        naThread {
+            if (emTraco) return@naThread
+            helper.setRawDrawingEnabled(false)
+            alvo.post {
+                alvo.invalidate()
+                val regiao = Rect()
+                area?.roundOut(regiao)
+                runCatching {
+                    if (regiao.isEmpty) {
+                        EpdController.invalidate(alvo, UpdateMode.GU)
+                    } else {
+                        regiao.inset(-MARGEM_DA_TROCA, -MARGEM_DA_TROCA)
+                        EpdController.invalidate(alvo, regiao.left, regiao.top, regiao.right, regiao.bottom, UpdateMode.GU)
+                    }
+                }
+                alvo.postDelayed({ aplicarHabilitacao() }, ATRASO_DA_TROCA_MS)
+            }
+        }
+    }
+
     private fun estilo() = if (tinta.marcaTexto) TouchHelper.STROKE_STYLE_MARKER else TouchHelper.STROKE_STYLE_FOUNTAIN
 
     private fun aplicarHabilitacao() = naThread { helper.setRawDrawingEnabled(habilitada()) }
@@ -200,7 +247,7 @@ class CamadaOnyx private constructor(
         return try {
             NeoFountainPenWrapper.computeStrokePoints(brutos, largura, pressaoMaxima)
                 .filter { it.size > 0f }
-                .map { PontoContorno(it.x, it.y, it.size) }
+                .map { PontoContorno(it.x, it.y, Tinta.larguraDefinitiva(it.size)) }
         } catch (erro: Throwable) {
             Log.w(TAG, "a Onyx não calculou o contorno do traço", erro)
             emptyList()
@@ -224,6 +271,7 @@ class CamadaOnyx private constructor(
 
         @Synchronized
         override fun onBeginRawDrawing(sucesso: Boolean, ponto: TouchPoint?) {
+            emTraco = true
             pontos.clear()
             brutos.clear()
             listaRecebida = false
@@ -252,9 +300,11 @@ class CamadaOnyx private constructor(
             pontos.clear()
             brutos.clear()
             listaRecebida = false
+            emTraco = false
+            if (ajustePendente) ajustar()
         }
 
-        override fun onPenUpRefresh(area: RectF?) = atualizarTela()
+        override fun onPenUpRefresh(area: RectF?) = trocarPeloDefinitivo(area)
 
         // A Pen Plus do Air4 C não tem borracha; apagar fica para depois.
         override fun onBeginRawErasing(sucesso: Boolean, ponto: TouchPoint?) = Unit
@@ -273,6 +323,12 @@ class CamadaOnyx private constructor(
 
         /** Tempo para a WebView se redesenhar antes de a camada voltar. */
         private const val ATRASO_PARA_RELIGAR_MS = 150L
+
+        /** Tempo em que a camada fica desligada na troca do traço provisório pelo definitivo. */
+        private const val ATRASO_DA_TROCA_MS = 100L
+
+        /** Margem, em pixels físicos, em volta da região atualizada na troca. */
+        private const val MARGEM_DA_TROCA = 8
 
         fun ehAparelhoOnyx(): Boolean =
             listOf(Build.MANUFACTURER, Build.BRAND).any { it.equals("ONYX", ignoreCase = true) || it.equals("BOOX", ignoreCase = true) }
