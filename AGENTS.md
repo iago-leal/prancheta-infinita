@@ -32,3 +32,5 @@ O andamento do projeto fica em `acompanhamento/`. Os modelos de arquivo e os pas
 - O Maven Central às vezes responde 429, excesso de requisições, mesmo com as repetições configuradas no `android/gradle.properties`; nesse caso, repita a compilação, que aproveita o que já foi baixado. Não troque o endereço do Maven Central: isso invalida o cache.
 - Testar a lógica nativa com JUnit: `cd android && ./gradlew testDebugUnitTest`.
 - Testar a página da casca no Chromium, a partir da raiz do repositório: `node --test android/testes/*.test.cjs`. Usa o Playwright e o Chromium já instalados na máquina.
+- Testar a Prancheta em `web/` no Chromium, a partir da raiz do repositório: `node --test web/testes/*.test.cjs`.
+- Conferir que `web/` guarda a versão publicada do artefato: `sha256sum -c web/artefato-publicado.sha256`.

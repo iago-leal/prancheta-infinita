@@ -6,6 +6,28 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 01 do plano 002 concluída: código do artefato no repositório
+
+### Feito
+
+- Copiados para `web/` o `index.html` e os seis áudios da versão `1793918104-39f4` do artefato, conferidos pelos hashes que a ferramenta de artefatos informa, guardados em `web/artefato-publicado.sha256`.
+- Criado o teste da linha de base, que abre o código original no modo local, sem `window.claude`, cria um cartão e um traço e confirma que eles persistem depois de recarregar.
+- Escrito `web/inventario-claude.md`, com os nove recursos do claude.ai que o código pede, as operações e os caminhos do banco, o modo local e as requisições externas.
+- A máquina reiniciou, mas com o mesmo disco; a confirmação do script de configuração num contêiner novo continua pendente.
+
+### Decidido
+
+- **O código original fica intacto em `web/index.html`.** As mudanças da camada de compatibilidade virão nas etapas seguintes, sempre conferíveis contra os hashes da versão publicada.
+
+### Pendências
+
+- Decidir com o autor onde a exportação dos quadros fica guardada e iniciar a etapa 02.
+
+### Referências
+
+- Etapa 01: `acompanhamento/planos/002-prancheta-independente/etapas/01-codigo-do-artefato.md`
+- Inventário: `web/inventario-claude.md`
+
 ## 2026-11-08 · Plano 002 aberto: Prancheta independente do claude.ai
 
 ### Feito
