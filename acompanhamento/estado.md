@@ -1,9 +1,9 @@
 ---
 tipo: estado
 atualizado_em: 2026-11-08
-fase: Prancheta independente pronta; sincronização com a VPS por abrir
-plano_ativo:
-etapa_atual:
+fase: Prancheta no Boox e sincronização com a VPS
+plano_ativo: acompanhamento/planos/003-boox-e-sincronizacao/plano.md
+etapa_atual: acompanhamento/planos/003-boox-e-sincronizacao/etapas/01-prancheta-na-casca.md
 bloqueios: []
 ---
 
@@ -25,23 +25,24 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - No Boox, a caneta escreve, um dedo seleciona e arrasta, e dois dedos movem e ampliam o quadro.
 - Reorganização pensada para e-ink já na primeira versão: contorno durante o arrasto, mover por toque e modo e-ink sem sombras, animações ou transparências.
 - Cada traço guarda identificador, posição e horário, para permitir agrupamento e transcrição no futuro.
+- Traço sensível à pressão, por decisão do autor, com o traço provisório da Onyx e o definitivo da página na mesma forma, para que nada mude quando a tela do Boox se atualiza.
 - A Prancheta independente começa com o banco limpo: os dados do artefato não serão migrados, por decisão do autor.
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 - Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` chama a VPS a cada envio à `main`, com uma chave guardada nos segredos do repositório e restrita a uma ação fixa. Por enquanto, a ação só confirma o canal; publicar de fato entra no plano 003.
 
 ## Em andamento
 
-Nenhum plano ativo. O plano 002 foi concluído: a Prancheta independente, em `web/app/`, guarda os dados no banco local, abre e funciona com o servidor da página fora do ar e não faz requisições externas. O plano 001, experimento da casca Android, também foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
+Plano 003, Prancheta no Boox e sincronização com a VPS, aberto com cinco etapas: a Prancheta real dentro da casca, o traço sensível à pressão igual na Onyx e na página, o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
 
 ## Próximo passo
 
-Abrir o plano 003 quando o autor pedir. Antes de empacotar a Prancheta na casca, decidir com o autor o tipo de traço, para que o provisório da Onyx e o definitivo da página fiquem iguais. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Iniciar a etapa 01 do plano 003 quando o autor pedir: copiar `web/app/` para o APK na compilação e ligar a ponte da casca ao código do artefato. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
 1. 001: experimento da casca Android, concluído.
 2. 002: Prancheta independente do claude.ai, concluído.
-3. Sincronização com a VPS, implantação, autenticação e a Prancheta real empacotada dentro da casca, para abrir sem internet no Boox.
+3. 003: Prancheta no Boox e sincronização com a VPS, ativo.
 4. Modo e-ink e ferramentas de reorganização.
 
 ## Ambiente de nuvem
@@ -53,4 +54,4 @@ Ambiente pessoal `prancheta-infinita`: rede limitada, com registros de pacotes, 
 - Como distribuir as próximas versões do APK: release do GitHub, artefato de CI ou o aplicativo do Claude, como até agora?
 - O que fazer quando o plugin Android 10 remover o Jetifier, se o SDK da Onyx ainda depender de bibliotecas anteriores ao AndroidX?
 - O APK tem 21 MB por trazer bibliotecas nativas de cinco arquiteturas; vale restringi-lo às arquiteturas ARM?
-- Traço de espessura constante ou sensível à pressão? No Boox, o traço provisório da Onyx tem espessura constante e o definitivo da página afina com a pressão, e a troca aparece quando a tela se atualiza.
+- Qual será o endereço da Prancheta na VPS, e que servidor web com HTTPS já atende lá? A etapa 05 do plano 003 depende disso.
