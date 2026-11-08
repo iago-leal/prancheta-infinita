@@ -78,6 +78,10 @@ class MainActivity : Activity() {
             override fun aoDesenharTraco() {
                 camada?.atualizarTela()
             }
+
+            override fun aoPedirRedesenho() {
+                camada?.redesenharTudo()
+            }
         }
         webView.addOnLayoutChangeListener { _, esquerda, topo, direita, base, esquerdaAntes, topoAntes, direitaAntes, baseAntes ->
             val mudou = direita - esquerda != direitaAntes - esquerdaAntes || base - topo != baseAntes - topoAntes

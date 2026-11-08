@@ -2,9 +2,9 @@
 tipo: plano
 id: "001"
 titulo: Experimento da casca Android
-status: em_andamento
+status: concluido
 criado_em: 2026-11-07
-concluido_em:
+concluido_em: 2026-11-08
 ---
 
 # Plano 001: experimento da casca Android
@@ -19,7 +19,7 @@ Verificar, no Boox Note Air4 C do autor, se uma casca Android que exibe a Pranch
 
 ## Critério de conclusão do plano
 
-- [ ] A decisão de arquitetura está registrada neste plano e em `acompanhamento/estado.md`, com base no teste feito no aparelho.
+- [x] A decisão de arquitetura está registrada neste plano e em `acompanhamento/estado.md`, com base no teste feito no aparelho.
 
 ## Etapas
 
@@ -28,7 +28,11 @@ Verificar, no Boox Note Air4 C do autor, se uma casca Android que exibe a Pranch
 | [01](etapas/01-ambiente-compilando-apk.md) | Ambiente de nuvem compilando um APK mínimo | concluida |
 | [02](etapas/02-webview-e-pagina-de-teste.md) | WebView com página de teste e ponte JavaScript | concluida |
 | [03](etapas/03-camada-onyx.md) | Camada de tinta da Onyx ligada à página | concluida |
-| [04](etapas/04-teste-no-boox.md) | Teste no Boox e decisão | pendente |
+| [04](etapas/04-teste-no-boox.md) | Teste no Boox e decisão | concluida |
+
+## Decisão
+
+Seguir com a casca Android: a Prancheta roda numa WebView, e, no Boox, a caneta usa a camada de tinta da Onyx. No teste do autor, no Note Air4 C, a escrita teve a mesma velocidade do aplicativo de notas da Boox, o traço caiu no lugar certo depois de mover e ampliar, o zoom com dois dedos funcionou e a troca do traço provisório pelo definitivo aconteceu sem salto. O único defeito encontrado, a tela que não se limpava depois do "Limpar", foi corrigido na versão 0.1.1 e confirmado no aparelho.
 
 ## Riscos
 

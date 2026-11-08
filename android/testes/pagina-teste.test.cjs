@@ -54,10 +54,12 @@ async function abrir() {
     window.__transformacoes = [];
     window.__areas = [];
     window.__prontas = 0;
+    window.__redesenhos = 0;
     window.Casca = {
       pronta: () => { window.__prontas += 1; },
       transformacao: (json) => { window.__transformacoes.push(JSON.parse(json)); },
       areasReservadas: (json) => { window.__areas.push(JSON.parse(json)); },
+      redesenharTela: () => { window.__redesenhos += 1; },
     };
   });
   await pagina.goto(`${base}/pagina-teste.html`);
@@ -121,6 +123,19 @@ test('a casca define a tinta ativa, e a área reservada acompanha o tamanho da t
   assert.match(await pagina.textContent('#info'), /tinta nativa/);
   await pagina.setViewportSize({ width: 600, height: 500 });
   await pagina.waitForFunction(() => window.__areas.at(-1)?.[0]?.largura === 600);
+  await contexto.close();
+});
+
+test('limpar apaga os traços e pede à casca que redesenhe a tela', async () => {
+  const { contexto, pagina, cdp } = await abrir();
+  await caneta(cdp, linha(100, 200, 500, 200, 20, 0.5));
+  await pagina.evaluate(() => window.prancheta.receberTraco([{ x: 100, y: 300, p: 0.5 }, { x: 400, y: 300, p: 0.5 }]));
+  assert.equal(await pagina.locator('#mundo path').count(), 2);
+  assert.equal(await pagina.evaluate(() => window.__redesenhos), 0);
+  await pagina.click('#limpar');
+  assert.equal(await pagina.locator('#mundo path').count(), 0);
+  assert.deepEqual(await pagina.evaluate(() => window.prancheta.tracos()), []);
+  assert.equal(await pagina.evaluate(() => window.__redesenhos), 1);
   await contexto.close();
 });
 

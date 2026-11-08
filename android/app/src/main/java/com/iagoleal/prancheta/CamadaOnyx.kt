@@ -89,6 +89,23 @@ class CamadaOnyx private constructor(
         }
     }
 
+    /**
+     * Apaga da tela tudo o que a camada desenhou, como depois de limpar o
+     * quadro. A camada fica desligada enquanto a WebView se redesenha e volta
+     * logo depois: é o mesmo ciclo que o gesto de dois dedos provoca, e que no
+     * teste do autor limpou a tela.
+     */
+    fun redesenharTudo() {
+        naThread {
+            helper.setRawDrawingEnabled(false)
+            alvo.post {
+                alvo.invalidate()
+                runCatching { EpdController.invalidate(alvo, UpdateMode.GC) }
+                alvo.postDelayed({ aplicarHabilitacao() }, ATRASO_PARA_RELIGAR_MS)
+            }
+        }
+    }
+
     fun encerrar() {
         naThread {
             runCatching {
@@ -188,6 +205,9 @@ class CamadaOnyx private constructor(
         private const val DIAMETRO_CSS = 4.0
         private const val LARGURA_PADRAO = 8f
         private const val PRESSAO_MAXIMA_PADRAO = 4096f
+
+        /** Tempo para a WebView se redesenhar antes de a camada voltar. */
+        private const val ATRASO_PARA_RELIGAR_MS = 150L
 
         fun ehAparelhoOnyx(): Boolean =
             listOf(Build.MANUFACTURER, Build.BRAND).any { it.equals("ONYX", ignoreCase = true) || it.equals("BOOX", ignoreCase = true) }

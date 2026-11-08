@@ -6,6 +6,48 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Plano 001 concluído: casca Android validada no Boox
+
+### Feito
+
+- O autor testou a casca no Boox Note Air4 C. A versão 0.1.0 mostrou "tinta nativa", escrita rápida, zoom com dois dedos e "Reiniciar vista" funcionando, mas o "Limpar" deixava os traços na tela até um gesto de dois dedos.
+- Corrigido o "Limpar" na versão 0.1.1: a página pede à casca que redesenhe a tela inteira, e a casca desliga a camada da Onyx, atualiza a tela e a religa. O autor confirmou a correção.
+- No relato final, o autor informou que a escrita tem a mesma velocidade do aplicativo de notas da Boox, que o traço cai no lugar certo depois de mover e ampliar e que não há salto ao levantar a caneta.
+- Concluídas a etapa 04 e o plano 001, com a decisão registrada no plano e no estado.
+
+### Decidido
+
+- **Seguir com a casca Android.** O experimento confirmou a suposição mais arriscada do projeto: a camada da Onyx funciona sobre a WebView, com a mesma latência do aplicativo de notas, sem bloquear os dedos e sem salto visível. A PWA deixa de ser alternativa para o Boox.
+- **Redesenhar a tela inteira depois de apagar traços.** É o único jeito, visto até agora, de remover os traços provisórios do controlador da tela.
+
+### Pendências
+
+- Abrir o plano 002, com o código do artefato no repositório e a camada de compatibilidade.
+- Confirmar, numa sessão em contêiner novo, que o script de configuração roda.
+- Decidir como distribuir as próximas versões do APK.
+
+### Referências
+
+- Plano 001: `acompanhamento/planos/001-casca-android/plano.md`
+- Etapa 04: `acompanhamento/planos/001-casca-android/etapas/04-teste-no-boox.md`
+- PR #4: https://github.com/iago-leal/prancheta-infinita/pull/4
+
+## 2026-11-08 · Etapa 04 iniciada: APK enviado para o teste no Boox
+
+### Feito
+
+- Mesclado o PR #3 no `main`, a pedido do autor; o branch de trabalho recomeçou a partir dele.
+- Compilado do zero, a partir do `main`, o APK `prancheta-casca-0.1.0-debug.apk`, com os testes passando, e enviado ao autor pelo aplicativo do Claude. O hash está no Registro da etapa 04.
+
+### Pendências
+
+- Registrar o relato do autor sobre o teste no Boox e a decisão de arquitetura.
+
+### Referências
+
+- Etapa 04: `acompanhamento/planos/001-casca-android/etapas/04-teste-no-boox.md`
+- PR #3, mesclado: https://github.com/iago-leal/prancheta-infinita/pull/3
+
 ## 2026-11-08 · Etapa 03 concluída: camada de tinta da Onyx
 
 ### Feito
