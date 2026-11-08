@@ -6,6 +6,27 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Plano 003 aberto: Prancheta no Boox e sincronização com a VPS
+
+### Feito
+
+- Mesclado o PR #9 no `main`, a pedido do autor, o que fecha o plano 002.
+- Aberto o plano 003, com cinco etapas: a Prancheta real dentro da casca, o traço sensível à pressão igual na Onyx e na página, o servidor de sincronização, a sincronização no banco local e a publicação na VPS.
+
+### Decidido
+
+- **Traço sensível à pressão.** O autor escolheu o traço que varia com a pressão, e não o de espessura constante. Para que nada mude quando a tela se atualiza, o caminho preferido é a casca calcular o contorno de cada traço com o mesmo motor de canetas da Onyx que desenha o traço provisório; o SDK traz esse motor, em classes como `NeoFountainPen` e `NeoBrushPen`, configuradas por `NeoPenConfig`, que considera pressão e velocidade.
+- **Duas frentes no plano 003.** O Boox, nas etapas 01 e 02, e a sincronização, nas etapas 03 a 05, podem avançar em paralelo; a publicação só fecha com a casca sincronizando.
+
+### Pendências
+
+- Iniciar a etapa 01 do plano 003.
+- Saber do autor o endereço da Prancheta na VPS e que servidor web com HTTPS já atende lá, antes da etapa 05.
+
+### Referências
+
+- Plano 003: `acompanhamento/planos/003-boox-e-sincronizacao/plano.md`
+
 ## 2026-11-08 · Etapa 06 e plano 002 concluídos: Prancheta sem internet
 
 ### Feito
