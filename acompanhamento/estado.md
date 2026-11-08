@@ -26,6 +26,7 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 - Cada traço guarda identificador, posição e horário, para permitir agrupamento e transcrição no futuro.
 - A Prancheta independente começa com o banco limpo: os dados do artefato não serão migrados, por decisão do autor.
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
+- Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` chama a VPS a cada envio à `main`, com uma chave guardada nos segredos do repositório e restrita a uma ação fixa. Por enquanto, a ação só confirma o canal; publicar de fato entra no plano 003.
 
 ## Em andamento
 

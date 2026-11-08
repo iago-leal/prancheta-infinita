@@ -31,6 +31,28 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 - Banco local: `web/compat/banco-local.js`
 - Testes: `web/testes/banco-local.test.cjs`
 
+## 2026-11-08 · Canal de publicação na VPS pelo GitHub
+
+### Feito
+
+- Criado o fluxo `.github/workflows/publicar.yml`, que chama a VPS a cada envio à `main` e sob demanda.
+- Criada na VPS uma conta sem privilégios, com uma chave que só executa uma ação fixa, a qual por enquanto apenas confirma o canal.
+- Verificado direto na VPS: a chave executa a ação permitida e é recusada em comando arbitrário, encadeamento de comandos, sessão sem comando, túnel e entrada como root.
+- Verificado pelo GitHub, numa execução a partir do branch: a VPS respondeu, e o registro público não expõe o endereço nem a chave.
+
+### Decidido
+
+- **Publicação pelo GitHub, e não por SSH saindo do ambiente de nuvem.** A documentação informa que o tráfego de saída das sessões passa por um proxy HTTP/HTTPS e não menciona SSH. A conexão direta não foi medida no ambiente, que permaneceu sem alteração.
+- **Chave nova e restrita, e não a chave de administrador.** A VPS abriga outros serviços, e a restrição limita um vazamento a repetir uma ação fixa.
+
+### Pendências
+
+- No plano 003, acrescentar a ação de publicar ao roteiro da VPS e fazer o fluxo chamá-la.
+
+### Referências
+
+- Fluxo: `.github/workflows/publicar.yml`
+
 ## 2026-11-08 · Plano 002 reestruturado: Prancheta sem internet
 
 ### Feito
