@@ -36,11 +36,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Prancheta real na casca, 03, servidor de sincronização, em `servidor/`, 04, sincronização no banco local, e 06, atualização pelo próprio aplicativo, estão concluídas. Estão em andamento a 02, traço sensível à pressão, e a 05, publicação na VPS, com o código, o roteiro e os testes prontos. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
+Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Prancheta real na casca, 03, servidor de sincronização, em `servidor/`, 04, sincronização no banco local, e 06, atualização pelo próprio aplicativo, estão concluídas. Estão em andamento a 02, traço sensível à pressão, e a 05, publicação na VPS, já no ar: a página e a sincronização respondem por https no endereço escolhido, publicadas pela conta sem privilégios. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
 
 ## Próximo passo
 
-O autor confirmar no Boox, com a casca 0.3.4, que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca, para fechar a etapa 02. Para a etapa 05: o autor executar `servidor/implantacao/preparar-vps.sh` na VPS pela sessão do Mac, criar as chaves dos aparelhos, cadastrar o segredo do endereço e fazer a primeira publicação; depois, confirmar a sincronização entre o Boox e o computador. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor confirmar no Boox, com a casca 0.3.4, que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca, para fechar a etapa 02. Para fechar a etapa 05: o autor configurar a sincronização no Boox e no computador, com o endereço e a chave de cada aparelho, guardados no Bitwarden, confirmar que um quadro de um aparelho aparece no outro e que a Prancheta abre sem internet no computador depois da primeira visita. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
@@ -48,7 +48,7 @@ O autor confirmar no Boox, com a casca 0.3.4, que os traços seguidos aparecem n
 2. 002: Prancheta independente do claude.ai, concluído.
 3. 003: Prancheta no Boox e sincronização com a VPS, ativo.
 4. Modo e-ink e ferramentas de reorganização.
-5. Livros e PDFs, com a biblioteca no WebDAV da VPS e, antes, a rede privada e a cifra dos dados no aparelho.
+5. Livros e PDFs: a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra dos dados no aparelho.
 
 ## Ambiente de nuvem
 

@@ -77,12 +77,24 @@ jobs:
             echo "::notice::cadastre o segredo VPS_PRANCHETA_ANFITRIAO para conferir cada publicação"
             exit 0
           fi
+          no_ar=nao
           for tentativa in $(seq 1 36); do
             if [ "$(curl -fsS --max-time 10 "https://$ANFITRIAO/versao.txt" 2>/dev/null)" = "$GITHUB_SHA" ]; then
-              echo "a versão $GITHUB_SHA responde no endereço da Prancheta"
-              exit 0
+              no_ar=sim
+              break
             fi
             sleep 5
           done
-          echo "a versão publicada não respondeu no endereço em 3 minutos"
-          exit 1
+          if [ "$no_ar" != sim ]; then
+            echo "a versão publicada não respondeu no endereço em 3 minutos"
+            exit 1
+          fi
+          echo "a versão $GITHUB_SHA responde no endereço da Prancheta"
+          # A sincronização recusa quem não tem uma chave válida, no endereço real.
+          sem_chave=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "https://$ANFITRIAO/sync/estado")
+          chave_errada=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -H "Authorization: Bearer chave-errada-$GITHUB_RUN_ID-com-mais-de-32-caracteres" "https://$ANFITRIAO/sync/estado")
+          if [ "$sem_chave" != 401 ] || [ "$chave_errada" != 401 ]; then
+            echo "a sincronização respondeu $sem_chave sem a chave e $chave_errada com uma chave errada, e não 401"
+            exit 1
+          fi
+          echo "a sincronização recusa pedidos sem a chave e com uma chave errada"

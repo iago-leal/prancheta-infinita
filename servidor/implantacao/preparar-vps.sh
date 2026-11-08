@@ -11,8 +11,9 @@
 # O endereço vai só para /etc/prancheta/ambiente, legível pelo administrador,
 # e nunca para o repositório. O roteiro:
 #
-#  1. confere a conta prancheta, criada junto com o canal de publicação, e que
-#     ela não está no grupo docker;
+#  1. confere a conta prancheta, criada junto com o canal de publicação, que
+#     ela não está no grupo docker e que nenhum arquivo do administrador, em
+#     /root e /etc, tem o mesmo dono numérico que ela;
 #  2. instala o comando da publicação, prancheta-publicar, e o das chaves,
 #     prancheta-chave;
 #  3. cria as pastas: o código publicado, em /home/prancheta/publicado; os
@@ -55,6 +56,13 @@ fi
 PRANCHETA_UID="$(id -u prancheta)"
 PRANCHETA_GID="$(id -g prancheta)"
 echo "conta prancheta: uid $PRANCHETA_UID, gid $PRANCHETA_GID, fora do grupo docker"
+# O servidor da Prancheta roda com esse número; nenhum arquivo do administrador
+# pode tê-lo como dono, ou um erro futuro de montagem o deixaria ao alcance dele.
+DO_ADMINISTRADOR="$(find /root /etc -xdev -uid "$PRANCHETA_UID" 2>/dev/null | head -n 5)"
+if [[ -n "$DO_ADMINISTRADOR" ]]; then
+  echo "$DO_ADMINISTRADOR" >&2
+  falhar "esses arquivos do administrador têm o mesmo dono numérico da conta prancheta; passe-os ao administrador, por exemplo com chown root:root <arquivo>, e rode o roteiro de novo"
+fi
 
 passo "2. Comandos"
 install -o root -g root -m 0755 "$AQUI/prancheta-publicar" /usr/local/bin/prancheta-publicar

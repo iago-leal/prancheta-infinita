@@ -6,6 +6,24 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 05 do plano 003: Prancheta no ar na VPS
+
+### Feito
+
+- Mesclado o PR #19. A sessão do Mac, com a aprovação do autor, corrigiu a posse de dois arquivos do administrador, rodou o roteiro, acrescentou a rede ao arquivo do Traefik sem recriá-lo e cadastrou o segredo do endereço; o autor criou as chaves dos três aparelhos no próprio terminal, direto no Bitwarden.
+- A publicação pelo GitHub passou: a versão c8967a3 respondeu por https no endereço da Prancheta seis segundos depois do envio.
+- A conferência de cada publicação passou a verificar que a sincronização recusa pedidos sem a chave no endereço real.
+- Recebido o levantamento do WebDAV, lido no histórico da sessão do Mac.
+
+### Decidido
+
+- **Chaves fora de qualquer histórico.** As chaves são criadas pelo autor no próprio terminal e vão direto ao Bitwarden, porque esta sessão consegue ler o histórico da sessão do Mac.
+- **Livros pela pasta do WebDAV, só leitura.** Em vez de os aparelhos falarem com o WebDAV, que não tem usuário só de leitura, o servidor da Prancheta lê a biblioteca por uma montagem só de leitura e a entrega com a chave de cada aparelho.
+
+### Pendências
+
+- O autor configurar a sincronização no Boox e no computador e confirmar os critérios 4 e 5 da etapa 05.
+
 ## 2026-11-08 · Etapa 05 do plano 003: publicação na VPS preparada
 
 ### Feito

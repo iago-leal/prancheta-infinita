@@ -20,7 +20,7 @@ scp -r servidor/implantacao <vps>:/root/prancheta-implantacao
 ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh <endereço da Prancheta>'
 ```
 
-O roteiro confere a conta `prancheta`, criada junto com o canal de publicação, e se recusa a seguir se ela estiver no grupo `docker`, o que equivaleria a dar a ela acesso de administrador. Em seguida, instala os dois comandos, cria as pastas, grava o ambiente e o `compose.yml`, cria a rede `prancheta_borda`, sem saída para a internet, liga o Traefik a ela sem reiniciá-lo e liga o contêiner. Ele não edita o arquivo do Traefik: se a rede ainda não estiver declarada nele, mostra o trecho a acrescentar, para que ela continue lá quando o Traefik for recriado.
+O roteiro confere a conta `prancheta`, criada junto com o canal de publicação, e se recusa a seguir se ela estiver no grupo `docker`, o que equivaleria a dar a ela acesso de administrador, ou se algum arquivo do administrador, em `/root` e `/etc`, tiver o mesmo dono numérico que ela, porque o servidor da Prancheta roda com esse número. Em seguida, instala os dois comandos, cria as pastas, grava o ambiente e o `compose.yml`, cria a rede `prancheta_borda`, sem saída para a internet, liga o Traefik a ela sem reiniciá-lo e liga o contêiner. Ele não edita o arquivo do Traefik: se a rede ainda não estiver declarada nele, mostra o trecho a acrescentar, para que ela continue lá quando o Traefik for recriado.
 
 Depois, crie uma chave para cada aparelho. Cada chave aparece uma única vez, para ser digitada no botão "Sincronizar" da Prancheta daquele aparelho, junto com o endereço:
 
