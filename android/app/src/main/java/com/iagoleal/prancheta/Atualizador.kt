@@ -192,7 +192,7 @@ class Atualizador(private val atividade: Activity) {
         private const val PREFERENCIAS = "casca"
         private const val CHAVE_DA_VERSAO = "versao_aberta"
         const val ACAO_DE_RETORNO = "com.iagoleal.prancheta.RETORNO_DA_ATUALIZACAO"
-        private const val INTERVALO_MS = 6 * 60 * 60 * 1000L
+        private const val INTERVALO_MS = 30 * 60 * 1000L
         private const val TEMPO_DE_CONEXAO_MS = 5_000
         private const val TEMPO_DE_LEITURA_MS = 20_000
     }

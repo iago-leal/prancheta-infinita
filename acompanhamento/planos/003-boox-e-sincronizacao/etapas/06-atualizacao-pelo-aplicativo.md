@@ -44,5 +44,6 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 
 - A versão 0.3.1, código 5, com as correções da etapa 02, será a primeira entregue ao autor pela atualização dentro do aplicativo, depois da mescla na `main`.
 - A pedido do autor, que perguntou como saber se a atualização entrou, a casca passou a avisar, na primeira abertura de cada versão nova, "Prancheta atualizada para a versão X.", guardando nas preferências do aplicativo o último `versionCode` aberto. Como a 0.3.0 não guardava nada, a primeira abertura da 0.3.1 mostra "Prancheta na versão 0.3.1.". Um teste JUnit novo cobre a mensagem; são 22 ao todo.
+- O intervalo mínimo entre consultas de versão nova caiu de 6 horas para 30 minutos, para que uma correção chegue ao autor no mesmo dia; a consulta é um único pedido à API do GitHub.
 
 ## Resultado
