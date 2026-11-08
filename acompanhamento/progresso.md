@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 04 iniciada: APK enviado para o teste no Boox
+
+### Feito
+
+- Mesclado o PR #3 no `main`, a pedido do autor; o branch de trabalho recomeçou a partir dele.
+- Compilado do zero, a partir do `main`, o APK `prancheta-casca-0.1.0-debug.apk`, com os testes passando, e enviado ao autor pelo aplicativo do Claude. O hash está no Registro da etapa 04.
+
+### Pendências
+
+- Registrar o relato do autor sobre o teste no Boox e a decisão de arquitetura.
+
+### Referências
+
+- Etapa 04: `acompanhamento/planos/001-casca-android/etapas/04-teste-no-boox.md`
+- PR #3, mesclado: https://github.com/iago-leal/prancheta-infinita/pull/3
+
 ## 2026-11-08 · Etapa 03 concluída: camada de tinta da Onyx
 
 ### Feito

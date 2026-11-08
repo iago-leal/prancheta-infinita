@@ -25,11 +25,11 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 
 ## Em andamento
 
-Plano 001, experimento da casca Android. As etapas 01, 02 e 03 estão concluídas; falta a etapa 04, o teste no Boox.
+Plano 001, experimento da casca Android. As etapas 01, 02 e 03 estão concluídas, e a etapa 04, o teste no Boox, está em andamento: o APK 0.1.0 foi enviado ao autor pelo aplicativo do Claude.
 
 ## Próximo passo
 
-Definir com o autor como o APK chegará ao Boox e iniciar a etapa 04. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Registrar o relato do autor sobre o teste no Boox e a decisão de arquitetura. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
@@ -46,5 +46,5 @@ Ambiente pessoal `prancheta-infinita`: rede limitada, com registros de pacotes, 
 
 - A camada da Onyx funciona sobre uma WebView sem bloquear os toques dos dedos?
 - O salto entre o traço provisório do sistema e o traço final da Prancheta é tolerável?
-- Como o APK chegará ao Boox: release do GitHub, artefato de CI ou outro meio?
+- Como distribuir as próximas versões do APK: release do GitHub, artefato de CI ou o aplicativo do Claude?
 - O que fazer quando o plugin Android 10 remover o Jetifier, se o SDK da Onyx ainda depender de bibliotecas anteriores ao AndroidX?
