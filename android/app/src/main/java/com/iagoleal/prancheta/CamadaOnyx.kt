@@ -18,8 +18,8 @@ import java.util.concurrent.Executors
 /**
  * Camada de tinta da Onyx sobre a WebView. Enquanto a caneta escreve, o
  * controlador da tela desenha um traço provisório com latência baixa; quando
- * a caneta sobe, os pontos seguem para a página, que desenha o traço
- * definitivo.
+ * a caneta sobe, os pontos seguem para a Prancheta, que grava e desenha o
+ * traço definitivo.
  *
  * As operações no `TouchHelper` rodam numa thread própria. Os eventos da
  * caneta chegam por [onTouchEvent], encaminhados pela Activity conforme o
@@ -42,6 +42,7 @@ class CamadaOnyx private constructor(
 
     @Volatile private var suspensa = false
     @Volatile private var pausada = false
+    @Volatile private var desligadaPelaPagina = false
     @Volatile private var falhou = false
     @Volatile private var areasExcluidas: List<Rect> = emptyList()
     @Volatile private var larguraTraco = LARGURA_PADRAO
@@ -68,6 +69,12 @@ class CamadaOnyx private constructor(
     /** Suspende a camada durante gestos de dois dedos. */
     fun suspender(valor: Boolean) {
         suspensa = valor
+        aplicarHabilitacao()
+    }
+
+    /** Liga ou desliga a escrita pela camada, conforme a ferramenta ativa na Prancheta. */
+    fun definirAtiva(ativa: Boolean) {
+        desligadaPelaPagina = !ativa
         aplicarHabilitacao()
     }
 
@@ -116,7 +123,9 @@ class CamadaOnyx private constructor(
         executor.shutdown()
     }
 
-    private fun aplicarHabilitacao() = naThread { helper.setRawDrawingEnabled(!suspensa && !pausada) }
+    private fun habilitada() = !suspensa && !pausada && !desligadaPelaPagina
+
+    private fun aplicarHabilitacao() = naThread { helper.setRawDrawingEnabled(habilitada()) }
 
     // A ordem segue a que o SDK exige: largura, cor e limites antes de abrir;
     // estilo depois de abrir; por fim, a habilitação.
@@ -134,7 +143,7 @@ class CamadaOnyx private constructor(
         helper.setStrokeWidth(larguraTraco)
         helper.setStrokeColor(Color.BLACK)
         helper.setRawDrawingRenderEnabled(false)
-        helper.setRawDrawingEnabled(!suspensa && !pausada)
+        helper.setRawDrawingEnabled(habilitada())
     }
 
     private fun naThread(bloco: () -> Unit) {

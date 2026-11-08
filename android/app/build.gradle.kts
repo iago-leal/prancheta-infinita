@@ -1,5 +1,36 @@
+import javax.inject.Inject
+
 plugins {
     id("com.android.application")
+}
+
+/**
+ * Copia a Prancheta de `web/app/` para os assets do APK, na pasta `app/`.
+ * A cópia é gerada a cada compilação, para que o repositório guarde uma só
+ * versão da página.
+ */
+abstract class CopiarPrancheta : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val origem: DirectoryProperty
+
+    @get:OutputDirectory
+    abstract val destino: DirectoryProperty
+
+    @get:Inject
+    abstract val arquivos: FileSystemOperations
+
+    @TaskAction
+    fun copiar() {
+        arquivos.sync {
+            from(origem)
+            into(destino.dir("app").get().asFile)
+        }
+    }
+}
+
+val copiarPrancheta = tasks.register<CopiarPrancheta>("copiarPrancheta") {
+    origem.set(layout.projectDirectory.dir("../../web/app"))
 }
 
 android {
@@ -10,8 +41,8 @@ android {
         applicationId = "com.iagoleal.prancheta"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.2.0"
     }
 
     compileOptions {
@@ -24,6 +55,12 @@ android {
             // Várias bibliotecas do SDK da Onyx trazem a própria cópia.
             pickFirsts += "lib/*/libc++_shared.so"
         }
+    }
+}
+
+androidComponents {
+    onVariants { variante ->
+        variante.sources.assets?.addGeneratedSourceDirectory(copiarPrancheta, CopiarPrancheta::destino)
     }
 }
 

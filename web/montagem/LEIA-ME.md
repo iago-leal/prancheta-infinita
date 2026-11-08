@@ -18,6 +18,7 @@ Para mudar o código da Prancheta, acrescente uma entrada em `mudancas.cjs`, com
 | `index.html` | página montada |
 | `compat/banco-local.js` | banco local em IndexedDB, da etapa 05 do plano 002 |
 | `compat/claude.js` | cliente de compatibilidade: responde por `window.claude.use(nome)` com o banco local e com equivalentes de `assets`, `downloads`, `user` e `permissions` |
+| `compat/casca.js` | adaptador da casca Android: liga a ponte da casca ao código do artefato e não faz nada fora dela |
 | `sw.js` | service worker: guarda os arquivos da página e entrega os arquivos enviados em `/_blob/<id>`, lendo-os do banco local |
 | `fontes/` | fonte Inter |
 | `vendor/` | bibliotecas que o artefato buscava em CDNs |
@@ -28,7 +29,7 @@ Todos foram obtidos do registro do npm, nas mesmas versões que o artefato pedia
 
 | Arquivo | Pacote e versão | Licença | SHA-256 |
 |---|---|---|---|
-| `vendor/perfect-freehand/index.js` | `perfect-freehand` 1.2.2, `dist/esm/index.mjs`, a mesma cópia da casca Android | MIT | `0ddf0e44c727ab39d7211af95685bf12234236f0e2eca376091e5791a71626e4` |
+| `vendor/perfect-freehand/index.js` | `perfect-freehand` 1.2.2, `dist/esm/index.mjs`, a mesma cópia que a página de teste da casca usava | MIT | `0ddf0e44c727ab39d7211af95685bf12234236f0e2eca376091e5791a71626e4` |
 | `vendor/pdfjs/pdf.min.js` | `pdfjs-dist` 3.11.174, `build/pdf.min.js` | Apache-2.0 | `5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946` |
 | `vendor/pdfjs/pdf.worker.min.js` | `pdfjs-dist` 3.11.174, `build/pdf.worker.min.js` | Apache-2.0 | `feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b` |
 | `vendor/mammoth/mammoth.browser.min.js` | `mammoth` 1.6.0 | BSD-2-Clause | `596ef52239e52d8ee3cee10b2ee4a72596abf900d0e4f468593f956e9f1809b0` |
@@ -42,4 +43,4 @@ O subconjunto latino cobre o português; caracteres fora dele usam a fonte do si
 - O service worker só funciona em contexto seguro: `https`, `localhost` ou a casca. Sem ele, a página funciona, mas o recurso `assets` fica indisponível, e o artefato embute as imagens reduzidas no próprio quadro e recusa outros arquivos.
 - Na primeira visita, a página só passa a abrir sem rede depois que o service worker termina de se instalar, o que leva menos de um segundo num servidor próximo. Uma recarga forçada, que ignora o service worker, também deixa os arquivos enviados sem exibição até a recarga seguinte.
 - Os desenhos por código e as instruções da conversa ainda citam CDNs, mas só existem quando a conversa com o Claude está disponível, o que não acontece fora do claude.ai.
-- Empacotar esta pasta dentro da casca Android, com o service worker servido pela casca, fica para o plano 003.
+- A casca Android copia esta pasta para dentro do APK na compilação e a abre pelo endereço interno `https://appassets.androidplatform.net/assets/app/index.html`; o service worker funciona lá quando a WebView do aparelho oferece esse recurso. Na casca, baixar arquivos, como a exportação em PNG, ainda não funciona, porque a WebView não entrega downloads sem um tratamento próprio.

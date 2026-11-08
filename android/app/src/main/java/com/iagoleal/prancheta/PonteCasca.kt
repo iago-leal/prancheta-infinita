@@ -6,9 +6,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Ponte entre a casca e a página. A página chama os métodos marcados com
+ * Ponte entre a casca e a Prancheta. A página chama os métodos marcados com
  * [JavascriptInterface] pelo objeto `Casca`; a casca chama as funções do
- * objeto `prancheta` da página.
+ * objeto `prancheta` da página, definido em `web/app/compat/casca.js`.
  *
  * A página trabalha em pixels CSS relativos ao canto superior esquerdo da
  * WebView, e a vista segue `tela = quadro * k + (x, y)`. Como a página usa
@@ -25,6 +25,7 @@ class PonteCasca(private val webView: WebView) {
         fun aoMudarAreasReservadas(areas: List<Retangulo>) {}
         fun aoDesenharTraco() {}
         fun aoPedirRedesenho() {}
+        fun aoMudarCaneta(escreve: Boolean) {}
     }
 
     var ouvinte: Ouvinte? = null
@@ -68,6 +69,15 @@ class PonteCasca(private val webView: WebView) {
             Retangulo(x, y, x + (o.getDouble("largura") * d).toFloat(), y + (o.getDouble("altura") * d).toFloat())
         }
         webView.post { ouvinte?.aoMudarAreasReservadas(areas) }
+    }
+
+    /**
+     * Informa se a caneta escreve pela camada da Onyx, conforme a ferramenta
+     * ativa na Prancheta; com a borracha ou as formas, ela age sobre a página.
+     */
+    @JavascriptInterface
+    fun canetaEscreve(escreve: Boolean) {
+        webView.post { ouvinte?.aoMudarCaneta(escreve) }
     }
 
     /** A página pede que a tela inteira seja redesenhada, por exemplo depois de apagar traços. */

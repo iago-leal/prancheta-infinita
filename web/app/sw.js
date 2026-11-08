@@ -10,11 +10,12 @@
 
 importScripts('compat/banco-local.js');
 
-const VERSAO = 'prancheta-app-1';
+const VERSAO = 'prancheta-app-2';
 const ARQUIVOS = [
   'index.html',
   'compat/banco-local.js',
   'compat/claude.js',
+  'compat/casca.js',
   'fontes/inter.css',
   'fontes/inter-latin-opsz-normal.woff2',
   'fontes/inter-latin-opsz-italic.woff2',

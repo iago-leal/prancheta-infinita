@@ -97,7 +97,7 @@ const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2
 
 test('a página independente é o original com as mudanças listadas, cada uma com motivo', () => {
   assert.equal(fs.readFileSync(DESTINO, 'utf8'), montar(), 'web/app/index.html difere da montagem; rode node web/montagem/montar.cjs');
-  assert.equal(mudancas.length, 7);
+  assert.equal(mudancas.length, 9);
   for (const m of mudancas) assert.ok(m.motivo.length > 40, `motivo curto: ${m.motivo}`);
   // Os endereços externos que a página carregava não aparecem mais. Restam
   // citações a CDNs só nos desenhos por código e nas instruções da conversa,
@@ -253,6 +253,10 @@ test('cria cartão, seta, traço e imagem com o servidor da página fora do ar, 
     const seta = gravados.find((it) => it.type === 'edge');
     assert.equal(cartoes.length, 2);
     assert.deepEqual(new Set([seta.a.id, seta.b.id]), new Set(cartoes.map((c) => c.id)), 'a seta liga os dois cartões');
+    // Cada traço guarda o horário de início e a duração.
+    const tracoGravado = gravados.find((it) => it.type === 'stroke');
+    assert.ok(tracoGravado.em > Date.now() - 120000 && tracoGravado.em <= Date.now(), `horário ${tracoGravado.em}`);
+    assert.ok(tracoGravado.dur > 0, `duração ${tracoGravado.dur}`);
     const imagem = gravados.find((it) => it.type === 'image');
     assert.match(imagem.asset, /^[\w-]{8,64}$/);
     assert.equal(imagem.src, undefined, 'a imagem fica no banco local, e não embutida no quadro');

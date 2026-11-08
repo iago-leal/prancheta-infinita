@@ -6,6 +6,64 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 01 do plano 003 concluída: Prancheta real na casca
+
+### Feito
+
+- O autor confirmou no Boox, com a casca 0.2.0, todos os itens do teste: a Prancheta sem internet, um dedo selecionando e arrastando, dois dedos movendo e ampliando, a borracha com a caneta, a mão apoiada sem mover o quadro, e a imagem e o quadro presentes depois de fechar e reabrir o aplicativo.
+- Concluída a etapa 01 do plano 003, com a verificação de cada critério.
+
+### Decidido
+
+- **Ícones no plano 004.** O autor decidiu não antecipar o contraste dos ícones selecionados, que fica no modo e-ink.
+
+### Pendências
+
+- Etapa 02: traço provisório da Onyx com a mesma forma e cor do definitivo e tempo fixo de atualização depois de levantar a caneta.
+
+## 2026-11-08 · Primeiro teste da casca 0.2.0 no Boox
+
+### Feito
+
+- Registrado o primeiro retorno do autor sobre a versão 0.2.0: ficou boa, e a resposta da escrita está bem rápida.
+
+### Observado no aparelho
+
+- Ao escrever em laranja, o traço sai preto e só fica laranja quando a tela se atualiza, porque a casca fixa em preto a cor do traço provisório da Onyx.
+- Os ícones selecionados ficam pouco legíveis na tela e-ink, por causa das cores.
+
+### Pendências
+
+- Na etapa 02, passar à camada da Onyx a cor escolhida, testar como a tela colorida a mostra e fixar o tempo da atualização depois de levantar a caneta.
+- Decidir com o autor se o contraste dos ícones selecionados entra antes do modo e-ink do plano 004.
+- Confirmar com o autor os itens restantes do teste da etapa 01.
+
+## 2026-11-08 · Etapa 01 do plano 003: Prancheta real dentro da casca
+
+### Feito
+
+- Mesclado o PR #10 no `main`, a pedido do autor, e iniciada a etapa 01 do plano 003.
+- A compilação da casca passou a copiar `web/app/` para o APK, e a casca abre a Prancheta real; a página de teste do plano 001 e os testes dela foram removidos.
+- Criado o adaptador `web/app/compat/casca.js`, que liga a ponte da casca ao código do artefato, com 6 testes no Chromium usando uma casca simulada.
+- O roteador de toques ganhou a regra da ferramenta e a rejeição da palma, com 4 testes JUnit novos; a casca ganhou seletor de arquivos, abertura de links externos no navegador e o encaminhamento do service worker.
+- Cada traço passou a guardar horário de início e duração.
+- Compilada a versão 0.2.0 da casca, enviada ao autor para o teste no Boox.
+
+### Decidido
+
+- **Caneta conforme a ferramenta.** Com a seleção, que é a ferramenta inicial, a caneta escreve e um dedo seleciona e arrasta; com a borracha, as formas e o texto, a caneta age sobre a página.
+- **Rejeição da palma na casca.** Um toque de dedo com a caneta encostada ou até 400 ms depois do último sinal dela é descartado, para que a mão apoiada não mova o quadro.
+
+### Pendências
+
+- Teste do autor no Boox com a versão 0.2.0, que decide os critérios restantes da etapa 01.
+- Downloads, como a exportação em PNG, ainda não funcionam na casca.
+
+### Referências
+
+- Etapa 01: `acompanhamento/planos/003-boox-e-sincronizacao/etapas/01-prancheta-na-casca.md`
+- Adaptador: `web/app/compat/casca.js`
+
 ## 2026-11-08 · Plano 003 aberto: Prancheta no Boox e sincronização com a VPS
 
 ### Feito

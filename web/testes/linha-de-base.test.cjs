@@ -9,8 +9,8 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 const { servirWeb } = require('./apoio/servidor.cjs');
 
-// Mesma versão que o artefato importa do jsDelivr, já copiada do npm para a casca.
-const PERFECT_FREEHAND = path.join(__dirname, '..', '..', 'android', 'app', 'src', 'main', 'assets', 'vendor', 'perfect-freehand', 'index.js');
+// Mesma versão que o artefato importa do jsDelivr, a que a Prancheta independente traz em vendor/.
+const PERFECT_FREEHAND = path.join(__dirname, '..', 'app', 'vendor', 'perfect-freehand', 'index.js');
 
 let servidor;
 let base;
