@@ -1,9 +1,9 @@
 ---
 tipo: estado
 atualizado_em: 2026-11-08
-fase: entre planos, com a casca Android validada
-plano_ativo:
-etapa_atual:
+fase: Prancheta independente do claude.ai
+plano_ativo: acompanhamento/planos/002-prancheta-independente/plano.md
+etapa_atual: acompanhamento/planos/002-prancheta-independente/etapas/01-codigo-do-artefato.md
 bloqueios: []
 ---
 
@@ -26,17 +26,17 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 
 ## Em andamento
 
-Nenhum plano ativo. O plano 001, experimento da casca Android, foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
+Plano 002, Prancheta independente do claude.ai, aberto e sem etapa iniciada. O plano 001, experimento da casca Android, foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
 
 ## Próximo passo
 
-Abrir o plano 002, para trazer o código do artefato ao repositório com a camada de compatibilidade. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Iniciar a etapa 01 do plano 002: trazer o código do artefato para `web/` e registrar o inventário do que ele pede ao claude.ai. Antes da etapa 02, decidir com o autor onde a exportação dos quadros fica guardada. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
 1. 001: experimento da casca Android, concluído.
-2. Código do artefato no repositório, com a camada de compatibilidade.
-3. Implantação na VPS, com autenticação.
+2. 002: Prancheta independente do claude.ai, ativo.
+3. Implantação na VPS, com autenticação, e a Prancheta real dentro da casca.
 4. Modo e-ink e ferramentas de reorganização.
 
 ## Ambiente de nuvem

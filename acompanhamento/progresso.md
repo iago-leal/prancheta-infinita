@@ -6,6 +6,29 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Plano 002 aberto: Prancheta independente do claude.ai
+
+### Feito
+
+- Mesclado o PR #4 no `main`, a pedido do autor, encerrando o plano 001.
+- Analisado como o código do artefato usa o claude.ai: banco de documentos e coleções, com leitura, gravação, atualização, exclusão e assinaturas em tempo real; envio de arquivos; downloads; identidade do usuário; e um modo local que salva no `localStorage` quando `claude.use` não existe.
+- Aberto o plano 002, com quatro etapas: código do artefato no repositório, exportação dos dados, servidor de compatibilidade e cliente de compatibilidade.
+
+### Decidido
+
+- **Exportar os dados antes de construir o servidor.** Os quadros do autor continuam crescendo no artefato; tê-los exportados cedo reduz o risco de perda e dá dados reais para testar a importação.
+- **Prancheta real dentro da casca no plano 003.** Ligar as duas coisas exige um servidor acessível pelo Boox, que só existirá com a implantação na VPS.
+
+### Pendências
+
+- Iniciar a etapa 01 do plano 002.
+- Decidir com o autor onde a exportação dos quadros fica guardada, antes da etapa 02.
+
+### Referências
+
+- Plano 002: `acompanhamento/planos/002-prancheta-independente/plano.md`
+- PR #4, mesclado: https://github.com/iago-leal/prancheta-infinita/pull/4
+
 ## 2026-11-08 · Plano 001 concluído: casca Android validada no Boox
 
 ### Feito
