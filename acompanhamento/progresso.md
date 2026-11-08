@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Casca 0.3.3: cor do traço provisório sem escurecer
+
+### Feito
+
+- Mesclado o PR #16 no `main`, a pedido do autor.
+- O autor relatou que, na 0.3.2, o traço provisório da caneta verde sai preto e só fica verde na atualização, enquanto o vermelho continua vermelho. A 0.3.3 volta a mandar à camada da Onyx a cor da página sem mudança.
+- Medida, no vídeo IMG_5257 do autor, a espessura de traços de pressão leve, média e forte antes e depois da troca: a espessura varia com a pressão, na proporção de 1 para 1,4 para 2,0; com pressão leve e média, ela não muda na troca, e com pressão forte o provisório pode sair até 20% mais largo. Marcado o critério 3 da etapa 02.
+
+### Decidido
+
+- **Cor do traço provisório igual à da página.** O modo rápido da tela colorida parece só acender ou apagar cada canal de cor; escurecer a cor para igualar o tom do traço definitivo apaga os canais e deixa o traço preto. O provisório fica mais claro que o definitivo, mas com a cor certa.
+
+### Pendências
+
+- O autor confirmar no Boox, com a 0.3.3, que o traço não muda de forma perceptível na atualização da tela, inclusive na completa e com pressão forte, para o critério 5 da etapa 02.
+
 ## 2026-11-08 · Etapa 03 do plano 003 concluída e casca 0.3.2 publicada
 
 ### Feito

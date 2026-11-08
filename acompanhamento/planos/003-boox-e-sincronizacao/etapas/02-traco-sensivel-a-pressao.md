@@ -19,7 +19,7 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 
 - [ ] A camada da Onyx desenha com um estilo de caneta sensível à pressão, e a espessura e a cor escolhidas na Prancheta valem também para ela, em qualquer zoom.
 - [ ] A Prancheta desenha os traços vindos da casca com a mesma forma do traço provisório, e o traço guardado continua com os pontos, a pressão e o horário originais.
-- [ ] O Registro traz uma medição feita no Boox, com traços de pressão leve, média e forte, comparando a espessura do traço provisório com a do definitivo.
+- [x] O Registro traz uma medição feita no Boox, com traços de pressão leve, média e forte, comparando a espessura do traço provisório com a do definitivo.
 - [x] Testes cobrem a conversão dos traços da casca para a Prancheta, inclusive a escala no zoom.
 - [ ] O autor confirma no Boox que, na escrita normal, o traço não muda de forma perceptível quando a tela se atualiza, inclusive na atualização completa.
 
@@ -51,5 +51,23 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 - Medição do primeiro traço, nos quadros sem a mão: 7.744 pixels escuros antes da troca, aos 4,0 s, e 7.612 depois, aos 5,5 s, uma diferença menor que 2%; o ajuste de 20% no contorno igualou a espessura.
 - O traço provisório sai mais claro: contraste com o fundo de cerca de 58 níveis antes da troca e de 89 depois, como o autor observou, com o verde ficando mais escuro na atualização. O modo rápido da tela colorida mostra as cores mais pálidas.
 - Versão 0.3.2, código 6: a cor da caneta vai escurecida para a camada da Onyx, multiplicada por 0,65, a proporção inversa do contraste medido, por `Tinta.AJUSTE_DE_COR`; o marca-texto segue com a cor original. Um teste JUnit novo cobre a cor da camada; são 23 ao todo.
+
+### 2026-11-08, versão 0.3.2 no Boox
+
+- O autor atualizou para a 0.3.2 e relatou que o traço provisório da caneta verde passou a sair preto e só fica verde na atualização da tela; o vermelho continuou vermelho, e só o verde escureceu.
+- Interpretação: o modo rápido da tela colorida parece só acender ou apagar cada canal de cor, sem tons intermediários. O verde da caneta, `#2E8B57`, escurecido em 0,65, fica com o canal verde em 90 numa escala até 255 e se apaga por inteiro; o vermelho da Prancheta, `#D2453B`, escurecido, fica com o canal vermelho em 136 e continua aceso. O limite estaria entre esses dois valores, e o tom do traço provisório não pode ser ajustado pela cor enviada à camada: escurecer só faz a cor virar preto.
+- Versão 0.3.3, código 7: a camada da Onyx volta a receber a cor da página sem mudança, como na 0.3.1, em que o verde provisório saía mais claro, mas verde. O teste da cor da camada passou a conferir que ela é igual à da página; seguem 23 testes JUnit.
+
+### 2026-11-08, medição da pressão no vídeo do autor com a versão 0.3.2
+
+- O autor gravou o vídeo IMG_5257, de 15,5 s, com três traços retos feitos com a caneta padrão, de cor `#2F2E2B`, em sequência: pressão leve, média e forte.
+- Método: em cada quadro, a largura de cada traço foi medida à meia intensidade do perfil transversal, em pixels do vídeo, na mediana de cerca de 320 linhas. Como o foco e a exposição da câmera mudam ao longo do vídeo e alteram as larguras medidas em até 15%, cada traço foi comparado com um traço vizinho, já definitivo, no mesmo quadro.
+- A troca do provisório pelo definitivo aconteceu cerca de 1 s depois de levantar a caneta nos três traços: aos 7,9 a 8,0 s, aos 11,4 a 11,6 s e entre 13,9 e 14,3 s.
+- Espessura dos definitivos, no fim do vídeo: 3,2, 4,6 e 6,6 pixels do vídeo, na proporção de 1 para 1,4 para 2,0. A espessura varia com a pressão.
+- Traço leve: 3,8 a 3,9 pixels antes da troca e 3,6 depois. Não havia traço vizinho para referência, e a exposição mudou no mesmo momento; a diferença, de até 7%, fica dentro da incerteza.
+- Traço médio: em relação ao traço leve, a largura passou de 1,26 vez antes da troca para 1,29 vez depois. A espessura é a mesma, com diferença de até 3%.
+- Traço forte: entre os quadros de 13,7 a 13,8 s e os de 14,4 a 14,5 s, com o foco e a exposição iguais, pois o traço médio mede 4,44 e 4,54 pixels, o provisório mediu 7,8 pixels e o definitivo, 6,5, cerca de 20% a menos. Já nos quadros de 13,3 a 13,5 s, com outra exposição, a proporção entre o traço forte e o médio foi de 1,43 antes e depois da troca. O provisório forte fica, portanto, entre 0 e 20% mais largo que o definitivo. Parte da diferença pode vir de ele ser mais escuro, porque a resposta da câmera às intensidades não é linear.
+- Cor: o provisório sai preto e sólido, e o definitivo, cinza-escuro com uma textura pontilhada, mais visível no traço forte. A cor padrão da caneta, com os três canais em 47 de 255, já fica abaixo do limite do modo rápido; por isso, o provisório dessa caneta deve continuar preto na 0.3.3.
+- Conclusão: com pressão leve e média, a espessura não muda na troca; com pressão forte, o provisório pode sair até 20% mais largo. O ajuste do contorno não foi mudado, porque a diferença é incerta e aparece só na pressão forte; a confirmação do autor no critério 5 decide se o traço forte precisa de um ajuste próprio.
 
 ## Resultado

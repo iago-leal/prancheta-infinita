@@ -38,7 +38,7 @@ Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Pranchet
 
 ## Próximo passo
 
-O autor atualizar a casca para a 0.3.2 pelo próprio aplicativo, conferir a cor do traço provisório e medir traços de pressão leve, média e forte, para a etapa 02. Depois, a etapa 04, a sincronização no banco local, que conversa com o servidor da etapa 03 pela própria página. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar a casca 0.3.3, que volta a mandar à camada da Onyx a cor da página sem escurecer, porque na 0.3.2 o verde saía preto, e o autor confirmar no Boox que o traço não muda de forma perceptível na atualização, para fechar a etapa 02; a medição de pressão já está no Registro. Depois, a etapa 04, a sincronização no banco local, que conversa com o servidor da etapa 03 pela própria página. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
