@@ -34,3 +34,4 @@ O andamento do projeto fica em `acompanhamento/`. Os modelos de arquivo e os pas
 - Testar a página da casca no Chromium, a partir da raiz do repositório: `node --test android/testes/*.test.cjs`. Usa o Playwright e o Chromium já instalados na máquina.
 - Testar a Prancheta em `web/` no Chromium, a partir da raiz do repositório: `node --test web/testes/*.test.cjs`.
 - Conferir que `web/` guarda a versão publicada do artefato: `sha256sum -c web/artefato-publicado.sha256`.
+- Testar o montador da exportação: `python3 -m unittest discover -s web/exportacao`. Os dados exportados nunca vão para o Git.

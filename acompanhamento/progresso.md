@@ -6,6 +6,57 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Plano 002 reestruturado: Prancheta sem internet
+
+### Feito
+
+- Descartadas, antes de começar, as etapas 03, servidor de compatibilidade, e 04, cliente ligado a esse servidor.
+- Criadas as etapas 05, banco local no navegador, e 06, cliente de compatibilidade e Prancheta sem internet.
+- Registrada a mudança no plano 002 e no estado, e redefinido o plano 003, que passa a cobrir a sincronização com a VPS e a Prancheta empacotada na casca.
+
+### Decidido
+
+- **Uso sem internet no Boox.** O autor quer usar a Prancheta sem rede. Os dados ficam num banco local, e a VPS serve para sincronizar.
+- **Banco local em IndexedDB, dentro da página.** O mesmo código funciona no Boox, dentro da casca, e no computador, sem código nativo, e guarda bem imagens e arquivos. A alternativa de SQLite nativo, em Kotlin ou Rust, só serviria ao Boox e não traria ganho de latência perceptível: a escrita já passa pelo controlador da tela, e as operações no banco levam menos de um milissegundo diante de uma atualização de e-ink.
+- **Rust fora, por enquanto.** O autor perguntou se um backend em Rust melhoraria a latência; a análise mostrou que a latência sentida não depende da linguagem do nosso código.
+
+### Pendências
+
+- Iniciar a etapa 05, o banco local em IndexedDB.
+
+### Referências
+
+- Plano 002: `acompanhamento/planos/002-prancheta-independente/plano.md`
+- Etapas 05 e 06: `acompanhamento/planos/002-prancheta-independente/etapas/`
+
+## 2026-11-08 · Etapa 02 do plano 002 concluída: dados exportados do artefato
+
+### Feito
+
+- Mesclado o PR #5 no `main`, a pedido do autor.
+- Exportados, só com leituras, os 38 documentos do banco do artefato e os 9 arquivos enviados, cobrindo os 5 quadros da biblioteca, com 16 fragmentos e 722 itens.
+- Criados o montador do pacote, `web/exportacao/montar_exportacao.py`, com testes de dados fictícios, e a descrição do formato, `web/exportacao/formato.md`.
+- Enviado ao autor, pelo aplicativo do Claude, o pacote `prancheta-exportacao-2026-11-08.zip`.
+
+### Decidido
+
+- **Exportação fora do Git.** O autor escolheu receber o pacote e guardá-lo onde preferir, já que contém dados pessoais.
+- **Exportação reproduzível.** O processo e o montador estão documentados, porque o autor continua usando o artefato até a migração terminar e precisará de uma exportação final.
+
+### Mudança de escopo
+
+- Depois da exportação, o autor decidiu começar a Prancheta independente com o banco limpo. A importação foi dispensada nas etapas 03 e 04, e as cópias temporárias dos dados foram apagadas. A skill de acompanhamento ganhou uma regra para critérios dispensados pelo autor.
+
+### Pendências
+
+- Iniciar a etapa 03, o servidor de compatibilidade, com o banco começando vazio.
+
+### Referências
+
+- Etapa 02: `acompanhamento/planos/002-prancheta-independente/etapas/02-exportacao-dos-dados.md`
+- Formato: `web/exportacao/formato.md`
+- PR #5, mesclado: https://github.com/iago-leal/prancheta-infinita/pull/5
+
 ## 2026-11-08 · Etapa 01 do plano 002 concluída: código do artefato no repositório
 
 ### Feito
