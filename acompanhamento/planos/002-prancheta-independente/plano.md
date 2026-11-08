@@ -26,7 +26,7 @@ A casca Android foi validada no plano 001, e o que falta para usar a Prancheta d
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-codigo-do-artefato.md) | Código do artefato no repositório | concluida |
-| [02](etapas/02-exportacao-dos-dados.md) | Exportação dos dados do artefato | pendente |
+| [02](etapas/02-exportacao-dos-dados.md) | Exportação dos dados do artefato | concluida |
 | [03](etapas/03-servidor-de-compatibilidade.md) | Servidor de compatibilidade | pendente |
 | [04](etapas/04-cliente-de-compatibilidade.md) | Cliente de compatibilidade e Prancheta rodando fora do claude.ai | pendente |
 

@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-08
 fase: Prancheta independente do claude.ai
 plano_ativo: acompanhamento/planos/002-prancheta-independente/plano.md
-etapa_atual: acompanhamento/planos/002-prancheta-independente/etapas/02-exportacao-dos-dados.md
+etapa_atual: acompanhamento/planos/002-prancheta-independente/etapas/03-servidor-de-compatibilidade.md
 bloqueios: []
 ---
 
@@ -22,15 +22,16 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 - No Boox, a caneta escreve, um dedo seleciona e arrasta, e dois dedos movem e ampliam o quadro.
 - Reorganização pensada para e-ink já na primeira versão: contorno durante o arrasto, mover por toque e modo e-ink sem sombras, animações ou transparências.
 - Cada traço guarda identificador, posição e horário, para permitir agrupamento e transcrição no futuro.
+- Os dados exportados do artefato ficam fora do Git, com o autor, porque são pessoais.
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 
 ## Em andamento
 
-Plano 002, Prancheta independente do claude.ai: a etapa 01 está concluída, com o código do artefato em `web/` e o inventário em `web/inventario-claude.md`. O plano 001, experimento da casca Android, foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
+Plano 002, Prancheta independente do claude.ai: as etapas 01 e 02 estão concluídas: o código do artefato está em `web/`, com o inventário, e os dados foram exportados para um pacote entregue ao autor, fora do Git. O plano 001, experimento da casca Android, foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
 
 ## Próximo passo
 
-Decidir com o autor onde a exportação dos quadros fica guardada e iniciar a etapa 02. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Iniciar a etapa 03, o servidor de compatibilidade. A importação precisa do pacote de exportação: numa sessão nova, pedir ao autor que o reenvie, ou refazê-lo conforme `web/exportacao/formato.md`. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
