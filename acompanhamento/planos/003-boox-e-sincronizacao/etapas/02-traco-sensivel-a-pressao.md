@@ -70,4 +70,11 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 - Cor: o provisório sai preto e sólido, e o definitivo, cinza-escuro com uma textura pontilhada, mais visível no traço forte. A cor padrão da caneta, com os três canais em 47 de 255, já fica abaixo do limite do modo rápido; por isso, o provisório dessa caneta deve continuar preto na 0.3.3.
 - Conclusão: com pressão leve e média, a espessura não muda na troca; com pressão forte, o provisório pode sair até 20% mais largo. O ajuste do contorno não foi mudado, porque a diferença é incerta e aparece só na pressão forte; a confirmação do autor no critério 5 decide se o traço forte precisa de um ajuste próprio.
 
+### 2026-11-08, troca durante a escrita
+
+- O autor relatou que, ao escrever uma palavra, um traço feito logo depois de outro, como o resto da palavra depois da letra maiúscula, às vezes não aparece na hora e só surge junto com a troca do traço anterior.
+- Causa provável: a troca acontecia sempre 600 ms depois de levantar a caneta, desligando a camada da Onyx por 100 ms e atualizando a região escrita; um traço começado nesse intervalo não é desenhado pela camada na hora.
+- Versão 0.3.4, código 8: a troca passa a esperar a caneta se afastar. A nova `AgendaDaTroca` só libera a troca depois de 700 ms sem nenhum sinal da caneta, tocando ou pairando sobre a tela, que a Activity já recebia para a rejeição da palma; as regiões escritas se acumulam até a troca. Enquanto se escreve uma palavra ou uma linha, a caneta paira entre um traço e outro, e a troca espera; com a caneta pairando por mais de 20 s, ela acontece mesmo assim, desde que a caneta não esteja tocando a tela.
+- Testes: 7 testes JUnit novos cobrem a agenda, 30 ao todo, e acusam as 6 mutações introduzidas nela.
+
 ## Resultado

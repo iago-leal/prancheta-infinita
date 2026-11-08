@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Casca 0.3.4: troca do traço só com a caneta afastada
+
+### Feito
+
+- Mesclado o PR #17 no `main`, a pedido do autor, com a casca 0.3.3 e a medição da pressão.
+- O autor relatou que um traço feito logo depois de outro às vezes só aparece junto com a troca do traço anterior. A 0.3.4 só troca o traço provisório pelo definitivo depois de 700 ms sem sinal da caneta, tocando ou pairando, para não desligar a camada da Onyx no meio da escrita.
+
+### Decidido
+
+- **Troca com a caneta afastada.** O traço provisório pode ficar mais tempo na tela, até a caneta se afastar, em troca de nunca interromper a escrita; com a caneta pairando por mais de 20 s, a troca acontece mesmo assim.
+
+### Pendências
+
+- O autor confirmar no Boox, com a 0.3.4, que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca, para o critério 5 da etapa 02.
+- Continuar a etapa 04, a sincronização no banco local, que já tem o desenho da combinação item a item.
+
 ## 2026-11-08 · Casca 0.3.3: cor do traço provisório sem escurecer
 
 ### Feito

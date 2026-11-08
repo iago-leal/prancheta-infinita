@@ -3,6 +3,7 @@ package com.iagoleal.prancheta
 import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Build
+import android.os.SystemClock
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
@@ -57,6 +58,18 @@ class CamadaOnyx private constructor(
     @Volatile private var escala = 1.0
     @Volatile private var densidade = alvo.resources.displayMetrics.density
     @Volatile private var larguraTraco = Tinta.PADRAO.larguraNaTela(1.0, alvo.resources.displayMetrics.density)
+
+    // Troca do traço provisório pelo definitivo; os campos abaixo só mudam na thread da camada.
+    private val agenda = AgendaDaTroca()
+    private var regiaoPendente: RectF? = null
+    private var trocaDaTelaInteira = false
+    private var verificacaoAgendada = false
+
+    /**
+     * Registra um sinal da caneta, tocando ou pairando sobre a tela, com o
+     * tempo do evento; a troca do traço provisório espera a caneta se afastar.
+     */
+    fun sinalDaCaneta(tempo: Long) = agenda.sinalDaCaneta(tempo)
 
     /** Encaminha ao SDK um evento de caneta destinado à camada. */
     fun onTouchEvent(evento: MotionEvent): Boolean =
@@ -166,33 +179,68 @@ class CamadaOnyx private constructor(
     private fun habilitada() = !suspensa && !pausada && !desligadaPelaPagina
 
     /**
-     * Troca o traço provisório pelo definitivo, que a Prancheta já desenhou,
-     * depois que a caneta sobe. Só redesenhar a WebView não apaga a camada da
-     * Onyx: ela é desligada por um instante, como no gesto de dois dedos, e a
-     * região escrita é atualizada, sem o piscar da tela inteira. Durante um
-     * traço, a troca fica para o próximo aviso da Onyx.
+     * Pede a troca do traço provisório pelo definitivo, quando a Onyx avisa
+     * que a caneta subiu. As regiões escritas se acumulam até a troca, que
+     * espera a caneta se afastar, conforme a [AgendaDaTroca].
+     */
+    private fun pedirTroca(area: RectF?) = naThread {
+        if (area == null || area.isEmpty) {
+            trocaDaTelaInteira = true
+        } else {
+            val atual = regiaoPendente
+            if (atual == null) regiaoPendente = RectF(area) else atual.union(area)
+        }
+        agenda.pedir(agora())
+        verificarTroca()
+    }
+
+    /** Troca agora, se a caneta está afastada, ou volta a verificar quando ela puder estar. */
+    private fun verificarTroca() {
+        val espera = agenda.espera(agora(), emTraco) ?: return
+        if (espera > 0) {
+            if (!verificacaoAgendada) {
+                verificacaoAgendada = true
+                alvo.postDelayed({
+                    naThread {
+                        verificacaoAgendada = false
+                        verificarTroca()
+                    }
+                }, espera)
+            }
+            return
+        }
+        agenda.trocou()
+        val area = if (trocaDaTelaInteira) null else regiaoPendente
+        regiaoPendente = null
+        trocaDaTelaInteira = false
+        trocarPeloDefinitivo(area)
+    }
+
+    /**
+     * Troca o traço provisório pelo definitivo, que a Prancheta já desenhou.
+     * Só redesenhar a WebView não apaga a camada da Onyx: ela é desligada por
+     * um instante, como no gesto de dois dedos, e a região escrita é
+     * atualizada, sem o piscar da tela inteira. Roda na thread da camada.
      */
     private fun trocarPeloDefinitivo(area: RectF?) {
-        if (emTraco) return
-        naThread {
-            if (emTraco) return@naThread
-            helper.setRawDrawingEnabled(false)
-            alvo.post {
-                alvo.invalidate()
-                val regiao = Rect()
-                area?.roundOut(regiao)
-                runCatching {
-                    if (regiao.isEmpty) {
-                        EpdController.invalidate(alvo, UpdateMode.GU)
-                    } else {
-                        regiao.inset(-MARGEM_DA_TROCA, -MARGEM_DA_TROCA)
-                        EpdController.invalidate(alvo, regiao.left, regiao.top, regiao.right, regiao.bottom, UpdateMode.GU)
-                    }
+        helper.setRawDrawingEnabled(false)
+        alvo.post {
+            alvo.invalidate()
+            val regiao = Rect()
+            area?.roundOut(regiao)
+            runCatching {
+                if (regiao.isEmpty) {
+                    EpdController.invalidate(alvo, UpdateMode.GU)
+                } else {
+                    regiao.inset(-MARGEM_DA_TROCA, -MARGEM_DA_TROCA)
+                    EpdController.invalidate(alvo, regiao.left, regiao.top, regiao.right, regiao.bottom, UpdateMode.GU)
                 }
-                alvo.postDelayed({ aplicarHabilitacao() }, ATRASO_DA_TROCA_MS)
             }
+            alvo.postDelayed({ aplicarHabilitacao() }, ATRASO_DA_TROCA_MS)
         }
     }
+
+    private fun agora() = SystemClock.uptimeMillis()
 
     private fun estilo() = if (tinta.marcaTexto) TouchHelper.STROKE_STYLE_MARKER else TouchHelper.STROKE_STYLE_FOUNTAIN
 
@@ -272,6 +320,7 @@ class CamadaOnyx private constructor(
         @Synchronized
         override fun onBeginRawDrawing(sucesso: Boolean, ponto: TouchPoint?) {
             emTraco = true
+            agenda.sinalDaCaneta(agora())
             pontos.clear()
             brutos.clear()
             listaRecebida = false
@@ -301,10 +350,11 @@ class CamadaOnyx private constructor(
             brutos.clear()
             listaRecebida = false
             emTraco = false
+            agenda.sinalDaCaneta(agora())
             if (ajustePendente) ajustar()
         }
 
-        override fun onPenUpRefresh(area: RectF?) = trocarPeloDefinitivo(area)
+        override fun onPenUpRefresh(area: RectF?) = pedirTroca(area)
 
         // A Pen Plus do Air4 C não tem borracha; apagar fica para depois.
         override fun onBeginRawErasing(sucesso: Boolean, ponto: TouchPoint?) = Unit
@@ -318,7 +368,10 @@ class CamadaOnyx private constructor(
 
         private const val PRESSAO_MAXIMA_PADRAO = 4096f
 
-        /** Tempo entre levantar a caneta e trocar o traço provisório pelo definitivo. */
+        /**
+         * Tempo entre levantar a caneta e o aviso da Onyx que pede a troca do
+         * traço provisório pelo definitivo; a troca ainda espera a caneta se afastar.
+         */
         private const val TEMPO_PARA_ATUALIZAR_MS = 600
 
         /** Tempo para a WebView se redesenhar antes de a camada voltar. */
