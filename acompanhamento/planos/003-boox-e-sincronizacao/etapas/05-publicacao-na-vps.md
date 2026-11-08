@@ -17,9 +17,9 @@ Publicar na VPS a Prancheta de `web/app/` e o servidor de sincronização a cada
 
 ## Critérios de conclusão
 
-- [ ] Cada envio à `main` publica na VPS a pasta `web/app/` e o servidor de sincronização, pelo canal restrito do GitHub, sem usar acesso de administrador.
+- [x] Cada envio à `main` publica na VPS a pasta `web/app/` e o servidor de sincronização, pelo canal restrito do GitHub, sem usar acesso de administrador.
 - [x] As ações de administrador na VPS, feitas uma única vez pelo autor, estão num roteiro do repositório, e o servidor da Prancheta roda numa conta sem privilégios, sem mexer nos outros serviços da VPS.
-- [ ] A Prancheta e o servidor respondem por HTTPS no endereço escolhido pelo autor, e o servidor só atende com a chave de acesso.
+- [x] A Prancheta e o servidor respondem por HTTPS no endereço escolhido pelo autor, e o servidor só atende com a chave de acesso.
 - [ ] No navegador do computador, a Prancheta aberta no endereço da VPS continua funcionando sem internet depois da primeira visita.
 - [ ] O autor confirma que um quadro feito no Boox aparece no computador e um quadro feito no computador aparece no Boox.
 
@@ -55,5 +55,7 @@ Publicar na VPS a Prancheta de `web/app/` e o servidor de sincronização a cada
 - A correção de posse, feita à mão pela sessão do Mac, entrou no roteiro: ele se recusa a seguir se algum arquivo do administrador, em `/root` e `/etc`, tiver o mesmo dono numérico da conta `prancheta`. Com isso, todas as ações de administrador estão no roteiro, inclusive a edição do arquivo do Traefik, que ele descreve e que foi feita como descrita.
 - Critério 2 verificado: o roteiro está em `servidor/implantacao/preparar-vps.sh` e foi executado uma vez, com a aprovação do autor; o contêiner roda com a conta `prancheta`, sem privilégios, só leitura e sem saída para a internet; nos outros serviços, o único toque foi ligar o Traefik à rede nova sem reiniciá-lo e anotá-la no arquivo dele, e os outros sites continuaram respondendo. Os critérios 1 e 3 ficam para a próxima publicação disparada por um envio à `main`, que vai conferir também a recusa sem a chave.
 - WebDAV: o levantamento da sessão do Mac mostrou que ele não tem usuário só de leitura e que o navegador não consegue listar a biblioteca dele a partir de outra página. Para os livros, a proposta passa a ser montar a pasta da biblioteca só para leitura no contêiner da Prancheta e entregá-la com a chave de cada aparelho, sem a senha do WebDAV nos aparelhos. O progresso de leitura do KOReader identifica cada livro pelo conteúdo, o que permite ligar marcações a livros. Por reserva pedida pela sessão do Mac, os caminhos do servidor e um achado de segurança do WebDAV ficam fora do repositório.
+- Mesclado o PR #20. A publicação disparada pelo envio à `main`, ce7fda3, passou em todos os passos: o comando restrito publicou a versão, a conferência por https encontrou ce7fda3 em `/versao.txt` no endereço da Prancheta, e `/sync/estado` respondeu 401 sem a chave e com uma chave errada.
+- Critério 1 verificado por essa execução, disparada pelo próprio envio à `main`, pela conta `prancheta`, sem acesso de administrador nem ao Docker. Critério 3 verificado pela mesma execução: a página e o servidor respondem por https no endereço escolhido, com o certificado do Traefik, e a sincronização recusa quem não tem uma chave válida. As duas verificações se repetem a cada publicação.
 
 ## Resultado
