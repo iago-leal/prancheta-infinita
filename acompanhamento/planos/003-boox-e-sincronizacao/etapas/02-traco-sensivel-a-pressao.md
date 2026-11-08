@@ -36,4 +36,12 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 - Versão 0.3.0 da casca, código 4, que também traz o atualizador da etapa 06.
 - Falta o teste do autor no Boox: o critério 1 e o critério 2, que dependem de ver os traços na tela, a medição do critério 3, a partir de fotos dos traços antes e depois da atualização, e a confirmação do critério 5.
 
+### 2026-11-08, vídeo do autor com a versão 0.3.0
+
+- O autor confirmou que as cores funcionam: o traço provisório já sai na cor escolhida. O vídeo IMG_5255, de 39 s, foi gravado com a caneta preta de propósito.
+- A troca do traço provisório pelo definitivo não aconteceu 0,6 s depois de levantar a caneta: o provisório ficou vários segundos na tela e só sumiu numa atualização completa, com a tela piscando, por volta de 5,7 s do vídeo. O aviso da Onyx depois de levantar a caneta chamava só o redesenho da WebView, que não apaga a camada da Onyx.
+- Medição, na escrita normal com a caneta preta: nas letras "to" de "que está muito", a área escura passa de 1.304 pixels antes da troca para 1.047 depois, com limiar 80, e de 1.428 para 1.178 com limiar 60; como as letras são as mesmas, o traço provisório aparece cerca de 20% mais grosso que o definitivo. Falta medir separadamente os traços de pressão leve, média e forte.
+- Uma linha grossa e escura, que o autor viu aparecer e sumir na atualização da tela, não foi gravada pela Prancheta: depois da atualização, não sobra nem traço nem faixa de marca-texto. A causa provável é a casca reabrir a camada da Onyx a cada mudança das áreas reservadas, que acontece, por exemplo, quando o indicador "Salvando…"/"Salvo" muda de largura depois de cada traço; reabrir a camada, ou mudá-la durante um traço, pode fazer a Onyx perder o fim de um traço e ligá-lo ao seguinte.
+- Versão 0.3.1, código 5: as mudanças de áreas reservadas, cor, espessura e zoom passam a ser aplicadas sem reabrir a camada, por `setExcludeRect` e pelos ajustes de traço, e esperam o traço em andamento terminar; mudanças iguais às atuais são ignoradas. Depois de levantar a caneta, a casca desliga a camada por 100 ms e atualiza a região escrita no modo GU, para trocar o provisório pelo definitivo no tempo fixo, sem o piscar completo. O contorno definitivo é engrossado em 20%, por `Tinta.AJUSTE_DO_CONTORNO`, conforme a medição acima. Um teste JUnit novo cobre o ajuste; são 21 ao todo.
+
 ## Resultado

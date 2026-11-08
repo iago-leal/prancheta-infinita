@@ -6,6 +6,19 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Primeira publicação pelo GitHub e casca 0.3.1
+
+### Feito
+
+- O autor cadastrou o segredo `CASCA_CHAVE_BASE64`; mesclado o PR #12, o GitHub publicou a versão `casca-4`, a 0.3.0, com a mesma assinatura das versões instaladas, e não a substituiu ao rodar de novo.
+- Analisado o vídeo do autor com a 0.3.0: as cores funcionam; o traço provisório só sumia numa atualização completa da tela e aparece cerca de 20% mais grosso que o definitivo; uma linha escura aparecia e sumia sem ser gravada.
+- Preparada a versão 0.3.1: ajustes da camada sem reabri-la e fora dos traços em andamento, troca do traço provisório na região escrita depois de levantar a caneta e contorno definitivo 20% mais grosso.
+
+### Pendências
+
+- Mesclar a 0.3.1 e o autor recebê-la pela atualização dentro do aplicativo.
+- Medir os traços de pressão leve, média e forte com a 0.3.1.
+
 ## 2026-11-08 · Etapas 02 e 06 do plano 003: traço da Onyx e atualização pelo aplicativo
 
 ### Feito

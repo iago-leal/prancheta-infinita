@@ -31,6 +31,17 @@ data class Tinta(val marcaTexto: Boolean, val cor: Int, val larguraCss: Float) {
         const val LARGURA_MINIMA = 1f
         const val LARGURA_MAXIMA = 120f
 
+        /**
+         * O traço provisório da Onyx aparece cerca de 20% mais grosso na tela
+         * e-ink do que o contorno calculado pelo mesmo motor e desenhado pela
+         * Prancheta, conforme a medição do vídeo do autor de 2026-11-08; o
+         * contorno é engrossado na mesma proporção para que a troca não se note.
+         */
+        const val AJUSTE_DO_CONTORNO = 1.2f
+
+        /** Diâmetro do traço definitivo para um ponto do contorno calculado pela Onyx. */
+        fun larguraDefinitiva(tamanhoDaOnyx: Float): Float = tamanhoDaOnyx * AJUSTE_DO_CONTORNO
+
         val PADRAO = Tinta(marcaTexto = false, cor = PRETO, larguraCss = 3f)
 
         private val RGB = Regex("""rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+\s*)?\)""")

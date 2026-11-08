@@ -42,4 +42,6 @@ Acabar com o envio do APK a cada versão: o GitHub compila e publica cada versã
 - A resposta real da API do GitHub para essa versão virou um teste JUnit, em `android/app/src/test/resources/ultima-versao-casca-4.json`, e a `Atualizacao` a lê corretamente; são 20 testes JUnit ao todo.
 - Para confirmar que uma versão publicada não é substituída, o fluxo foi disparado de novo na `main`, sem mudar o `versionCode`. A execução 42485335472 terminou com sucesso, inclusive o passo de publicação, e a versão `casca-4` continuou com um único anexo, de mesmo identificador, 724026042, e mesmo horário de atualização, 2026-11-08T13:29:24Z; o passo encontrou a etiqueta e não publicou nada.
 
+- A versão 0.3.1, código 5, com as correções da etapa 02, será a primeira entregue ao autor pela atualização dentro do aplicativo, depois da mescla na `main`.
+
 ## Resultado
