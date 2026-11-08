@@ -11,6 +11,14 @@ package com.iagoleal.prancheta
  */
 data class Tinta(val marcaTexto: Boolean, val cor: Int, val larguraCss: Float) {
 
+    /**
+     * Cor usada no traço provisório da camada da Onyx. O modo rápido da tela
+     * colorida mostra as cores mais pálidas do que a atualização normal, em que
+     * aparece o traço definitivo; por isso, a cor da caneta vai mais escura para
+     * a camada. O marca-texto, que já é claro e translúcido, segue igual.
+     */
+    fun corDaCamada(): Int = if (marcaTexto) cor else escurecer(cor, AJUSTE_DE_COR)
+
     /** Espessura do traço na tela, em pixels físicos, para o zoom e a densidade dados. */
     fun larguraNaTela(k: Double, densidade: Float): Float {
         val fator = if (marcaTexto) 1.0 else FATOR_DA_CANETA
@@ -38,6 +46,23 @@ data class Tinta(val marcaTexto: Boolean, val cor: Int, val larguraCss: Float) {
          * contorno é engrossado na mesma proporção para que a troca não se note.
          */
         const val AJUSTE_DO_CONTORNO = 1.2f
+
+        /**
+         * Fator aplicado à cor da caneta na camada da Onyx. No vídeo do autor de
+         * 2026-11-08 com a caneta verde, o traço definitivo tinha contraste com
+         * o fundo cerca de 1,5 vez maior que o provisório; 0,65 escurece a cor
+         * na proporção inversa.
+         */
+        const val AJUSTE_DE_COR = 0.65f
+
+        /** Escurece uma cor ARGB multiplicando os canais de cor pelo fator, sem mudar a opacidade. */
+        fun escurecer(cor: Int, fator: Float): Int {
+            val a = (cor ushr 24) and 0xFF
+            val r = (((cor shr 16) and 0xFF) * fator).toInt().coerceIn(0, 255)
+            val g = (((cor shr 8) and 0xFF) * fator).toInt().coerceIn(0, 255)
+            val b = ((cor and 0xFF) * fator).toInt().coerceIn(0, 255)
+            return (a shl 24) or (r shl 16) or (g shl 8) or b
+        }
 
         /** Diâmetro do traço definitivo para um ponto do contorno calculado pela Onyx. */
         fun larguraDefinitiva(tamanhoDaOnyx: Float): Float = tamanhoDaOnyx * AJUSTE_DO_CONTORNO

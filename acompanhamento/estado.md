@@ -33,11 +33,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 003, Prancheta no Boox e sincronização com a VPS: a etapa 01 está concluída, com a Prancheta real na casca. A etapa 06 está concluída: as versões da casca chegam ao Boox pela atualização dentro do aplicativo. A etapa 02, traço sensível à pressão, está em andamento, com a casca 0.3.1. Faltam o servidor de sincronização, a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
+Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Prancheta real na casca, e 06, atualização pelo próprio aplicativo, estão concluídas. Estão em andamento a 02, traço sensível à pressão, e a 03, servidor de sincronização, em `servidor/`. Faltam a sincronização no banco local e a publicação na VPS. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
 
 ## Próximo passo
 
-O autor testar no Boox a versão 0.3.1: a troca do traço provisório, a linha fantasma e a medição dos traços de pressão leve, média e forte, para a etapa 02. As etapas 03 a 05, da sincronização, podem começar em paralelo. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. As etapas 01 e 03 não dependem uma da outra. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar a casca 0.3.2, que escurece a cor da caneta no traço provisório, e o autor conferir a cor e medir traços de pressão leve, média e forte, para a etapa 02. O servidor da etapa 03 está pronto e testado; falta o autor decidir sobre a consulta prévia do navegador no critério 3. Depois, a etapa 04, a sincronização no banco local. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

@@ -6,6 +6,34 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 03 do plano 003: servidor de sincronização
+
+### Feito
+
+- Mesclado o PR #14 no `main`, a pedido do autor, e iniciada a etapa 03.
+- Criado o servidor de sincronização em `servidor/`, em Node puro: recebe e devolve documentos e arquivos no formato do banco local, numera cada mudança, reconhece reenvios, recusa sobrescrever às cegas o documento mudado por outro aparelho e só atende com a chave de acesso, lida do ambiente.
+- 10 testes, que acusam as 12 mutações introduzidas, e o fluxo `.github/workflows/servidor.yml`, que os roda nos Node 18 e 22.
+
+### Decidido
+
+- **Conflitos resolvidos no aparelho.** O servidor não combina versões: devolve a versão atual, e o aparelho combina item a item na etapa 04, onde conhece a forma dos fragmentos.
+- **Arquivos em disco, sem banco de dados.** Gravações atômicas e um registro de linhas bastam para um usuário, sem exigir nada além do Node na VPS.
+
+### Pendências
+
+- O autor decidir se aceita que a consulta prévia do navegador, que não leva a chave nem recebe dados, seja respondida para a origem da casca, no critério 3.
+
+## 2026-11-08 · Casca 0.3.2: cor do traço provisório
+
+### Feito
+
+- Analisado o vídeo do autor com a 0.3.1: a troca do traço acontece cerca de 1 s depois de levantar a caneta, sem a tela piscar, a linha fantasma não apareceu, e a espessura antes e depois da troca difere menos de 2%.
+- O verde provisório saía mais claro que o definitivo; a 0.3.2 manda à camada da Onyx a cor da caneta escurecida em 0,65.
+
+### Pendências
+
+- Mesclar a 0.3.2, conferir a cor e medir traços de pressão leve, média e forte.
+
 ## 2026-11-08 · Primeira atualização da casca pelo próprio aplicativo
 
 ### Feito

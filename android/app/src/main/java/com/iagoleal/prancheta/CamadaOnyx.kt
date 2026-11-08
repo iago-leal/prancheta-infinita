@@ -102,7 +102,7 @@ class CamadaOnyx private constructor(
         ajustePendente = false
         helper.setStrokeStyle(estilo())
         helper.setStrokeWidth(larguraTraco)
-        helper.setStrokeColor(tinta.cor)
+        helper.setStrokeColor(tinta.corDaCamada())
         helper.setExcludeRect(areasExcluidas)
     }
 
@@ -207,12 +207,12 @@ class CamadaOnyx private constructor(
         helper.setStrokeWidth(larguraTraco)
         helper.enableFingerTouch(false)
         helper.onlyEnableFingerTouch(false)
-        helper.setStrokeColor(tinta.cor)
+        helper.setStrokeColor(tinta.corDaCamada())
         helper.setLimitRect(Rect(0, 0, largura, altura), areasExcluidas)
         helper.openRawDrawing()
         helper.setStrokeStyle(estilo())
         helper.setStrokeWidth(larguraTraco)
-        helper.setStrokeColor(tinta.cor)
+        helper.setStrokeColor(tinta.corDaCamada())
         helper.setRawDrawingRenderEnabled(false)
         // A troca do traço provisório pelo definitivo acontece sempre no mesmo
         // tempo depois de levantar a caneta, e não conforme a configuração do aparelho.

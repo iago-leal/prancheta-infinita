@@ -1,0 +1,28 @@
+# Testa o servidor de sincronização a cada mudança nele.
+name: Servidor de sincronização
+
+on:
+  push:
+    branches: [main]
+    paths: ['servidor/**', '.github/workflows/servidor.yml']
+  pull_request:
+    paths: ['servidor/**', '.github/workflows/servidor.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        node: ['18', '22']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Testar
+        run: node --test servidor/testes/*.test.cjs
