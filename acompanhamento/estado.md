@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-08
 fase: experimento da casca Android
 plano_ativo: acompanhamento/planos/001-casca-android/plano.md
-etapa_atual: acompanhamento/planos/001-casca-android/etapas/02-webview-e-pagina-de-teste.md
+etapa_atual: acompanhamento/planos/001-casca-android/etapas/03-camada-onyx.md
 bloqueios: []
 ---
 
@@ -25,11 +25,11 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 
 ## Em andamento
 
-Plano 001, experimento da casca Android. A etapa 01 está concluída, e a etapa 02 ainda não foi iniciada.
+Plano 001, experimento da casca Android. As etapas 01 e 02 estão concluídas, e a etapa 03 ainda não foi iniciada.
 
 ## Próximo passo
 
-No início da próxima sessão, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe. Em seguida, iniciar a etapa 02: WebView com página de teste e ponte JavaScript.
+No início da próxima sessão, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe. Em seguida, iniciar a etapa 03, começando por descobrir de onde obter o SDK da Onyx: o `repo.boox.com` está bloqueado e só foi visto por HTTP, e o Boox E-Ink Draw depende de classes extraídas do aplicativo de notas.
 
 ## Planos previstos
 

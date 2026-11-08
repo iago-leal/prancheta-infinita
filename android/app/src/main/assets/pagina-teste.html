@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Prancheta: página de teste</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; color: #000; font: 16px sans-serif; }
+  body { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  #area { position: fixed; inset: 0; touch-action: none; }
+  #tela { display: block; width: 100%; height: 100%; }
+  #mundo path { fill: #000; }
+  #barra { position: fixed; top: 0; left: 0; right: 0; height: 52px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-bottom: 2px solid #000; background: #fff; }
+  #barra button { font: inherit; min-height: 40px; padding: 0 14px; border: 2px solid #000; border-radius: 6px; background: #fff; color: #000; }
+  #info { margin-left: auto; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+  <div id="area"><svg id="tela" aria-label="Área de desenho"><g id="mundo"></g></svg></div>
+  <div id="barra">
+    <button id="limpar" type="button">Limpar</button>
+    <button id="reiniciar" type="button">Reiniciar vista</button>
+    <span id="info"></span>
+  </div>
+  <script type="module" src="pagina-teste.js"></script>
+</body>
+</html>
