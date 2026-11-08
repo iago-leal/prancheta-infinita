@@ -19,6 +19,7 @@ Para mudar o código da Prancheta, acrescente uma entrada em `mudancas.cjs`, com
 | `compat/banco-local.js` | banco local em IndexedDB, da etapa 05 do plano 002 |
 | `compat/claude.js` | cliente de compatibilidade: responde por `window.claude.use(nome)` com o banco local e com equivalentes de `assets`, `downloads`, `user` e `permissions` |
 | `compat/casca.js` | adaptador da casca Android: liga a ponte da casca ao código do artefato e não faz nada fora dela |
+| `compat/traco-onyx.js` | desenho dos traços feitos no Boox, com a espessura de cada ponto calculada pelo motor de canetas da Onyx |
 | `sw.js` | service worker: guarda os arquivos da página e entrega os arquivos enviados em `/_blob/<id>`, lendo-os do banco local |
 | `fontes/` | fonte Inter |
 | `vendor/` | bibliotecas que o artefato buscava em CDNs |

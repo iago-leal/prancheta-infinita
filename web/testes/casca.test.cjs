@@ -38,6 +38,7 @@ async function abrirNaCasca(opcoes = {}) {
         areasReservadas: registrar('areasReservadas', true),
         canetaEscreve: registrar('canetaEscreve'),
         redesenharTela: registrar('redesenharTela'),
+        tinta: registrar('tinta', true),
       };
     });
   }
@@ -159,6 +160,78 @@ test('o traço da casca vira traço da Prancheta no lugar certo, com pressão e 
   await pagina.evaluate((p) => prancheta.receberTraco(p), traco(300, 500, 500, 500, 10, 0.5));
   const comMarca = await aguardarItens(pagina, (it) => it.some((i) => i.type === 'stroke' && i.tool === 'hl'));
   assert.equal(comMarca.find((i) => i.tool === 'hl').c, await pagina.evaluate(() => S.ink.hl.c));
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('informa a casca da tinta ativa, com a ferramenta, a cor e a espessura', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  const corDe = (nome) => pagina.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(`--${n}`).trim(), nome);
+  const caneta = await pagina.evaluate(() => ({ ...S.ink.pen }));
+  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'pen', cor: await corDe(caneta.c), largura: caneta.w });
+  await pagina.mouse.click(600, 600);
+  await pagina.keyboard.press('m');
+  const marca = await pagina.evaluate(() => ({ ...S.ink.hl }));
+  await esperar(pagina, () => window.__chamadas.filter((c) => c[0] === 'tinta').at(-1)[1].ferramenta === 'hl');
+  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'hl', cor: await corDe(marca.c), largura: marca.w });
+  // Trocar a cor da caneta chega à casca na próxima mudança da interface.
+  await pagina.evaluate(() => { S.ink.pen.c = 'red'; S.ink.pen.w = 6; setTool('select'); });
+  await esperar(pagina, () => window.__chamadas.filter((c) => c[0] === 'tinta').at(-1)[1].ferramenta === 'pen');
+  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'pen', cor: await corDe('red'), largura: 6 });
+  assert.notEqual(await corDe('red'), '');
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('o traço com o contorno da Onyx guarda a espessura de cada ponto e é desenhado com ela', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate(() => { prancheta.definirTinta('nativa'); zoomAt(600, 400, 2); });
+  const vista = await pagina.evaluate(() => ({ ...S.view }));
+  const pontos = traco(300, 300, 500, 300, 20, 0.5);
+  // A espessura vem da Onyx em pixels CSS de tela: 10 px com zoom 2 são 5 no quadro.
+  const contorno = Array.from({ length: 41 }, (_, i) => ({ x: 300 + i * 5, y: 300, l: 10 }));
+  await pagina.evaluate(([p, c]) => prancheta.receberTraco(p, c), [pontos, contorno]);
+  const salvo = (await aguardarItens(pagina, (it) => it.some((i) => i.type === 'stroke'))).find((i) => i.type === 'stroke');
+  const nf = await pagina.evaluate((d) => decode(d), salvo.nf);
+  assert.equal(nf.length, 41 * 3);
+  assert.ok(Math.abs(nf[0] - (300 - vista.x) / vista.k) < 0.11 && Math.abs(nf[1] - (300 - vista.y) / vista.k) < 0.11);
+  assert.ok(nf.filter((_, i) => i % 3 === 2).every((l) => l === 5), 'espessura de 5 no quadro em todos os pontos');
+  // Os pontos originais, com a pressão, continuam guardados à parte.
+  assert.equal((await pagina.evaluate((d) => decode(d), salvo.d))[2], Math.round(Math.pow(0.5, 0.65) * 20) / 20);
+  // Na tela, o traço tem os 10 px de espessura da Onyx.
+  const caixa = await pagina.evaluate((id) => document.querySelector(`#ink [data-id="${id}"]`).getBoundingClientRect().toJSON(), salvo.id);
+  assert.ok(Math.abs(caixa.height - 10) < 0.6, `altura ${caixa.height}`);
+  assert.ok(Math.abs(caixa.left - 295) < 0.6 && Math.abs(caixa.right - 505) < 0.6, JSON.stringify(caixa));
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('o contorno da Onyx segue a espessura de cada ponto, com pontas arredondadas', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca({ casca: false });
+  const caixas = await pagina.evaluate(() => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    document.body.append(svg);
+    const medir = (p) => {
+      const caminho = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      caminho.setAttribute('d', contornoOnyx(p));
+      svg.append(caminho);
+      const b = caminho.getBBox();
+      return { x: b.x, y: b.y, largura: b.width, altura: b.height, d: caminho.getAttribute('d') };
+    };
+    return {
+      constante: medir([0, 0, 4, 10, 0, 4, 20, 0, 4]),
+      crescente: medir([0, 0, 2, 10, 0, 4, 20, 0, 8]),
+      repetidos: medir([0, 0, 4, 0, 0, 6, 10, 0, 4]),
+      ponto: medir([5, 5, 6]),
+      vazio: contornoOnyx([]),
+    };
+  });
+  const perto = (a, b) => Math.abs(a - b) < 0.05;
+  assert.ok(perto(caixas.constante.altura, 4) && perto(caixas.constante.largura, 24), JSON.stringify(caixas.constante));
+  assert.ok(perto(caixas.crescente.altura, 8) && perto(caixas.crescente.x, -1), JSON.stringify(caixas.crescente));
+  assert.ok(perto(caixas.repetidos.altura, 6) && !caixas.repetidos.d.includes('NaN'), JSON.stringify(caixas.repetidos));
+  assert.ok(perto(caixas.ponto.largura, 6) && perto(caixas.ponto.altura, 6), JSON.stringify(caixas.ponto));
+  assert.equal(caixas.vazio, '');
   assert.deepEqual(erros, []);
   await contexto.close();
 });

@@ -3,6 +3,7 @@
 <script src="compat/banco-local.js"></script>
 <script src="compat/claude.js"></script>
 <script src="compat/casca.js"></script>
+<script src="compat/traco-onyx.js"></script>
 <link rel="stylesheet" href="fontes/inter.css">
 <style>
 /* Layout: mesa infinita em tela cheia, com o título fixo no canto e ferramentas flutuando nas bordas. */
@@ -622,7 +623,7 @@ function outlineD(o){
   const n=o.length;if(n<4)return'';const r=x=>Math.round(x*100)/100;
   let d=`M${r(o[0][0])} ${r(o[0][1])}`;for(let i=1;i<n-1;i++)d+=`Q${r(o[i][0])} ${r(o[i][1])} ${r((o[i][0]+o[i+1][0])/2)} ${r((o[i][1]+o[i+1][1])/2)}`;return d+'Z';
 }
-function inkD(it){if(PF&&it.v===2){const d=outlineD(PF(toPts(pts(it)),strokeOpts(it.w,it.sim,true,it.sl)));if(d)return d}return penPath(pts(it),it.w)}
+function inkD(it){if(it.nf&&window.contornoOnyx){const d=contornoOnyx(decode(it.nf));if(d)return d}if(PF&&it.v===2){const d=outlineD(PF(toPts(pts(it)),strokeOpts(it.w,it.sim,true,it.sl)));if(d)return d}return penPath(pts(it),it.w)}
 function pathD(it){return it.tool==='hl'?hlPath(pts(it)):inkD(it)}
 /* traço em andamento: camada própria, para não repintar a tinta já gravada */
 const liveC=$('#live'),tipC=$('#tip'),lctx=liveC.getContext('2d',{desynchronized:true}),tctx=tipC.getContext('2d',{desynchronized:true});let liveD=1;
@@ -632,7 +633,7 @@ function wipeLive(){lctx.setTransform(1,0,0,1,0,0);lctx.clearRect(0,0,liveC.widt
 /* traços recém-feitos ficam na camada rápida e só entram no quadro na pausa */
 function flushInk(){
   clearTimeout(pendT);const list=S.pend;if(!list.length)return;S.pend=[];
-  for(const q of list){const p=(q.tool==='hl'?rdp(q.p,.2/q.k):spaced(q.p,1/q.k)).map((v,i)=>i%3===2?v:f1(v));begin();add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),...(q.em?{em:q.em,dur:q.dur}:{}),d:encode(p)});commit()}
+  for(const q of list){const p=(q.tool==='hl'?rdp(q.p,.2/q.k):spaced(q.p,1/q.k)).map((v,i)=>i%3===2?v:f1(v));begin();add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),...(q.em?{em:q.em,dur:q.dur}:{}),...(q.nf?{nf:encode(q.nf)}:{}),d:encode(p)});commit()}
   if(!S.act||S.act.kind!=='ink')wipeLive();
 }
 const inkColor=c=>getComputedStyle(document.documentElement).getPropertyValue('--'+c).trim();

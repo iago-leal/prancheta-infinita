@@ -14,12 +14,13 @@ module.exports = [
     para: `<link rel="stylesheet" href="fontes/inter.css">`,
   },
   {
-    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; o adaptador da casca Android, que não faz nada fora dela, vem junto.',
+    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; vêm junto o adaptador da casca Android, que não faz nada fora dela, e o desenho dos traços feitos no Boox.',
     de: `<title>Prancheta Infinita</title>`,
     para: `<title>Prancheta Infinita</title>
 <script src="compat/banco-local.js"></script>
 <script src="compat/claude.js"></script>
-<script src="compat/casca.js"></script>`,
+<script src="compat/casca.js"></script>
+<script src="compat/traco-onyx.js"></script>`,
   },
   {
     motivo: 'O aviso de falha na inicialização oferecia restaurar uma versão anterior pela autopublicação do claude.ai, que não existe fora dele; o botão passa a recarregar a página, e os quadros continuam a salvo no banco local.',
@@ -52,8 +53,13 @@ module.exports = [
     para: `S.pend.push({tool:a.tool,c:a.cfg.c,w:a.cfg.w,sim:a.sim,p:a.p,k:S.view.k,em:Math.round(performance.timeOrigin+a.stat.t0),dur:Math.round(performance.now()-a.stat.t0)})`,
   },
   {
-    motivo: 'Continuação da mudança anterior: ao entrar no quadro, o traço leva o horário e a duração, venha da página ou da casca Android.',
+    motivo: 'Continuação da mudança anterior: ao entrar no quadro, o traço leva o horário e a duração, venha da página ou da casca Android. O traço da casca leva também, no campo nf, os pontos com a espessura que o motor de canetas da Onyx calculou, para ser desenhado com a mesma forma do traço provisório.',
     de: `add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),d:encode(p)})`,
-    para: `add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),...(q.em?{em:q.em,dur:q.dur}:{}),d:encode(p)})`,
+    para: `add({type:'stroke',tool:q.tool,c:q.c,w:q.w,ox:0,oy:0,v:2,sl:0,...(q.sim?{sim:1}:{}),...(q.em?{em:q.em,dur:q.dur}:{}),...(q.nf?{nf:encode(q.nf)}:{}),d:encode(p)})`,
+  },
+  {
+    motivo: 'Um traço com o campo nf, feito no Boox, é desenhado com as espessuras calculadas pela Onyx, por contornoOnyx, de compat/traco-onyx.js; assim, o traço definitivo tem a mesma forma do provisório, e nada muda quando a tela e-ink se atualiza. Os demais traços continuam desenhados pela perfect-freehand.',
+    de: `function inkD(it){`,
+    para: `function inkD(it){if(it.nf&&window.contornoOnyx){const d=contornoOnyx(decode(it.nf));if(d)return d}`,
   },
 ];

@@ -26,6 +26,7 @@ class PonteCasca(private val webView: WebView) {
         fun aoDesenharTraco() {}
         fun aoPedirRedesenho() {}
         fun aoMudarCaneta(escreve: Boolean) {}
+        fun aoMudarTinta(tinta: Tinta) {}
     }
 
     var ouvinte: Ouvinte? = null
@@ -80,6 +81,21 @@ class PonteCasca(private val webView: WebView) {
         webView.post { ouvinte?.aoMudarCaneta(escreve) }
     }
 
+    /**
+     * Recebe a tinta ativa na Prancheta: `ferramenta`, "pen" ou "hl", `cor`,
+     * como no CSS, e `largura`, a espessura escolhida, em pixels CSS do quadro.
+     */
+    @JavascriptInterface
+    fun tinta(json: String) {
+        val o = JSONObject(json)
+        val tinta = Tinta(
+            marcaTexto = o.optString("ferramenta") == "hl",
+            cor = Tinta.lerCor(o.optString("cor")) ?: Tinta.PRETO,
+            larguraCss = o.optDouble("largura", Tinta.PADRAO.larguraCss.toDouble()).toFloat(),
+        )
+        webView.post { ouvinte?.aoMudarTinta(tinta) }
+    }
+
     /** A página pede que a tela inteira seja redesenhada, por exemplo depois de apagar traços. */
     @JavascriptInterface
     fun redesenharTela() {
@@ -92,8 +108,11 @@ class PonteCasca(private val webView: WebView) {
         if (paginaPronta) webView.post { aplicarModoTinta(modo) }
     }
 
-    /** Entrega à página um traço cujos pontos estão em pixels físicos da WebView. */
-    fun enviarTraco(pontos: List<PontoTela>) {
+    /**
+     * Entrega à página um traço cujos pontos estão em pixels físicos da WebView,
+     * com o contorno calculado pela Onyx, quando há, convertidos para pixels CSS.
+     */
+    fun enviarTraco(pontos: List<PontoTela>, contorno: List<PontoContorno> = emptyList()) {
         if (!paginaPronta || pontos.isEmpty()) return
         val d = densidade
         val lista = JSONArray()
@@ -106,8 +125,17 @@ class PonteCasca(private val webView: WebView) {
                     .put("t", p.tempo),
             )
         }
+        val listaDoContorno = JSONArray()
+        for (c in contorno) {
+            listaDoContorno.put(
+                JSONObject()
+                    .put("x", (c.x / d).toDouble())
+                    .put("y", (c.y / d).toDouble())
+                    .put("l", (c.largura / d).toDouble()),
+            )
+        }
         webView.post {
-            webView.evaluateJavascript("prancheta.receberTraco($lista)") { ouvinte?.aoDesenharTraco() }
+            webView.evaluateJavascript("prancheta.receberTraco($lista, $listaDoContorno)") { ouvinte?.aoDesenharTraco() }
         }
     }
 
@@ -121,3 +149,6 @@ data class Transformacao(val x: Double, val y: Double, val k: Double)
 
 /** Ponto de um traço em pixels físicos da WebView, com pressão de 0 a 1 e tempo em milissegundos. */
 data class PontoTela(val x: Float, val y: Float, val pressao: Float, val tempo: Long)
+
+/** Ponto do contorno calculado pela Onyx, em pixels físicos, com o diâmetro do traço naquele ponto. */
+data class PontoContorno(val x: Float, val y: Float, val largura: Float)

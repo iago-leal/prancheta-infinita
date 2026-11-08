@@ -1,6 +1,5 @@
 package com.iagoleal.prancheta
 
-import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Build
@@ -10,6 +9,7 @@ import android.view.View
 import com.onyx.android.sdk.api.device.epd.EpdController
 import com.onyx.android.sdk.api.device.epd.UpdateMode
 import com.onyx.android.sdk.data.note.TouchPoint
+import com.onyx.android.sdk.pen.NeoFountainPenWrapper
 import com.onyx.android.sdk.pen.RawInputCallback
 import com.onyx.android.sdk.pen.TouchHelper
 import com.onyx.android.sdk.pen.data.TouchPointList
@@ -21,13 +21,19 @@ import java.util.concurrent.Executors
  * a caneta sobe, os pontos seguem para a Prancheta, que grava e desenha o
  * traço definitivo.
  *
+ * A camada usa a tinta escolhida na Prancheta: a caneta-tinteiro da Onyx,
+ * sensível à pressão, ou o marca-texto, com a cor e a espessura da página.
+ * Para a caneta, cada traço segue também com o contorno calculado pelo mesmo
+ * motor de canetas da Onyx, com a espessura de cada ponto, para que a
+ * Prancheta desenhe o traço definitivo com a mesma forma do provisório.
+ *
  * As operações no `TouchHelper` rodam numa thread própria. Os eventos da
  * caneta chegam por [onTouchEvent], encaminhados pela Activity conforme o
  * [RoteadorDeToques].
  */
 class CamadaOnyx private constructor(
     private val alvo: View,
-    private val aoTerminarTraco: (List<PontoTela>) -> Unit,
+    private val aoTerminarTraco: (List<PontoTela>, List<PontoContorno>) -> Unit,
     private val aoFalhar: (Throwable) -> Unit,
 ) {
     private val executor = Executors.newSingleThreadExecutor { tarefa ->
@@ -45,7 +51,10 @@ class CamadaOnyx private constructor(
     @Volatile private var desligadaPelaPagina = false
     @Volatile private var falhou = false
     @Volatile private var areasExcluidas: List<Rect> = emptyList()
-    @Volatile private var larguraTraco = LARGURA_PADRAO
+    @Volatile private var tinta = Tinta.PADRAO
+    @Volatile private var escala = 1.0
+    @Volatile private var densidade = alvo.resources.displayMetrics.density
+    @Volatile private var larguraTraco = Tinta.PADRAO.larguraNaTela(1.0, alvo.resources.displayMetrics.density)
 
     /** Encaminha ao SDK um evento de caneta destinado à camada. */
     fun onTouchEvent(evento: MotionEvent): Boolean =
@@ -62,8 +71,21 @@ class CamadaOnyx private constructor(
 
     /** Ajusta a largura do traço provisório ao zoom da página. */
     fun definirEscala(k: Double, densidade: Float) {
-        larguraTraco = (DIAMETRO_CSS * k * densidade).toFloat().coerceIn(1f, 60f)
+        escala = k
+        this.densidade = densidade
+        larguraTraco = tinta.larguraNaTela(k, densidade)
         naThread { helper.setStrokeWidth(larguraTraco) }
+    }
+
+    /** Usa no traço provisório a ferramenta, a cor e a espessura escolhidas na Prancheta. */
+    fun definirTinta(nova: Tinta) {
+        tinta = nova
+        larguraTraco = nova.larguraNaTela(escala, densidade)
+        naThread {
+            helper.setStrokeStyle(estilo())
+            helper.setStrokeWidth(larguraTraco)
+            helper.setStrokeColor(nova.cor)
+        }
     }
 
     /** Suspende a camada durante gestos de dois dedos. */
@@ -125,6 +147,8 @@ class CamadaOnyx private constructor(
 
     private fun habilitada() = !suspensa && !pausada && !desligadaPelaPagina
 
+    private fun estilo() = if (tinta.marcaTexto) TouchHelper.STROKE_STYLE_MARKER else TouchHelper.STROKE_STYLE_FOUNTAIN
+
     private fun aplicarHabilitacao() = naThread { helper.setRawDrawingEnabled(habilitada()) }
 
     // A ordem segue a que o SDK exige: largura, cor e limites antes de abrir;
@@ -136,13 +160,17 @@ class CamadaOnyx private constructor(
         helper.setStrokeWidth(larguraTraco)
         helper.enableFingerTouch(false)
         helper.onlyEnableFingerTouch(false)
-        helper.setStrokeColor(Color.BLACK)
+        helper.setStrokeColor(tinta.cor)
         helper.setLimitRect(Rect(0, 0, largura, altura), areasExcluidas)
         helper.openRawDrawing()
-        helper.setStrokeStyle(TouchHelper.STROKE_STYLE_PENCIL)
+        helper.setStrokeStyle(estilo())
         helper.setStrokeWidth(larguraTraco)
-        helper.setStrokeColor(Color.BLACK)
+        helper.setStrokeColor(tinta.cor)
         helper.setRawDrawingRenderEnabled(false)
+        // A troca do traço provisório pelo definitivo acontece sempre no mesmo
+        // tempo depois de levantar a caneta, e não conforme a configuração do aparelho.
+        helper.setPenUpRefreshTimeMs(TEMPO_PARA_ATUALIZAR_MS)
+        helper.setPenUpRefreshEnabled(true)
         helper.setRawDrawingEnabled(habilitada())
     }
 
@@ -162,23 +190,49 @@ class CamadaOnyx private constructor(
     private fun converter(p: TouchPoint) = PontoTela(p.x, p.y, (p.pressure / pressaoMaxima).coerceIn(0f, 1f), p.timestamp)
 
     /**
+     * Calcula, com o motor da caneta-tinteiro da Onyx, a espessura de cada ponto
+     * do traço, como no traço provisório. O tamanho de cada ponto devolvido é o
+     * diâmetro do traço ali. Se o cálculo falhar, a Prancheta desenha o traço
+     * pela pressão, como no navegador.
+     */
+    private fun calcularContorno(brutos: List<TouchPoint>, tintaDoTraco: Tinta, largura: Float): List<PontoContorno> {
+        if (tintaDoTraco.marcaTexto || brutos.size < 2) return emptyList()
+        return try {
+            NeoFountainPenWrapper.computeStrokePoints(brutos, largura, pressaoMaxima)
+                .filter { it.size > 0f }
+                .map { PontoContorno(it.x, it.y, it.size) }
+        } catch (erro: Throwable) {
+            Log.w(TAG, "a Onyx não calculou o contorno do traço", erro)
+            emptyList()
+        }
+    }
+
+    /**
      * Junta os pontos de cada traço. A lista completa, quando chega, substitui
-     * os pontos recebidos um a um.
+     * os pontos recebidos um a um. Os pontos brutos, com a pressão original,
+     * servem ao cálculo do contorno.
      */
     private inner class Retorno : RawInputCallback() {
         private val pontos = ArrayList<PontoTela>()
+        private val brutos = ArrayList<TouchPoint>()
         private var listaRecebida = false
+
+        private fun guardar(ponto: TouchPoint) {
+            pontos.add(converter(ponto))
+            brutos.add(TouchPoint(ponto))
+        }
 
         @Synchronized
         override fun onBeginRawDrawing(sucesso: Boolean, ponto: TouchPoint?) {
             pontos.clear()
+            brutos.clear()
             listaRecebida = false
-            ponto?.let { pontos.add(converter(it)) }
+            ponto?.let { guardar(it) }
         }
 
         @Synchronized
         override fun onRawDrawingTouchPointMoveReceived(ponto: TouchPoint?) {
-            if (!listaRecebida) ponto?.let { pontos.add(converter(it)) }
+            if (!listaRecebida) ponto?.let { guardar(it) }
         }
 
         @Synchronized
@@ -186,15 +240,17 @@ class CamadaOnyx private constructor(
             val todos = lista?.points ?: return
             if (todos.isEmpty()) return
             pontos.clear()
-            todos.mapTo(pontos) { converter(it) }
+            brutos.clear()
+            todos.forEach { guardar(it) }
             listaRecebida = true
         }
 
         @Synchronized
         override fun onEndRawDrawing(sucesso: Boolean, ponto: TouchPoint?) {
-            if (!listaRecebida) ponto?.let { pontos.add(converter(it)) }
-            if (pontos.size >= 2) aoTerminarTraco(ArrayList(pontos))
+            if (!listaRecebida) ponto?.let { guardar(it) }
+            if (pontos.size >= 2) aoTerminarTraco(ArrayList(pontos), calcularContorno(brutos, tinta, larguraTraco))
             pontos.clear()
+            brutos.clear()
             listaRecebida = false
         }
 
@@ -210,10 +266,10 @@ class CamadaOnyx private constructor(
     companion object {
         private const val TAG = "CamadaOnyx"
 
-        /** Diâmetro, em pixels CSS, do traço da página com pressão média e zoom 1. */
-        private const val DIAMETRO_CSS = 4.0
-        private const val LARGURA_PADRAO = 8f
         private const val PRESSAO_MAXIMA_PADRAO = 4096f
+
+        /** Tempo entre levantar a caneta e trocar o traço provisório pelo definitivo. */
+        private const val TEMPO_PARA_ATUALIZAR_MS = 600
 
         /** Tempo para a WebView se redesenhar antes de a camada voltar. */
         private const val ATRASO_PARA_RELIGAR_MS = 150L
@@ -225,7 +281,11 @@ class CamadaOnyx private constructor(
          * Cria a camada sobre [alvo]. Devolve `null` fora dos aparelhos Onyx ou
          * quando o SDK não carrega; nesses casos, a página usa a tinta web.
          */
-        fun criar(alvo: View, aoTerminarTraco: (List<PontoTela>) -> Unit, aoFalhar: (Throwable) -> Unit): CamadaOnyx? {
+        fun criar(
+            alvo: View,
+            aoTerminarTraco: (List<PontoTela>, List<PontoContorno>) -> Unit,
+            aoFalhar: (Throwable) -> Unit,
+        ): CamadaOnyx? {
             if (!ehAparelhoOnyx()) return null
             return try {
                 CamadaOnyx(alvo, aoTerminarTraco, aoFalhar)

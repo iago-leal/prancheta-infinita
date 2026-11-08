@@ -41,8 +41,8 @@ android {
         applicationId = "com.iagoleal.prancheta"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.2.0"
+        versionCode = 4
+        versionName = "0.3.0"
     }
 
     compileOptions {
@@ -74,6 +74,8 @@ dependencies {
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
 
     testImplementation("junit:junit:4.13.2")
+    // O org.json do Android só existe no aparelho; nos testes locais, vem do Maven.
+    testImplementation("org.json:json:20240303")
 
     constraints {
         // O Jetifier converte bibliotecas antigas do SDK da Onyx para o
