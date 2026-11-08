@@ -64,6 +64,19 @@
 
   const copiar = (valor) => (valor === undefined ? undefined : structuredClone(valor));
 
+  // Tipo de arquivo no formato tipo/subtipo, em minúsculas e sem parâmetros;
+  // o que fugir disso vira application/octet-stream. O service worker o usa
+  // também ao entregar /_blob/<id>.
+  function tipoSeguro(tipo) {
+    const t = String(tipo || '').toLowerCase().split(';')[0].trim();
+    return /^[a-z0-9.+-]{1,60}\/[a-z0-9.+-]{1,80}$/.test(t) ? t : 'application/octet-stream';
+  }
+
+  // Um aparelho com o relógio adiantado não pode fazer as gravações dele
+  // vencerem todas as combinações seguintes: o horário de uma versão recebida
+  // fica limitado ao relógio deste aparelho, com esta folga.
+  const FOLGA_DO_RELOGIO = 5 * 60 * 1000;
+
   // Identifica uma versão gravada de um documento: duas gravações em
   // aparelhos diferentes podem ter o mesmo número de versão.
   const marca = (r) => (r ? `${r.versao}:${r.apagado}:${r.atualizadoEm}:${r.dispositivo}` : 'ausente');
@@ -92,7 +105,9 @@
     return {
       caminho: r.caminho, colecao: partes.slice(0, -1).join('/'), id: partes[partes.length - 1],
       dados: r.apagado ? null : r.dados, apagado: Boolean(r.apagado),
-      versao: r.versao, atualizadoEm: r.atualizadoEm, dispositivo: r.dispositivo,
+      versao: r.versao,
+      atualizadoEm: Math.min(Number.isFinite(r.atualizadoEm) ? r.atualizadoEm : 0, Date.now() + FOLGA_DO_RELOGIO),
+      dispositivo: r.dispositivo,
     };
   }
 
@@ -218,7 +233,7 @@
       const agora = Date.now();
       const transacao = this._transacao(['arquivos', 'mudancas'], 'readwrite');
       transacao.objectStore('arquivos').put({
-        id, tipo: opcoes.type || blob.type || 'application/octet-stream', bytes: blob.size, criadoEm: agora,
+        id, tipo: tipoSeguro(opcoes.type || blob.type), bytes: blob.size, criadoEm: agora,
         dispositivo: this.dispositivo, blob,
       });
       transacao.objectStore('mudancas').put({ caminho: `_arquivos/${id}`, tipo: 'arquivo', versao: 1, em: agora, dispositivo: this.dispositivo });
@@ -467,7 +482,7 @@
     async _guardarArquivoDoServidor(dados, blob) {
       const transacao = this._transacao('arquivos', 'readwrite');
       transacao.objectStore('arquivos').put({
-        id: dados.id, tipo: dados.tipo, bytes: blob.size, criadoEm: dados.criadoEm, dispositivo: dados.dispositivo, blob,
+        id: dados.id, tipo: tipoSeguro(dados.tipo), bytes: blob.size, criadoEm: dados.criadoEm, dispositivo: dados.dispositivo, blob,
       });
       await concluida(transacao);
     }
@@ -587,5 +602,5 @@
     return new Banco(nome, idb, meta.valor);
   }
 
-  global.BancoLocal = Object.freeze({ abrir });
+  global.BancoLocal = Object.freeze({ abrir, tipoSeguro });
 })(typeof window !== 'undefined' ? window : globalThis);

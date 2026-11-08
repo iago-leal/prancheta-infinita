@@ -37,6 +37,53 @@
     ? navigator.serviceWorker.register('sw.js').catch(() => null)
     : Promise.resolve(null);
 
+  // Fora da casca, uma versão nova da página, baixada em segundo plano, só
+  // entra quando o autor toca no aviso; então a página recarrega com ela. Na
+  // casca, a página vem do APK, e o service worker a troca sozinho.
+  const NA_CASCA = location.hostname === 'appassets.androidplatform.net';
+  let pediuAtualizacao = false;
+
+  function avisarVersaoNova(reg) {
+    const montar = () => {
+      const topo = document.getElementById('top');
+      if (!topo || document.getElementById('versaoNova')) return;
+      const botao = document.createElement('button');
+      botao.id = 'versaoNova';
+      botao.type = 'button';
+      botao.textContent = 'Nova versão: atualizar';
+      botao.title = 'Uma versão nova da Prancheta foi baixada; atualizar recarrega a página com ela.';
+      botao.style.cssText = 'font:inherit;font-size:12.5px;color:inherit;background:none;border:1px solid currentColor;border-radius:6px;padding:3px 8px;cursor:pointer;white-space:nowrap';
+      botao.addEventListener('click', () => {
+        const nova = reg.waiting;
+        if (!nova) return;
+        pediuAtualizacao = true;
+        botao.disabled = true;
+        botao.textContent = 'Atualizando…';
+        nova.postMessage({ tipo: 'ativar' });
+      });
+      topo.insertBefore(botao, topo.firstChild);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', montar, { once: true });
+    else montar();
+  }
+
+  if ('serviceWorker' in navigator && !NA_CASCA) {
+    registro.then((reg) => {
+      if (!reg) return;
+      if (reg.waiting && navigator.serviceWorker.controller) avisarVersaoNova(reg);
+      reg.addEventListener('updatefound', () => {
+        const nova = reg.installing;
+        if (!nova) return;
+        nova.addEventListener('statechange', () => {
+          if (nova.state === 'installed' && navigator.serviceWorker.controller) avisarVersaoNova(reg);
+        });
+      });
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (pediuAtualizacao) location.reload();
+    });
+  }
+
   // Os arquivos enviados só podem ser exibidos se o service worker controla a
   // página. Na primeira visita, ele assume o controle logo depois de instalado.
   async function serviceWorkerNoControle() {

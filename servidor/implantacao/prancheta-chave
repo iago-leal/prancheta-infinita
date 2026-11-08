@@ -1,0 +1,63 @@
+#!/bin/bash
+# Chaves de acesso da Prancheta, uma por aparelho. Roda como administrador na
+# VPS; instalado pelo roteiro preparar-vps.sh em /usr/local/sbin.
+#
+#   prancheta-chave nova <nome>      cria a chave de um aparelho e a mostra uma única vez
+#   prancheta-chave listar           lista os aparelhos que têm chave
+#   prancheta-chave revogar <nome>   apaga a chave de um aparelho
+#
+# O servidor guarda só o resumo SHA-256 de cada chave, em
+# /etc/prancheta/acesso/chaves, e relê o arquivo quando ele muda: uma chave
+# nova ou revogada vale na hora, sem reiniciar. A chave em si só aparece na
+# tela de quem a criou, para ser digitada uma vez no aparelho.
+
+set -euo pipefail
+umask 027
+
+ARQUIVO="${PRANCHETA_CHAVES:-/etc/prancheta/acesso/chaves}"
+
+falhar() {
+  echo "$1" >&2
+  exit "${2:-1}"
+}
+
+nome_valido() {
+  [[ "${1:-}" =~ ^[A-Za-z0-9._-]{1,64}$ ]] || falhar "nome invalido: use letras, numeros, ponto, hifen ou sublinhado" 2
+}
+
+tem() {
+  awk -v nome="$1" '$1 == nome { achou = 1 } END { exit !achou }' "$ARQUIVO"
+}
+
+[[ -f "$ARQUIVO" ]] || falhar "arquivo de chaves inexistente: $ARQUIVO; rode o roteiro preparar-vps.sh"
+
+case "${1:-}" in
+  nova)
+    (( $# == 2 )) || falhar "uso: prancheta-chave nova <nome>" 2
+    nome_valido "$2"
+    if tem "$2"; then falhar "o aparelho $2 ja tem chave; revogue-a antes de criar outra"; fi
+    chave="$(head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=\n')"
+    resumo="$(printf '%s' "$chave" | sha256sum | cut -d' ' -f1)"
+    printf '%s %s\n' "$2" "$resumo" >> "$ARQUIVO"
+    echo "Chave do aparelho $2, mostrada só agora; digite-a uma vez na Prancheta desse aparelho:"
+    echo "$chave"
+    ;;
+  listar)
+    (( $# == 1 )) || falhar "uso: prancheta-chave listar" 2
+    awk '!/^#/ && NF == 2 { print $1 }' "$ARQUIVO"
+    ;;
+  revogar)
+    (( $# == 2 )) || falhar "uso: prancheta-chave revogar <nome>" 2
+    nome_valido "$2"
+    tem "$2" || falhar "o aparelho $2 nao tem chave"
+    novo="$(mktemp "$ARQUIVO.XXXXXX")"
+    awk -v nome="$2" '$1 != nome' "$ARQUIVO" > "$novo"
+    chown --reference="$ARQUIVO" "$novo"
+    chmod --reference="$ARQUIVO" "$novo"
+    mv -f "$novo" "$ARQUIVO"
+    echo "chave do aparelho $2 revogada"
+    ;;
+  *)
+    falhar "uso: prancheta-chave nova <nome> | listar | revogar <nome>" 2
+    ;;
+esac

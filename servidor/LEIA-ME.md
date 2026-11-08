@@ -1,6 +1,6 @@
 # Servidor de sincronização
 
-Guarda a cópia central dos quadros da Prancheta e troca mudanças com cada aparelho, no formato do banco local de `web/app/compat/banco-local.js`, sem converter os dados. É Node puro, sem dependências: basta o Node 18 ou mais novo.
+Guarda a cópia central dos quadros da Prancheta e troca mudanças com cada aparelho, no formato do banco local de `web/app/compat/banco-local.js`, sem converter os dados. Na VPS, entrega também a página, numa porta separada. É Node puro, sem dependências: basta o Node 18 ou mais novo. A implantação na VPS está em `servidor/implantacao/LEIA-ME.md`.
 
 ## Rodar
 
@@ -10,18 +10,24 @@ PRANCHETA_CHAVE='uma chave longa e aleatória' PRANCHETA_DADOS=/caminho/dos/dado
 
 | Variável | Para quê | Padrão |
 |---|---|---|
-| `PRANCHETA_CHAVE` | chave de acesso, com pelo menos 32 caracteres; sem ela, o servidor não inicia | nenhum |
+| `PRANCHETA_CHAVES_ARQUIVO` | arquivo com o resumo SHA-256 da chave de cada aparelho, uma linha `<nome> <resumo>` por aparelho, relido quando muda; é o modo da VPS | nenhum |
+| `PRANCHETA_CHAVE` | chave única, com pelo menos 32 caracteres, para rodar localmente; sem ela nem o arquivo, o servidor não inicia | nenhum |
 | `PRANCHETA_DADOS` | pasta dos dados | `./dados` |
-| `PRANCHETA_PORTA` e `PRANCHETA_ENDERECO` | onde ouvir; na VPS, atrás do servidor web com HTTPS | `8787` e `127.0.0.1` |
+| `PRANCHETA_PORTA` e `PRANCHETA_ENDERECO` | onde ouvir a sincronização; na VPS, atrás do Traefik | `8787` e `127.0.0.1` |
 | `PRANCHETA_ORIGENS` | origens de navegador aceitas, separadas por vírgula | `https://appassets.androidplatform.net`, a da casca Android |
+| `PRANCHETA_WEB` e `PRANCHETA_PORTA_DA_PAGINA` | pasta da página e porta em que ela é entregue, sem a chave | nenhuma e `8788` |
+| `PRANCHETA_VERSAO` | atalho da versão publicada; quando ele muda, o servidor termina para recomeçar com a versão nova | nenhum |
+| `PRANCHETA_HISTORICO_DIAS` | por quantos dias as versões antigas dos documentos ficam guardadas | `30` |
 
-A chave nunca fica no repositório. Uma forma de gerar: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+A chave nunca fica no repositório. Uma forma de gerar: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Na VPS, as chaves são criadas por `prancheta-chave`, uma por aparelho, e o servidor só guarda os resumos.
 
 ## Acesso
 
 Todo pedido leva `Authorization: Bearer <chave>`. Sem ela, ou com outra, o servidor responde 401 com `{"erro":"nao_autorizado"}`, em qualquer rota, sem revelar dados nem quais rotas existem.
 
 A única exceção é a consulta prévia que o navegador faz antes de um pedido com a chave vindo de outra origem, como a página da casca Android: ela não traz a chave nem recebe dados, e só é respondida, com 204 e o corpo vazio, para as origens de `PRANCHETA_ORIGENS`; para as demais, também é 401.
+
+A página, entregue por `servidor/pagina.cjs` na outra porta, responde sem a chave, porque é o mesmo código do repositório público e não guarda segredo. Ela vai com `nosniff`, sem referência a outros endereços, com HSTS e com uma política que limita as conexões dela ao próprio endereço, para que um script injetado não envie a chave para fora. Os arquivos enviados voltam com o tipo normalizado e, fora o PDF, isolados por `Content-Security-Policy: sandbox`; só imagens e PDF abrem no navegador, e o resto é baixado.
 
 ## Aparelhos
 
@@ -83,3 +89,20 @@ Cada gravação vai para um arquivo temporário e é renomeada, e só depois ent
 ## Testes
 
 A partir da raiz do repositório: `node --test servidor/testes/*.test.cjs`. O fluxo `.github/workflows/servidor.yml` os roda a cada mudança em `servidor/`.
+
+## Histórico e cópia de segurança
+
+Cada versão aceita de um documento fica guardada por `PRANCHETA_HISTORICO_DIAS` dias em `historico/<AAAA-MM-DD>.jsonl`, na pasta dos dados. Para recuperar um documento sobrescrito ou apagado:
+
+```sh
+node servidor/historico.cjs <pasta dos dados> listar canvas-shards/<id>
+node servidor/historico.cjs <pasta dos dados> mostrar canvas-shards/<id> <posição>
+```
+
+A cópia fora da VPS é puxada pelo computador do autor, com uma chave própria:
+
+```sh
+PRANCHETA_CHAVE=<chave da cópia> node servidor/copia-de-seguranca.cjs https://<endereço> <pasta>
+```
+
+Cada execução grava os documentos e os dados dos arquivos numa pasta com a data e a hora, e guarda o conteúdo dos arquivos uma vez só, compartilhado entre as cópias. Para rodar todo dia, agende-a no computador, por exemplo com o launchd no Mac.

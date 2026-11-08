@@ -306,6 +306,10 @@ test('sem servidor configurado, nada sai do aparelho; com a chave errada, a pág
     const invalida = await a.pagina.evaluate(() => window.sincronizacaoDaPrancheta
       .configurar({ endereco: 'ftp://exemplo', chave: 'x'.repeat(40) }).then(() => 'aceita', (e) => e.code));
     assert.equal(invalida, 'invalid_argument');
+    // Sem https, só o próprio computador, para testes locais.
+    const semHttps = await a.pagina.evaluate(() => window.sincronizacaoDaPrancheta
+      .configurar({ endereco: 'http://exemplo.com', chave: 'x'.repeat(40) }).then(() => 'aceita', (e) => e.code));
+    assert.equal(semHttps, 'invalid_argument');
     assert.deepEqual(a.erros, []);
   } finally {
     await fecharPerfis(perfis);
