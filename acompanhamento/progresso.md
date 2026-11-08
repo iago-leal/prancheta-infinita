@@ -6,6 +6,38 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-08 · Etapa 06 e plano 002 concluídos: Prancheta sem internet
+
+### Feito
+
+- Mesclado o PR #8 no `main`, a pedido do autor.
+- Criada a Prancheta independente em `web/app/`: o código do artefato montado a partir do original por `web/montagem/montar.cjs`, com sete mudanças listadas e justificadas em `web/montagem/mudancas.cjs`; o cliente de compatibilidade `compat/claude.js`; e o service worker `sw.js`, que guarda a página para abrir sem rede e entrega os arquivos enviados em `/_blob/<id>`.
+- Passaram a vir junto com a página a fonte Inter, a `perfect-freehand`, o pdf.js e o mammoth, nas mesmas versões que o artefato buscava em CDNs.
+- O banco local mudou de `web/compat/` para `web/app/compat/`.
+- Criados 7 testes no Chromium, em `web/testes/app.test.cjs`, entre eles um que monta um quadro com cartão, seta, traço e imagem com o servidor da página fora do ar e recarrega a página só com o banco local. Os testes acusam as 14 mutações introduzidas.
+- Concluído o plano 002, com o trecho dos quadros exportados dispensado pelo autor.
+
+### Decidido
+
+- **Página montada, e não editada à mão.** `web/app/index.html` é sempre o original com as mudanças da lista, e um teste confere isso; o original continua conferido pelos hashes.
+- **pdf.js e mammoth junto com a página.** O artefato os buscava no cdnjs ao abrir prévias de PDF e de Word; entregá-los localmente cumpre o critério de nenhuma requisição externa e prepara a leitura de PDFs.
+- **Sem service worker, imagens embutidas.** Se o service worker não assumir a página, o recurso de arquivos é recusado, e o artefato embute as imagens no quadro, em vez de guardar arquivos que não conseguiria exibir.
+
+### Observado no aparelho
+
+- O autor corrigiu uma observação anterior: no Boox, ao tirar a caneta da tela, o traço às vezes muda e fica mais fino, quando o aparelho atualiza a região, conforme o intervalo configurado no tablet, ou quando o autor pede a atualização completa da tela. A causa provável é a diferença entre o traço provisório da Onyx, de espessura constante, e o definitivo da página, que afina com a pressão.
+
+### Pendências
+
+- Decidir com o autor entre traço de espessura constante e traço sensível à pressão, e igualar o provisório e o definitivo na casca.
+- Plano 003: sincronização com a VPS, implantação, autenticação e a Prancheta de `web/app/` empacotada na casca, com o service worker servido por ela.
+
+### Referências
+
+- Etapa 06: `acompanhamento/planos/002-prancheta-independente/etapas/06-prancheta-sem-internet.md`
+- Montagem e arquivos de terceiros: `web/montagem/LEIA-ME.md`
+- Testes: `web/testes/app.test.cjs`
+
 ## 2026-11-08 · Etapa 05 do plano 002 concluída: banco local no navegador
 
 ### Feito
