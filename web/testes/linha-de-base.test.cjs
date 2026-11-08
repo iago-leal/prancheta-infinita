@@ -4,41 +4,27 @@
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { servirWeb } = require('./apoio/servidor.cjs');
 
-const RAIZ = path.join(__dirname, '..');
 // Mesma versão que o artefato importa do jsDelivr, já copiada do npm para a casca.
 const PERFECT_FREEHAND = path.join(__dirname, '..', '..', 'android', 'app', 'src', 'main', 'assets', 'vendor', 'perfect-freehand', 'index.js');
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mp3': 'audio/mpeg' };
 
 let servidor;
 let base;
 let navegador;
 
 before(async () => {
-  servidor = http.createServer((req, res) => {
-    let relativo = decodeURIComponent(new URL(req.url, 'http://local').pathname).replace(/^\/+/, '');
-    if (relativo === '') relativo = 'index.html';
-    const arquivo = path.resolve(RAIZ, relativo);
-    if (!arquivo.startsWith(RAIZ + path.sep) || !fs.existsSync(arquivo) || fs.statSync(arquivo).isDirectory()) {
-      res.writeHead(404);
-      res.end();
-      return;
-    }
-    res.writeHead(200, { 'content-type': TIPOS[path.extname(arquivo)] ?? 'application/octet-stream' });
-    fs.createReadStream(arquivo).pipe(res);
-  });
-  await new Promise((pronto) => servidor.listen(0, '127.0.0.1', pronto));
-  base = `http://127.0.0.1:${servidor.address().port}`;
+  servidor = await servirWeb();
+  base = servidor.base;
   navegador = await chromium.launch();
 });
 
 after(async () => {
   await navegador?.close();
-  servidor?.close();
+  await servidor?.fechar();
 });
 
 async function abrir(contexto) {

@@ -29,7 +29,7 @@ A casca Android foi validada no plano 001, e o que falta para usar a Prancheta d
 | [02](etapas/02-exportacao-dos-dados.md) | Exportação dos dados do artefato | concluida |
 | [03](etapas/03-servidor-de-compatibilidade.md) | Servidor de compatibilidade | descartada |
 | [04](etapas/04-cliente-de-compatibilidade.md) | Cliente de compatibilidade e Prancheta rodando fora do claude.ai | descartada |
-| [05](etapas/05-banco-local.md) | Banco local no navegador | pendente |
+| [05](etapas/05-banco-local.md) | Banco local no navegador | concluida |
 | [06](etapas/06-prancheta-sem-internet.md) | Cliente de compatibilidade e Prancheta sem internet | pendente |
 
 ## Mudança de escopo
