@@ -3,10 +3,10 @@ tipo: etapa
 plano: "001"
 etapa: "04"
 titulo: Teste no Boox e decisão
-status: em_andamento
+status: concluida
 depende_de: ["03"]
 iniciada_em: 2026-11-08
-concluida_em:
+concluida_em: 2026-11-08
 ---
 
 # Etapa 04: teste no Boox e decisão
@@ -19,11 +19,11 @@ Instalar o APK no Boox Note Air4 C do autor, testar a escrita e os gestos e regi
 
 - [x] O meio de levar o APK ao Boox está definido, registrado e funcionando.
 - [x] O APK está instalado no Boox Note Air4 C do autor.
-- [ ] A latência percebida foi comparada com a do app de notas nativo, e o resultado está registrado.
-- [ ] Os traços caem no lugar certo depois de mover e ampliar a área de desenho.
+- [x] A latência percebida foi comparada com a do app de notas nativo, e o resultado está registrado.
+- [x] Os traços caem no lugar certo depois de mover e ampliar a área de desenho.
 - [x] Os toques dos dedos chegam à página enquanto a caneta está ativa, permitindo mover e ampliar com dois dedos.
-- [ ] O autor avaliou o salto entre o traço provisório e o traço final, e a avaliação está registrada.
-- [ ] A decisão de seguir com a casca, ajustá-la ou recorrer à PWA está registrada no plano e no estado.
+- [x] O autor avaliou o salto entre o traço provisório e o traço final, e a avaliação está registrada.
+- [x] A decisão de seguir com a casca, ajustá-la ou recorrer à PWA está registrada no plano e no estado.
 
 ## Registro
 
@@ -43,5 +43,17 @@ Instalar o APK no Boox Note Air4 C do autor, testar a escrita e os gestos e regi
 - Correção, na versão 0.1.1: a página chama `Casca.redesenharTela()` depois de limpar, e a `CamadaOnyx.redesenharTudo` desliga a camada, pede uma atualização completa da tela com o modo `GC` e religa a camada 150 ms depois, o mesmo ciclo que o gesto de dois dedos provoca. Um teste novo da página verifica o pedido de redesenho e falha quando ele é retirado.
 - O APK `prancheta-casca-0.1.1-debug.apk`, com versionCode 2 e SHA-256 `8aa7c9b4da2f6cd66d56459f623d547000199852f30148ad6a75c1efc80d3844`, foi compilado do zero com essa correção, com os testes passando, e enviado ao autor pelo aplicativo do Claude.
 - Terceiro relato do autor: com a versão 0.1.1, o "Limpar" funciona. A correção está confirmada no aparelho.
+- Quarto relato do autor: a escrita tem a mesma velocidade do aplicativo de notas da Boox; depois de mover e ampliar, o traço cai no lugar certo; e a troca do traço provisório pelo definitivo acontece sem salto.
+- Decisão de arquitetura, tomada a partir desses resultados: seguir com a casca Android, que exibe a Prancheta numa WebView e usa a camada de tinta da Onyx no Boox, sem precisar de ajustes de fundo nem da PWA como plano B.
 
 ## Resultado
+
+Etapa concluída, com os resultados relatados pelo autor, que testou as versões 0.1.0 e 0.1.1 no Boox Note Air4 C. Verificação de cada critério:
+
+1. O envio do APK pelo aplicativo do Claude funcionou nas duas versões, e o meio está registrado acima.
+2. O autor instalou o APK no aparelho, e a barra mostrou "tinta nativa".
+3. Segundo o autor, a escrita tem a mesma velocidade do aplicativo de notas da Boox.
+4. Segundo o autor, o traço cai no lugar certo depois de mover e ampliar com os dedos.
+5. Segundo o autor, o zoom com dois dedos funciona muito bem enquanto a caneta está ativa.
+6. Segundo o autor, a troca do traço provisório pelo definitivo acontece sem salto.
+7. A decisão de seguir com a casca está registrada no `plano.md` do plano 001 e nas decisões vigentes do `estado.md`.

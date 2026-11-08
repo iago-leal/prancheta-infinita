@@ -1,9 +1,9 @@
 ---
 tipo: estado
 atualizado_em: 2026-11-08
-fase: experimento da casca Android
-plano_ativo: acompanhamento/planos/001-casca-android/plano.md
-etapa_atual: acompanhamento/planos/001-casca-android/etapas/04-teste-no-boox.md
+fase: entre planos, com a casca Android validada
+plano_ativo:
+etapa_atual:
 bloqueios: []
 ---
 
@@ -15,25 +15,26 @@ A Prancheta Infinita hoje é um artefato do claude.ai: um `index.html` de cerca 
 
 ## Decisões vigentes
 
-- Aplicação web na VPS, com uma casca Android no Boox: no navegador do aparelho, a tinta atrasa de 200 a 300 ms, e só o SDK da Onyx oferece latência baixa.
+- Aplicação web na VPS, com uma casca Android no Boox que usa a camada de tinta da Onyx: validada no Air4 C, com escrita tão rápida quanto a do aplicativo de notas, enquanto o navegador atrasa de 200 a 300 ms.
 - Independência por uma camada de compatibilidade que responde pela mesma porta `claude.use(...)` do artefato, para não reescrever o código.
 - Conversa com o Claude e conectores MCP fora da primeira versão, porque exigem chave de API paga e configuração de cada conector.
 - Tinta livre com laço, setas que acompanham a seleção e "manter junto" sob demanda, sem agrupamento automático, para que a Prancheta nunca precise adivinhar.
 - No Boox, a caneta escreve, um dedo seleciona e arrasta, e dois dedos movem e ampliam o quadro.
 - Reorganização pensada para e-ink já na primeira versão: contorno durante o arrasto, mover por toque e modo e-ink sem sombras, animações ou transparências.
 - Cada traço guarda identificador, posição e horário, para permitir agrupamento e transcrição no futuro.
+- Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 
 ## Em andamento
 
-Plano 001, experimento da casca Android. As etapas 01, 02 e 03 estão concluídas, e a etapa 04, o teste no Boox, está em andamento: no Boox, a camada da Onyx foi ativada, a escrita está rápida e o zoom funciona; a versão 0.1.1 corrigiu a tela que não se limpava depois do "Limpar", o que o autor confirmou.
+Nenhum plano ativo. O plano 001, experimento da casca Android, foi concluído: a versão 0.1.1 da casca passou no teste do autor no Boox.
 
 ## Próximo passo
 
-Registrar o relato do autor sobre o teste no Boox e a decisão de arquitetura. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Abrir o plano 002, para trazer o código do artefato ao repositório com a camada de compatibilidade. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
-1. 001: experimento da casca Android, ativo.
+1. 001: experimento da casca Android, concluído.
 2. Código do artefato no repositório, com a camada de compatibilidade.
 3. Implantação na VPS, com autenticação.
 4. Modo e-ink e ferramentas de reorganização.
@@ -44,6 +45,6 @@ Ambiente pessoal `prancheta-infinita`: rede limitada, com registros de pacotes, 
 
 ## Dúvidas em aberto
 
-- O salto entre o traço provisório do sistema e o traço final da Prancheta é tolerável?
-- Como distribuir as próximas versões do APK: release do GitHub, artefato de CI ou o aplicativo do Claude?
+- Como distribuir as próximas versões do APK: release do GitHub, artefato de CI ou o aplicativo do Claude, como até agora?
 - O que fazer quando o plugin Android 10 remover o Jetifier, se o SDK da Onyx ainda depender de bibliotecas anteriores ao AndroidX?
+- O APK tem 21 MB por trazer bibliotecas nativas de cinco arquiteturas; vale restringi-lo às arquiteturas ARM?
