@@ -40,7 +40,7 @@ Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Pranchet
 
 ## Próximo passo
 
-O autor confirmar no Boox, com a casca 0.3.4, que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca, para fechar a etapa 02. Com a 02 concluída, encerrar o plano 003 e escolher o próximo, entre o modo e-ink, plano 004, e os livros, plano 005. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor confirmar no Boox, com a casca 0.3.5, que o traço forte não afina mais na troca, como acontecia na 0.3.4, em que os traços seguidos já apareciam na hora, para fechar a etapa 02. Com a 02 concluída, encerrar o plano 003 e escolher o próximo, entre o modo e-ink, plano 004, e os livros, plano 005. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

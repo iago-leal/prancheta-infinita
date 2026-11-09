@@ -2,6 +2,7 @@ package com.iagoleal.prancheta
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TintaTest {
@@ -40,8 +41,22 @@ class TintaTest {
 
     @Test
     fun `o contorno definitivo é engrossado pelo ajuste medido no Boox`() {
-        assertEquals(12f, Tinta.larguraDefinitiva(10f), 0.001f)
-        assertEquals(10f * Tinta.AJUSTE_DO_CONTORNO, Tinta.larguraDefinitiva(10f), 0.001f)
+        // Até a pressão média, cerca de 62% da espessura máxima, o fator é 1,2.
+        assertEquals(12f, Tinta.larguraDefinitiva(10f, 30f), 0.001f)
+        assertEquals(18f * Tinta.AJUSTE_DO_CONTORNO, Tinta.larguraDefinitiva(18f, 30f), 0.001f)
+        // Na pressão máxima, o fator chega a 1,4, porque o traço forte afinava na troca.
+        assertEquals(30f * Tinta.AJUSTE_DO_CONTORNO_FORTE, Tinta.larguraDefinitiva(30f, 30f), 0.001f)
+        // Entre as duas, cresce sem saltos.
+        val intermediaria = Tinta.larguraDefinitiva(24.3f, 30f) / 24.3f
+        assertEquals(1.3f, intermediaria, 0.01f)
+        var anterior = 0f
+        for (tamanho in 1..30) {
+            val fator = Tinta.larguraDefinitiva(tamanho.toFloat(), 30f) / tamanho
+            assertTrue("o fator diminuiu em $tamanho", fator >= anterior - 0.0001f)
+            anterior = fator
+        }
+        // Sem a espessura do traço, vale o fator da pressão média.
+        assertEquals(12f, Tinta.larguraDefinitiva(10f, 0f), 0.001f)
     }
 
     @Test

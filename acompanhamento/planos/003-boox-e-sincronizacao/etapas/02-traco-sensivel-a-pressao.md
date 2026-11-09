@@ -77,4 +77,11 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 - Versão 0.3.4, código 8: a troca passa a esperar a caneta se afastar. A nova `AgendaDaTroca` só libera a troca depois de 700 ms sem nenhum sinal da caneta, tocando ou pairando sobre a tela, que a Activity já recebia para a rejeição da palma; as regiões escritas se acumulam até a troca. Enquanto se escreve uma palavra ou uma linha, a caneta paira entre um traço e outro, e a troca espera; com a caneta pairando por mais de 20 s, ela acontece mesmo assim, desde que a caneta não esteja tocando a tela.
 - Testes: 7 testes JUnit novos cobrem a agenda, 30 ao todo, e acusam as 6 mutações introduzidas nela.
 
+### 2026-11-09, confirmação do autor com a versão 0.3.4
+
+- O autor confirmou no Boox que os traços seguidos aparecem na hora, o que resolve a troca durante a escrita.
+- Relatou também que o traço muda um pouco na troca: com pressão forte, ele fica mais fino. O critério 5 ainda não está atendido, e o relato confirma a diferença de até 20% medida no vídeo IMG_5257 para o traço forte.
+- Versão 0.3.5, código 9: o ajuste do contorno passa a depender da pressão de cada ponto, dada pela proporção entre o tamanho do ponto calculado pela Onyx e a espessura máxima do traço. Até a pressão média, 1,7 de 2,75 vezes a espessura escolhida, ou cerca de 62% da máxima, o fator segue em 1,2, porque a espessura do traço leve e a do médio não mudavam na troca; daí até a pressão máxima, cresce sem saltos até 1,4, por `Tinta.AJUSTE_DO_CONTORNO_FORTE`, para compensar os 20% que faltavam ao traço forte. O traço já guardado não muda: o contorno é calculado pela casca ao fim de cada traço.
+- Testes: o teste do ajuste do contorno passou a conferir o fator na pressão média, na máxima e entre as duas, e que ele nunca diminui com a pressão; seguem 30 testes JUnit, que acusam as 3 mutações introduzidas no ajuste novo.
+
 ## Resultado

@@ -6,6 +6,17 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Etapa 02 do plano 003: casca 0.3.5, traço forte sem afinar na troca
+
+### Feito
+
+- O autor confirmou, com a casca 0.3.4, que os traços seguidos aparecem na hora, mas relatou que o traço forte fica mais fino quando a tela se atualiza.
+- Versão 0.3.5, código 9: o contorno definitivo é engrossado conforme a pressão de cada ponto, em 20% até a pressão média, como antes, e em até 40% na pressão máxima, conforme a medição do vídeo IMG_5257 e o relato do autor.
+
+### Pendências
+
+- O autor atualizar para a 0.3.5 e confirmar no Boox que o traço forte não afina mais na troca, para fechar o critério 5 e verificar os critérios 1 e 2 da etapa 02; com ela, o plano 003 se encerra.
+
 ## 2026-11-09 · Etapa 05 do plano 003 concluída: Boox e computador sincronizam pela VPS
 
 ### Feito
