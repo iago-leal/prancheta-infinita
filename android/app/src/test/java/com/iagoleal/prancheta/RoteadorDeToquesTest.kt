@@ -17,6 +17,7 @@ import org.junit.Test
 class RoteadorDeToquesTest {
 
     private val suspensoes = mutableListOf<Boolean>()
+    private var cancelamentos = 0
     private lateinit var roteador: RoteadorDeToques
 
     private val caneta = intArrayOf(TOOL_TYPE_STYLUS)
@@ -26,7 +27,9 @@ class RoteadorDeToquesTest {
     @Before
     fun preparar() {
         suspensoes.clear()
+        cancelamentos = 0
         roteador = RoteadorDeToques { suspensoes.add(it) }
+        roteador.aoCancelarDedos = { cancelamentos++ }
         // Barra de 52 px CSS numa tela de densidade 2, com 1600 px de largura.
         roteador.areasReservadas = listOf(Retangulo(0f, 0f, 1600f, 104f))
     }
@@ -70,11 +73,82 @@ class RoteadorDeToquesTest {
     }
 
     @Test
-    fun `a caneta que começa durante o gesto de dois dedos é descartada`() {
-        roteador.rotear(ACTION_DOWN, umDedo, 300f, 300f)
-        roteador.rotear(ACTION_POINTER_DOWN, doisDedos, 500f, 300f)
-        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_DOWN, caneta, 400f, 600f))
-        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_UP, caneta, 400f, 600f))
+    fun `a caneta que toca durante o gesto de dois dedos cancela o gesto e escreve`() {
+        roteador.rotear(ACTION_DOWN, umDedo, 300f, 300f, 1_000)
+        roteador.rotear(ACTION_POINTER_DOWN, doisDedos, 500f, 300f, 1_010)
+        assertEquals(Destino.CAMADA_ONYX, roteador.rotear(ACTION_DOWN, caneta, 400f, 600f, 1_100))
+        assertEquals(1, cancelamentos)
+        assertEquals(listOf(true, false), suspensoes)
+        assertFalse(roteador.suspensa)
+        assertEquals(Destino.CAMADA_ONYX, roteador.rotear(ACTION_UP, caneta, 400f, 600f, 1_200))
+        // O resto do gesto dos dedos é descartado, sem outro cancelamento.
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_MOVE, doisDedos, 520f, 320f, 3_000))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_POINTER_UP, doisDedos, 520f, 320f, 3_010))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_UP, umDedo, 300f, 300f, 3_020))
+        assertEquals(1, cancelamentos)
+        // Um gesto novo, longe da caneta, volta para a WebView.
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_DOWN, umDedo, 300f, 300f, 4_000))
+    }
+
+    @Test
+    fun `a caneta que se aproxima durante o gesto de um dedo cancela o gesto`() {
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 1_000))
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_MOVE, umDedo, 320f, 900f, 1_050))
+        roteador.registrarCanetaPerto(1_100)
+        assertEquals(1, cancelamentos)
+        assertTrue("um dedo não suspende a camada", suspensoes.isEmpty())
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_MOVE, umDedo, 340f, 900f, 1_150))
+        roteador.registrarCanetaPerto(1_200)
+        assertEquals("o gesto já cancelado não é cancelado de novo", 1, cancelamentos)
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_UP, umDedo, 340f, 900f, 1_300))
+    }
+
+    @Test
+    fun `a caneta perto sem gesto de dedos não cancela nada`() {
+        roteador.registrarCanetaPerto(1_000)
+        assertEquals(Destino.CAMADA_ONYX, roteador.rotear(ACTION_DOWN, caneta, 400f, 600f, 1_100))
+        // O dedo descartado como palma não chegou à WebView, e não há o que cancelar.
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 1_150))
+        roteador.registrarCanetaPerto(1_200)
+        assertEquals(Destino.CAMADA_ONYX, roteador.rotear(ACTION_UP, caneta, 400f, 600f, 1_300))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 1_350))
+        // Um gesto que terminou também não é cancelado depois.
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 5_000))
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 5_050))
+        roteador.registrarCanetaPerto(5_100)
+        assertEquals(0, cancelamentos)
+    }
+
+    @Test
+    fun `os dedos só voltam a agir um segundo depois da caneta`() {
+        roteador.registrarCanetaPerto(1_000)
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 1_900))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 1_950))
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 2_000))
+    }
+
+    @Test
+    fun `um contato do tamanho da palma é descartado, e o de um dedo não`() {
+        val limite = RoteadorDeToques.LIMITE_DO_CONTATO_MM
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 1_000, 10f))
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 1_050, 10f))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 2_000, limite + 1f))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_MOVE, umDedo, 320f, 900f, 2_050, 5f))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_UP, umDedo, 320f, 900f, 2_100, 5f))
+        assertEquals(0, cancelamentos)
+    }
+
+    @Test
+    fun `um contato que cresce até o tamanho da palma cancela o gesto`() {
+        val limite = RoteadorDeToques.LIMITE_DO_CONTATO_MM
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 1_000, 8f))
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_POINTER_DOWN, doisDedos, 360f, 900f, 1_020, 12f))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_MOVE, doisDedos, 360f, 910f, 1_040, limite + 5f))
+        assertEquals(1, cancelamentos)
+        assertFalse(roteador.suspensa)
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_POINTER_UP, doisDedos, 360f, 910f, 1_060, limite + 5f))
+        assertEquals(Destino.DESCARTAR, roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 1_080, 8f))
+        assertEquals(1, cancelamentos)
     }
 
     @Test

@@ -6,6 +6,24 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Etapa 02 do plano 003: casca 0.3.5, traço forte, mão apoiada e barra no alto
+
+### Feito
+
+- O autor confirmou, com a casca 0.3.4, que os traços seguidos aparecem na hora, mas relatou que o traço forte fica mais fino quando a tela se atualiza.
+- Versão 0.3.5, código 9: o contorno definitivo é engrossado conforme a pressão de cada ponto, em 20% até a pressão média, como antes, e em até 40% na pressão máxima, conforme a medição do vídeo IMG_5257 e o relato do autor.
+- Na mesma versão, a pedido do autor: a barra de ferramentas e o zoom passam para o alto da tela na casca; a casca descarta os dedos até 1 s depois da caneta, cancela o gesto de dedos quando a caneta chega e trata contatos grandes como palma; desfazer e refazer pelos dedos pedem dois toques seguidos; e um gesto cancelado não deixa efeito.
+
+### Decidido
+
+- **Desfazer e refazer por dois toques seguidos.** Por sugestão do autor, que usa esses gestos, no lugar de desligá-los no Boox.
+- **Controle de sensibilidade à pressão adiado.** O SDK da Onyx não permite aplicá-lo ao traço provisório, e aplicá-lo só ao definitivo faria o traço mudar na troca; o autor decide depois de testar a 0.3.5 se ele ainda faz falta.
+
+### Pendências
+
+- O autor atualizar para a 0.3.5 e confirmar no Boox que o traço forte não afina mais na troca, para fechar o critério 5 e verificar os critérios 1 e 2 da etapa 02; com ela, o plano 003 se encerra.
+- O autor confirmar que a mão apoiada não move mais o quadro e que a barra no alto ficou boa.
+
 ## 2026-11-09 · Etapa 05 do plano 003 concluída: Boox e computador sincronizam pela VPS
 
 ### Feito

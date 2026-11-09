@@ -295,7 +295,7 @@ class CamadaOnyx private constructor(
         return try {
             NeoFountainPenWrapper.computeStrokePoints(brutos, largura, pressaoMaxima)
                 .filter { it.size > 0f }
-                .map { PontoContorno(it.x, it.y, Tinta.larguraDefinitiva(it.size)) }
+                .map { PontoContorno(it.x, it.y, Tinta.larguraDefinitiva(it.size, largura)) }
         } catch (erro: Throwable) {
             Log.w(TAG, "a Onyx não calculou o contorno do traço", erro)
             emptyList()

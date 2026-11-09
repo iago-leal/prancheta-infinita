@@ -465,7 +465,7 @@ addEventListener('error',fail);setTimeout(fail,8000);
     <dt>Caneta, marca-texto, borracha</dt><dd>P, M, E</dd>
     <dt>Opções da caneta</dt><dd>segundo toque no botão</dd>
     <dt>Com a caneta ativa</dt><dd>um dedo move, dois dão zoom</dd>
-    <dt>Desfazer, refazer no iPad</dt><dd>toque com 2 ou 3 dedos</dd>
+    <dt>Desfazer, refazer no tablet</dt><dd>dois toques seguidos com 2 ou 3 dedos</dd>
     <dt>Mover o quadro</dt><dd>Espaço + arrastar, ou rolar</dd>
     <dt>Zoom</dt><dd>Ctrl + rolar, ou pinça</dd>
     <dt>Ajustar à tela</dt><dd>Shift + 1</dd>
@@ -1047,10 +1047,11 @@ function cancelAct(){
   stage.classList.remove('panning');
 }
 function setAct(a,e){S.act=a;a.pid=e.pointerId;a.touch=e.pointerType==='touch';try{stage.setPointerCapture(e.pointerId)}catch{}}
-function gestureDown(e){if(!S.g)S.g={t:performance.now(),n:0,moved:false,live:false,p:new Map()};S.g.p.set(e.pointerId,[e.clientX,e.clientY]);S.g.n=Math.max(S.g.n,S.g.p.size)}
+function gestureDown(e){if(!S.g)S.g={t:performance.now(),n:0,moved:false,live:false,p:new Map(),v:{x:S.view.x,y:S.view.y,k:S.view.k}};S.g.p.set(e.pointerId,[e.clientX,e.clientY]);S.g.n=Math.max(S.g.n,S.g.p.size)}
 function gestureUp(){
   const g=S.g;if(!g||[...S.ptrs.values()].some(p=>p.type==='touch'))return;S.g=null;
   const now=performance.now();diagTouch('fim',{width:g.n,height:Math.round(now-g.t)},g.moved?1:0);if(g.moved||now-g.t>450||g.n<2||now-(S.penUp||0)<500||S.ro)return;
+  if(g.n!==2&&g.n!==3)return;const l=S.gTap;if(!l||l.n!==g.n||g.t-l.fim>400){S.gTap={n:g.n,fim:now};return}S.gTap=null;
   if(g.n===2){if(S.undo.length||S.pend.length){undo();flash('Desfeito')}}else if(g.n===3){if(S.redo.length){redo();flash('Refeito')}}
 }
 function flash(m){toast(m);clearTimeout(toastT);toastT=setTimeout(()=>{$('#toast').hidden=true},900)}
@@ -1293,7 +1294,7 @@ function onUp(e){
     enterEdit(c.id,null,null,true,[ed.id]);return;
   }
 }
-function onCancelPtr(e){if(e.pointerType==='touch')diagTouch('cancelado',e);S.ptrs.delete(e.pointerId);if(e.pointerType==='touch')gestureUp();if(S.pinch&&[...S.ptrs.values()].filter(p=>p.type==='touch').length<2)S.pinch=null;if(S.act&&S.act.pid===e.pointerId)cancelAct()}
+function onCancelPtr(e){if(e.pointerType==='touch'){diagTouch('cancelado',e);S.gTap=null;const g=S.g;if(g&&!g.cancel){g.cancel=true;g.moved=true;const v=S.view,o=g.v;if(o&&(v.x!==o.x||v.y!==o.y||v.k!==o.k)){v.x=o.x;v.y=o.y;v.k=o.k;applyView()}}}S.ptrs.delete(e.pointerId);if(e.pointerType==='touch')gestureUp();if(S.pinch&&[...S.ptrs.values()].filter(p=>p.type==='touch').length<2)S.pinch=null;if(S.act&&S.act.pid===e.pointerId){const a=S.act,u=S.undo.length;cancelAct();if(a.touch&&S.undo.length>u){undo();S.redo.pop();refreshHist()}}}
 function finishCreate(a){
   const b=a.box&&a.box.w>14&&a.box.h>14?a.box:null,t=S.tool,w=a.w;
   if(t==='frame'){const f=b||{x:w.x-260,y:w.y-180,w:520,h:360};begin();const it=add({type:'frame',x:Math.round(f.x),y:Math.round(f.y),w:Math.round(f.w),h:Math.round(f.h),title:'',c:'none'});commit();setTool('select');select([it.id]);const inp=$('.fl',doms.get(it.id));inp.readOnly=false;inp.focus();return}
@@ -1487,7 +1488,7 @@ function openMenu(anchorEl,rows,up){
   menu._a=anchorEl;menu.innerHTML=rows.map((r,i)=>r==='-'?'<hr>':`<button data-i="${i}"><span>${r[0]}</span>${r[1]?`<kbd>${r[1]}</kbd>`:''}</button>`).join('');
   menu.onclick=e=>{const b=e.target.closest('[data-i]');if(!b)return;closePops();rows[+b.dataset.i][2]()};
   menu.hidden=false;const r=anchorEl.getBoundingClientRect(),w=menu.offsetWidth,h=menu.offsetHeight;
-  menu.style.left=clamp(r.right-w,8,innerWidth-w-8)+'px';menu.style.top=(up?r.top-h-8:r.bottom+8)+'px';
+  menu.style.left=clamp(r.right-w,8,innerWidth-w-8)+'px';menu.style.top=(up&&r.top-h-8>=8?r.top-h-8:r.bottom+8)+'px';
 }
 $('#bUndo').innerHTML=icon('undo');$('#bRedo').innerHTML=icon('redo');$('#bMore').innerHTML=icon('more');$('#zOut').innerHTML=icon('minus');$('#zIn').innerHTML=icon('plus');
 $('#bUndo').onclick=undo;$('#bRedo').onclick=redo;$('#zOut').onclick=()=>zoomCenter(.8);$('#zIn').onclick=()=>zoomCenter(1.25);

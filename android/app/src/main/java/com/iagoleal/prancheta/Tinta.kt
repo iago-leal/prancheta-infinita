@@ -48,11 +48,39 @@ data class Tinta(val marcaTexto: Boolean, val cor: Int, val larguraCss: Float) {
          * e-ink do que o contorno calculado pelo mesmo motor e desenhado pela
          * Prancheta, conforme a medição do vídeo do autor de 2026-11-08; o
          * contorno é engrossado na mesma proporção para que a troca não se note.
+         * O fator vale até a pressão média.
          */
         const val AJUSTE_DO_CONTORNO = 1.2f
 
-        /** Diâmetro do traço definitivo para um ponto do contorno calculado pela Onyx. */
-        fun larguraDefinitiva(tamanhoDaOnyx: Float): Float = tamanhoDaOnyx * AJUSTE_DO_CONTORNO
+        /**
+         * Fator na pressão máxima. No vídeo IMG_5257, de 2026-11-08, o traço
+         * provisório forte saiu até 20% mais largo que o definitivo, e o autor
+         * confirmou, com a casca 0.3.4, que o traço forte fica mais fino na troca;
+         * entre a pressão média e a máxima, o fator cresce de 1,2 até este valor.
+         */
+        const val AJUSTE_DO_CONTORNO_FORTE = 1.4f
+
+        /**
+         * Proporção da espessura máxima a partir da qual o fator começa a crescer:
+         * a da pressão média, 1,7 de 2,75 vezes a espessura escolhida, como em [FATOR_DA_CANETA].
+         */
+        const val INICIO_DO_AJUSTE_FORTE = (1.7 / FATOR_DA_CANETA).toFloat()
+
+        /**
+         * Diâmetro do traço definitivo para um ponto do contorno calculado pela
+         * Onyx, conforme a pressão do ponto, dada pela proporção entre o tamanho
+         * dele e a espessura máxima do traço, [larguraDoTraco].
+         */
+        fun larguraDefinitiva(tamanhoDaOnyx: Float, larguraDoTraco: Float): Float {
+            val proporcao = if (larguraDoTraco > 0f) (tamanhoDaOnyx / larguraDoTraco).coerceIn(0f, 1f) else 0f
+            val ajuste = if (proporcao <= INICIO_DO_AJUSTE_FORTE) {
+                AJUSTE_DO_CONTORNO
+            } else {
+                val avanco = (proporcao - INICIO_DO_AJUSTE_FORTE) / (1f - INICIO_DO_AJUSTE_FORTE)
+                AJUSTE_DO_CONTORNO + (AJUSTE_DO_CONTORNO_FORTE - AJUSTE_DO_CONTORNO) * avanco
+            }
+            return tamanhoDaOnyx * ajuste
+        }
 
         val PADRAO = Tinta(marcaTexto = false, cor = PRETO, larguraCss = 3f)
 
