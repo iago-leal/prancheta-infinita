@@ -17,12 +17,16 @@
 #  2. instala o comando da publicação, prancheta-publicar, e o das chaves,
 #     prancheta-chave;
 #  3. cria as pastas: o código publicado, em /home/prancheta/publicado; os
-#     dados, em /var/lib/prancheta; e os resumos das chaves, em /etc/prancheta/acesso;
-#  4. grava /etc/prancheta/ambiente e /opt/prancheta/compose.yml;
+#     dados, em /var/lib/prancheta; os resumos das chaves, em /etc/prancheta/acesso;
+#     e o login do Tailscale, em /var/lib/prancheta-tailscale;
+#  4. grava /etc/prancheta/ambiente, /opt/prancheta/compose.yml e
+#     /opt/prancheta/tailscale-serve.json, o que o Tailscale entrega pela rede privada;
 #  5. cria a rede prancheta_borda, sem saída para a internet, e liga o Traefik
 #     a ela sem reiniciá-lo; se o arquivo do Traefik ainda não a declara,
 #     mostra o trecho a acrescentar, para que ela continue lá quando ele for recriado;
-#  6. liga o contêiner, que espera a primeira publicação se o código ainda não chegou.
+#  6. liga os contêineres: o da Prancheta, que espera a primeira publicação se
+#     o código ainda não chegou, e o do Tailscale, que mostra o endereço de
+#     login enquanto o autor não o aprova.
 #
 # Variáveis opcionais: TRAEFIK, o nome do contêiner do Traefik, por padrão
 # root-traefik-1; COMPOSE_DO_TRAEFIK, o arquivo dele, por padrão /root/docker-compose.yml.
@@ -42,7 +46,7 @@ falhar() { echo "ERRO: $1" >&2; exit 1; }
 (( EUID == 0 )) || falhar "rode como administrador (root)"
 [[ "$ANFITRIAO" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] \
   || falhar "uso: preparar-vps.sh <endereço da Prancheta, como prancheta.exemplo.com>"
-for arquivo in prancheta-publicar prancheta-chave compose.yml; do
+for arquivo in prancheta-publicar prancheta-chave compose.yml tailscale-serve.json; do
   [[ -f "$AQUI/$arquivo" ]] || falhar "falta $arquivo ao lado do roteiro; copie a pasta servidor/implantacao inteira"
 done
 command -v docker > /dev/null || falhar "docker não encontrado"
@@ -78,7 +82,9 @@ install -d -o prancheta -g prancheta -m 0700 /var/lib/prancheta
 install -d -o root -g root -m 0755 /etc/prancheta /opt/prancheta
 install -d -o root -g prancheta -m 0750 /etc/prancheta/acesso
 [[ -f /etc/prancheta/acesso/chaves ]] || install -o root -g prancheta -m 0640 /dev/null /etc/prancheta/acesso/chaves
+install -d -o root -g root -m 0700 /var/lib/prancheta-tailscale
 echo "código em $CASA/publicado, dados em /var/lib/prancheta, chaves em /etc/prancheta/acesso/chaves"
+echo "login do Tailscale em /var/lib/prancheta-tailscale"
 
 passo "4. Ambiente e contêiner"
 umask 077
@@ -86,8 +92,9 @@ printf 'ANFITRIAO=%s\nPRANCHETA_UID=%s\nPRANCHETA_GID=%s\n' "$ANFITRIAO" "$PRANC
 mv -f /etc/prancheta/ambiente.novo /etc/prancheta/ambiente
 umask 022
 install -o root -g root -m 0644 "$AQUI/compose.yml" /opt/prancheta/compose.yml
+install -o root -g root -m 0644 "$AQUI/tailscale-serve.json" /opt/prancheta/tailscale-serve.json
 docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml config --quiet
-echo "gravados /etc/prancheta/ambiente e /opt/prancheta/compose.yml"
+echo "gravados /etc/prancheta/ambiente, /opt/prancheta/compose.yml e /opt/prancheta/tailscale-serve.json"
 
 passo "5. Rede"
 if ! docker network inspect "$REDE" > /dev/null 2>&1; then
@@ -119,9 +126,9 @@ Não é preciso recriar o Traefik agora: ele já está ligado à rede.
 AVISO
 fi
 
-passo "6. Contêiner da Prancheta"
+passo "6. Contêineres da Prancheta e do Tailscale"
 docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml up -d
-echo "contêiner ligado"
+echo "contêineres ligados"
 
 passo "Próximos passos"
 if [[ ! -s /etc/prancheta/acesso/chaves ]] || ! grep -qv '^#' /etc/prancheta/acesso/chaves; then
@@ -135,4 +142,26 @@ if [[ ! -L "$CASA/publicado/atual" ]]; then
   echo "  o contêiner começa a responder alguns segundos depois de o código chegar"
 fi
 echo "- para o GitHub conferir cada publicação, cadastre o segredo VPS_PRANCHETA_ANFITRIAO com o endereço"
-echo "- endereço da Prancheta: https://$ANFITRIAO"
+echo "- endereço público da Prancheta, enquanto estiver aberto: https://$ANFITRIAO"
+TAILSCALE_CONTEINER="$(docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml ps -q tailscale)"
+na_rede() { docker exec "$TAILSCALE_CONTEINER" tailscale status --json 2>/dev/null | grep -q '"BackendState": *"Running"'; }
+LOGIN=""
+for _ in $(seq 1 15); do
+  na_rede && break
+  LOGIN="$(docker logs "$TAILSCALE_CONTEINER" 2>&1 | grep -o 'https://login\.tailscale\.com/[^ ]*' | tail -n 1 || true)"
+  [[ -n "$LOGIN" ]] && break
+  sleep 2
+done
+if na_rede; then
+  NOME="$(docker exec "$TAILSCALE_CONTEINER" tailscale status --json | grep -m 1 -o '"DNSName": *"[^"]*"' | cut -d '"' -f 4 | sed 's/\.$//')"
+  echo "- o Tailscale está na rede privada; endereço da Prancheta nela: https://$NOME"
+  echo "  o primeiro acesso pode levar meio minuto, enquanto o certificado é emitido;"
+  echo "  o endereço vale nos aparelhos ligados ao Tailscale e não entra no repositório"
+elif [[ -n "$LOGIN" ]]; then
+  echo "- aprove a VPS na rede privada abrindo este endereço, logado na sua conta do Tailscale:"
+  echo "    $LOGIN"
+  echo "  depois, no painel do Tailscale, desative a expiração da chave da máquina prancheta"
+  echo "  (Machines, prancheta, Disable key expiry) e rode este roteiro de novo para ver o nome dela"
+else
+  echo "- o Tailscale ainda não mostrou o endereço de login; veja com: docker logs $TAILSCALE_CONTEINER"
+fi

@@ -13,7 +13,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 const { Armazem } = require('../armazem.cjs');
-const { criarServidor, vigiarVersao } = require('../servidor.cjs');
+const { criarServidor, vigiarVersao, rotaDaSincronizacao } = require('../servidor.cjs');
 const { criarServidorDaPagina, POLITICA_DA_PAGINA } = require('../pagina.cjs');
 const { criarVerificador, lerResumos } = require('../chaves.cjs');
 const { copiar } = require('../copia-de-seguranca.cjs');
@@ -200,16 +200,27 @@ test('uma versão nova publicada faz o servidor terminar, para recomeçar com el
   let saida = '';
   filho.stdout.on('data', (d) => { saida += d; });
   filho.stderr.on('data', (d) => { saida += d; });
-  const fim = new Promise((pronto) => filho.on('exit', (codigo) => pronto(codigo)));
-  for (let i = 0; i < 100 && !saida.includes('página da Prancheta'); i++) await dormir(50);
-  assert.match(saida, /sincronização da Prancheta em http/);
-  assert.match(saida, /página da Prancheta em http/);
-  fs.symlinkSync('versoes/v1', path.join(pasta, 'atual.novo'));
-  fs.renameSync(path.join(pasta, 'atual.novo'), path.join(pasta, 'atual'));
-  const codigo = await Promise.race([fim, dormir(5000).then(() => 'tempo esgotado')]);
-  if (codigo === 'tempo esgotado') filho.kill('SIGKILL');
-  assert.equal(codigo, 0, saida);
-  assert.match(saida, /versão nova publicada/);
+  let terminou = false;
+  const fim = new Promise((pronto) => filho.on('exit', (codigo) => { terminou = true; pronto(codigo); }));
+  // Se uma verificação falhar, o processo do servidor não pode ficar para trás.
+  try {
+    for (let i = 0; i < 100 && !saida.includes('no ar'); i++) await dormir(50);
+    assert.match(saida, /sincronização da Prancheta em http/);
+    assert.match(saida, /página da Prancheta em http/);
+    // Ao começar, o servidor anota a versão em uso e a recusa sem a chave.
+    const anotacao = JSON.parse(fs.readFileSync(path.join(dados, 'no-ar.json'), 'utf8'));
+    assert.equal(anotacao.versao, 'v2');
+    assert.equal(anotacao.recusaSemChave, true);
+    assert.equal(anotacao.codigo, 401);
+    assert.match(saida, /versão v2 no ar; sem a chave, a sincronização responde 401/);
+    fs.symlinkSync('versoes/v1', path.join(pasta, 'atual.novo'));
+    fs.renameSync(path.join(pasta, 'atual.novo'), path.join(pasta, 'atual'));
+    const codigo = await Promise.race([fim, dormir(5000).then(() => 'tempo esgotado')]);
+    assert.equal(codigo, 0, saida);
+    assert.match(saida, /versão nova publicada/);
+  } finally {
+    if (!terminou) filho.kill('SIGKILL');
+  }
 });
 
 test('a cópia de segurança puxa documentos e arquivos e não baixa de novo o que já tem', async () => {
@@ -241,5 +252,28 @@ test('a cópia de segurança puxa documentos e arquivos e não baixa de novo o q
     await assert.rejects(copiar({ endereco: 'http://exemplo.com', chave: CHAVE, pasta }), /https/);
   } finally {
     await s.fechar();
+  }
+});
+
+test('pela rede privada, a sincronização responde também sem o começo /sync/ do caminho', async () => {
+  assert.equal(rotaDaSincronizacao('/sync/estado'), '/sync/estado');
+  assert.equal(rotaDaSincronizacao('/estado'), '/sync/estado');
+  assert.equal(rotaDaSincronizacao('/arquivos/abc'), '/sync/arquivos/abc');
+  const dados = temporaria('dados');
+  const chave = 'k'.repeat(40);
+  const armazem = await Armazem.abrir(dados);
+  const servidor = criarServidor({ armazem, chave });
+  await new Promise((pronto) => servidor.listen(0, '127.0.0.1', pronto));
+  const base = `http://127.0.0.1:${servidor.address().port}`;
+  try {
+    for (const caminho of ['/sync/estado', '/estado']) {
+      const sem = await fetch(`${base}${caminho}`);
+      assert.equal(sem.status, 401, caminho);
+      const com = await fetch(`${base}${caminho}`, { headers: { Authorization: `Bearer ${chave}` } });
+      assert.equal(com.status, 200, caminho);
+      assert.deepEqual(await com.json(), { posicao: 0 });
+    }
+  } finally {
+    servidor.close();
   }
 });

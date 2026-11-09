@@ -13,12 +13,19 @@
 # /home/prancheta/publicado/atual, e o servidor, no contêiner, percebe a troca
 # e recomeça com a versão nova. Ficam guardadas as cinco versões mais recentes.
 #
+# Depois de trocar a versão, publicar espera o servidor anotar, em no-ar.json,
+# na pasta dos dados, que a versão nova está no ar e que a sincronização
+# recusa pedidos sem a chave, e termina com "no ar <commit>". A conferência é
+# feita na própria VPS porque a Prancheta só responde pela rede privada.
+#
 # Instalado pelo roteiro preparar-vps.sh em /usr/local/bin, como administrador.
 
 set -euo pipefail
 umask 022
 
 PUBLICADO="${PRANCHETA_PUBLICADO:-/home/prancheta/publicado}"
+DADOS="${PRANCHETA_DADOS_DA_VPS:-/var/lib/prancheta}"
+ESPERA="${PRANCHETA_ESPERA_S:-90}"
 LIMITE=$(( ${PRANCHETA_LIMITE_MB:-80} * 1024 * 1024 ))
 GUARDAR=5
 OBRIGATORIOS=(web/app/index.html web/app/sw.js servidor/servidor.cjs servidor/armazem.cjs servidor/pagina.cjs servidor/chaves.cjs)
@@ -41,12 +48,28 @@ atual() {
   if [[ -L "$PUBLICADO/atual" ]]; then basename "$(readlink "$PUBLICADO/atual")"; fi
 }
 
+# Espera o servidor anotar que a versão está no ar e recusa pedidos sem a chave.
+conferir_no_ar() {
+  local commit="$1" anotacao="$DADOS/no-ar.json" passou=0
+  while (( passou <= ESPERA )); do
+    if [[ -f "$anotacao" ]] && grep -q "\"versao\":\"$commit\"" "$anotacao"; then
+      grep -q '"recusaSemChave":true' "$anotacao" || falhar "a versao $commit esta no ar, mas a sincronizacao nao recusou um pedido sem a chave"
+      echo "no ar $commit"
+      return
+    fi
+    sleep 2
+    passou=$(( passou + 2 ))
+  done
+  falhar "a versao $commit nao entrou no ar em ${ESPERA}s"
+}
+
 publicar() {
   local commit="$1" versoes="$PUBLICADO/versoes" tmp tamanho linha nome
   mkdir -p "$versoes"
   if [[ "$(atual)" == "$commit" && -d "$versoes/$commit" ]]; then
     cat > /dev/null
     echo "ja publicado $commit"
+    conferir_no_ar "$commit"
     return
   fi
   tmp="$(mktemp -d "$versoes/.recebendo.XXXXXX")"
@@ -98,6 +121,7 @@ publicar() {
     if (( guardadas > GUARDAR )) && [[ "$nome" != "$commit" ]]; then rm -rf "${versoes:?}/$nome"; fi
   done < <(ls -1t "$versoes")
   echo "publicado $commit"
+  conferir_no_ar "$commit"
 }
 
 read -r -a ARGS <<< "${SSH_ORIGINAL_COMMAND:-}"

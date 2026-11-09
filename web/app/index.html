@@ -176,7 +176,6 @@ body.dropping #stage{outline:3px dashed var(--accent);outline-offset:-10px}
 .stab{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted)}
 .stab input{width:112px;accent-color:var(--accent);touch-action:none}
 .stab output{min-width:2.2em;text-align:right;font-variant-numeric:tabular-nums}
-.stab.sens output{min-width:3.2em}
 #hov{position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;opacity:.55}
 
 /* texto nas setas */
@@ -643,12 +642,10 @@ function flushInk(){
   if(!S.act||S.act.kind!=='ink')wipeLive();
 }
 const inkColor=c=>getComputedStyle(document.documentElement).getPropertyValue('--'+c).trim();
-const sensDaPressao=()=>{const s=S.ink&&S.ink.pen&&S.ink.pen.ps;return typeof s==='number'?s:90};
-function ajustePressao(p,s){return s===90?p:s>0?Math.pow(p,90/s):0}
 function penPressure(ev,last){
   const r=ev.pressure;if(!(r>0))return last;let p=Math.pow(r,.65);
   const alt=ev.altitudeAngle;if(typeof alt==='number'&&alt<.75)p*=1+(.75-alt)*1.1;
-  return clamp(ajustePressao(p,sensDaPressao()),.04,1);
+  return clamp(p,.04,1);
 }
 function rdp(p,eps){
   const n=p.length/3;if(n<3)return p;const keep=new Uint8Array(n);keep[0]=keep[n-1]=1;const st=[[0,n-1]];
@@ -1388,9 +1385,9 @@ function renderInkbar(){
   const ws=t==='pen'?[[1.8,'Fino'],[3,'Médio'],[6,'Grosso']]:[[12,'Fino'],[20,'Médio'],[32,'Grosso']];
   bar.innerHTML=(t==='hl'?HLPAL:INK).map(c=>`<button class="dot c-${c}" data-c="${c}" title="${NAMES[c]}" aria-label="${NAMES[c]}" aria-pressed="${cfg.c===c}"><span></span></button>`).join('')+'<span class="sep"></span>'+
     ws.map(([w,n],i)=>`<button class="wd" data-w="${w}" title="${n}" aria-label="${n}" aria-pressed="${cfg.w===w}"><i style="height:${[2,4,7][i]}px"></i></button>`).join('')+
-    (t==='pen'?`<span class="sep"></span><label class="stab sens" for="inkSens">Sensibilidade à pressão<input type="range" id="inkSens" min="0" max="100" step="5" value="${sensDaPressao()}"><output id="inkSensV">${sensDaPressao()}%</output></label>`:'')+`<span class="sep"></span><label class="stab" for="inkStab">Estabilização<input type="range" id="inkStab" min="0" max="100" step="1" value="${cfg.st||0}"><output id="inkStabV">${cfg.st||0}</output></label><label class="stab" for="inkPred">Previsão<input type="range" id="inkPred" min="0" max="100" step="1" value="${cfg.pr==null?60:cfg.pr}"><output id="inkPredV">${cfg.pr==null?60:cfg.pr}</output></label>`;
+    `<span class="sep"></span><label class="stab" for="inkStab">Estabilização<input type="range" id="inkStab" min="0" max="100" step="1" value="${cfg.st||0}"><output id="inkStabV">${cfg.st||0}</output></label><label class="stab" for="inkPred">Previsão<input type="range" id="inkPred" min="0" max="100" step="1" value="${cfg.pr==null?60:cfg.pr}"><output id="inkPredV">${cfg.pr==null?60:cfg.pr}</output></label>`;
 }
-$('#inkbar').addEventListener('input',e=>{const id=e.target.id,cfg=S.ink[S.tool];if(!cfg)return;if(id==='inkSens'){cfg.ps=+e.target.value;$('#inkSensV').textContent=cfg.ps+'%'}else if(id==='inkStab'){cfg.st=+e.target.value;$('#inkStabV').textContent=cfg.st}else if(id==='inkPred'){cfg.pr=+e.target.value;$('#inkPredV').textContent=cfg.pr}else return;store.set('prancheta.ink',JSON.stringify(S.ink))});
+$('#inkbar').addEventListener('input',e=>{const id=e.target.id,cfg=S.ink[S.tool];if(!cfg)return;if(id==='inkStab'){cfg.st=+e.target.value;$('#inkStabV').textContent=cfg.st}else if(id==='inkPred'){cfg.pr=+e.target.value;$('#inkPredV').textContent=cfg.pr}else return;store.set('prancheta.ink',JSON.stringify(S.ink))});
 $('#inkbar').addEventListener('click',e=>{const d=e.target.closest('[data-c]'),w=e.target.closest('[data-w]'),cfg=S.ink[S.tool];if(!cfg)return;if(d)cfg.c=d.dataset.c;if(w)cfg.w=+w.dataset.w;store.set('prancheta.ink',JSON.stringify(S.ink));renderInkbar()});
 
 /* ---------- barra da seleção ---------- */

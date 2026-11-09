@@ -6,6 +6,44 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Rede privada, primeira fase, e controle de sensibilidade retirado
+
+### Feito
+
+- Na [etapa 01 do plano 005](planos/005-livros-e-pdfs/etapas/01-rede-privada.md), o autor ligou o Boox e os outros aparelhos ao Tailscale e confirmou que a casca escreve igual com ele ligado. Primeira fase pronta: o contêiner do Tailscale entrega a página e a sincronização pela rede privada, ao lado do endereço público, e a publicação passa a ser conferida na própria VPS; falta o autor rodar o roteiro na sessão do Mac.
+- Na casca 0.4.2, a pedido do autor, saiu o controle de sensibilidade à pressão; ficaram os pontos mais espaçados.
+
+### Decidido
+
+- **Controle de sensibilidade retirado.** A decisão vigente dizia que a sensibilidade ia de 0 a 100%, com 90% igual ao traço anterior. O autor achou o controle ruim e viu, mesmo a 90%, o traço variar da prévia ao traço final; a página e a casca voltaram ao código da 0.3.9 nesse ponto.
+
+### Pendências
+
+- O autor rodar o roteiro da VPS, aprovar a máquina `prancheta` no Tailscale e passar o Boox e o computador para o endereço da rede privada.
+- Se a variação entre a prévia e o traço final continuar, comparar de novo as espessuras, como na etapa 02 do plano 003.
+
+## 2026-11-09 · Plano 004 concluído e plano 005 aberto
+
+### Feito
+
+- A casca 0.4.1 foi publicada como `casca-15` e a página, na VPS. O CI do PR #31 e a publicação na VPS falharam algumas vezes sem que o GitHub criasse nenhum job; disparados à mão, passaram.
+- O autor testou a 0.4.1 no Boox e respondeu "ok". A [etapa 04](planos/004-modo-e-ink/etapas/04-sensibilidade-e-pontos.md) e o [plano 004](planos/004-modo-e-ink/plano.md) foram concluídos.
+- Aberto o [plano 005](planos/005-livros-e-pdfs/plano.md), livros e PDFs, com rede privada e cifra, e iniciada a [etapa 01](planos/005-livros-e-pdfs/etapas/01-rede-privada.md), com os critérios aprovados pelo autor.
+
+### Decidido
+
+- **Traço provisório fora de 90% dispensado.** O autor dispensou, na etapa 04, o traço provisório da Onyx igual ao definitivo em qualquer sensibilidade; em 90%, nada muda na atualização da tela.
+- **Rede privada com o Tailscale e endereço público fechado.** Depois que a rede privada funcionar, a página, a sincronização e os livros só respondem por ela.
+- **Cifra ponta a ponta.** O aparelho cifra os quadros antes de enviar, e a VPS guarda só dados cifrados; a senha fica só nos aparelhos.
+
+### Ideias guardadas
+
+- Investigar `setStrokeParameters`, com o aviso de diagnóstico dos parâmetros do traço, para o traço provisório seguir a sensibilidade escolhida.
+
+### Pendências
+
+- O autor criar a rede no Tailscale e testar a casca no Boox com ele ligado.
+
 ## 2026-11-09 · Curva da sensibilidade à pressão refeita
 
 ### Feito

@@ -1,7 +1,5 @@
 package com.iagoleal.prancheta
 
-import kotlin.math.pow
-
 /**
  * Tinta que a camada da Onyx usa no traço provisório, igual à escolhida na
  * Prancheta: a caneta, sensível à pressão, ou o marca-texto, de espessura
@@ -10,15 +8,8 @@ import kotlin.math.pow
  * @param marcaTexto se a ferramenta de tinta é o marca-texto.
  * @param cor cor em ARGB.
  * @param larguraCss espessura escolhida na Prancheta, em pixels CSS do quadro.
- * @param sensibilidade sensibilidade da caneta à pressão, de 0 a 100, escolhida
- *   na Prancheta; em [SENSIBILIDADE_PADRAO], a pressão segue sem ajuste.
  */
-data class Tinta(
-    val marcaTexto: Boolean,
-    val cor: Int,
-    val larguraCss: Float,
-    val sensibilidade: Int = SENSIBILIDADE_PADRAO,
-) {
+data class Tinta(val marcaTexto: Boolean, val cor: Int, val larguraCss: Float) {
 
     /**
      * Cor usada no traço provisório da camada da Onyx: a mesma da página. O modo
@@ -32,24 +23,6 @@ data class Tinta(
      */
     fun corDaCamada(): Int = cor
 
-    /**
-     * Ajusta a pressão de um ponto da caneta, de 0 a 1, à sensibilidade
-     * escolhida, como a Prancheta faz no navegador: na escala que ela usa, a
-     * pressão bruta elevada a [EXPOENTE_DA_PRESSAO], a pressão é elevada a
-     * [SENSIBILIDADE_PADRAO] sobre a sensibilidade, limitada à
-     * [PRESSAO_MINIMA], e volta à escala bruta. Em 90, nada muda; abaixo
-     * disso, a escrita leve fica mais fina e é preciso mais força para
-     * engrossar o traço, até que, em 0, toda pressão vale a mínima; acima de
-     * 90, o traço engrossa com menos força. O marca-texto não varia com a
-     * pressão, e uma pressão nula fica nula.
-     */
-    fun ajustarPressao(bruta: Float): Float {
-        if (marcaTexto || sensibilidade == SENSIBILIDADE_PADRAO || !(bruta > 0f)) return bruta
-        val escala = bruta.coerceAtMost(1f).toDouble().pow(EXPOENTE_DA_PRESSAO)
-        val ajustada = if (sensibilidade > 0) escala.pow(SENSIBILIDADE_PADRAO.toDouble() / sensibilidade) else 0.0
-        return ajustada.coerceIn(PRESSAO_MINIMA, 1.0).pow(1.0 / EXPOENTE_DA_PRESSAO).toFloat()
-    }
-
     /** Espessura do traço na tela, em pixels físicos, para o zoom e a densidade dados. */
     fun larguraNaTela(k: Double, densidade: Float): Float {
         val fator = if (marcaTexto) 1.0 else FATOR_DA_CANETA
@@ -58,19 +31,6 @@ data class Tinta(
 
     companion object {
         const val PRETO = 0xFF000000.toInt()
-
-        /**
-         * Sensibilidade à pressão em que o traço fica como era antes do
-         * controle, conforme a avaliação do autor, em 2026-11-09, de que o
-         * traço de então tinha uns 90% de sensibilidade.
-         */
-        const val SENSIBILIDADE_PADRAO = 90
-
-        /** Expoente da curva de pressão da Prancheta, o mesmo de `receberTraco`, em `casca.js`. */
-        const val EXPOENTE_DA_PRESSAO = 0.65
-
-        /** Menor pressão, na escala da Prancheta, que a página aceita. */
-        const val PRESSAO_MINIMA = 0.04
 
         /**
          * Espessura máxima da caneta-tinteiro da Onyx em relação à escolhida na

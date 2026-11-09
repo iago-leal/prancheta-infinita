@@ -7,7 +7,8 @@ A Prancheta roda na VPS num contêiner próprio, atrás do Traefik, que já emit
 | Arquivo | O que é | Onde fica na VPS |
 |---|---|---|
 | `preparar-vps.sh` | roteiro do administrador, executado uma vez e seguro para repetir | não fica instalado |
-| `compose.yml` | o contêiner, com os rótulos do Traefik | `/opt/prancheta/compose.yml` |
+| `compose.yml` | os contêineres da Prancheta, com os rótulos do Traefik, e do Tailscale | `/opt/prancheta/compose.yml` |
+| `tailscale-serve.json` | o que o Tailscale entrega pela rede privada: a página em `/` e a sincronização em `/sync/` | `/opt/prancheta/tailscale-serve.json` |
 | `prancheta-publicar` | comando forçado da conta `prancheta`, a única coisa que a chave do GitHub executa | `/usr/local/bin/prancheta-publicar` |
 | `prancheta-chave` | cria, lista e revoga as chaves dos aparelhos | `/usr/local/sbin/prancheta-chave` |
 
@@ -34,15 +35,22 @@ O servidor guarda só o resumo SHA-256 de cada chave, em `/etc/prancheta/acesso/
 
 Por fim, no GitHub, cadastre o segredo `VPS_PRANCHETA_ANFITRIAO` com o endereço, para que cada publicação confira que a versão nova entrou no ar, e faça a primeira publicação em Actions, "Publicar na VPS", "Run workflow".
 
+## Rede privada
+
+Pelo plano 005, a Prancheta passa a responder pela rede privada do Tailscale, e o endereço público fecha depois que os aparelhos estiverem nela. O contêiner `tailscale`, ao lado do da Prancheta, entrega por https, com o certificado do próprio Tailscale, a página e a sincronização num nome terminado em `.ts.net`. Ele fica na rede da Prancheta e numa segunda rede, `prancheta_saida`, só para falar com o Tailscale; roda no modo sem interface de rede do sistema, sem nenhum privilégio, e guarda o login em `/var/lib/prancheta-tailscale`. O contêiner da Prancheta continua sem saída para a internet.
+
+Antes de rodar o roteiro, no painel do Tailscale, em DNS, deixe ligados o MagicDNS e os certificados HTTPS. Na primeira vez, o roteiro mostra um endereço de login: abra-o logado na sua conta do Tailscale para aprovar a máquina `prancheta` e, no painel, desative a expiração da chave dela, em Machines. Rode o roteiro de novo para ver o endereço da Prancheta na rede privada. Nenhuma chave do Tailscale é guardada, e o nome da rede não entra no repositório.
+
 ## A cada envio à main
 
 O fluxo `.github/workflows/publicar.yml` testa o servidor, confere a página montada, monta um pacote com `web/app` e `servidor` por `git archive` e o envia pela conta `prancheta` com `publicar <commit>`. O comando forçado:
 
 - aceita só `verificar`, `publicar <commit>`, `versoes` e `voltar <commit>`;
 - recusa pacotes com mais de 80 MB, com atalhos, com caminhos absolutos, com `..` ou fora de `web/app` e `servidor`, e pacotes sem os arquivos do servidor e da página;
-- guarda a versão em `/home/prancheta/publicado/versoes/<commit>`, grava `web/app/versao.txt` com o commit e troca o atalho `atual`, mantendo as cinco versões mais recentes.
+- guarda a versão em `/home/prancheta/publicado/versoes/<commit>`, grava `web/app/versao.txt` com o commit e troca o atalho `atual`, mantendo as cinco versões mais recentes;
+- espera o servidor anotar, em `/var/lib/prancheta/no-ar.json`, que a versão nova está no ar e que a sincronização recusa um pedido sem a chave, e termina com `no ar <commit>`; sem isso em 90 segundos, a publicação falha.
 
-O servidor, no contêiner, percebe em até 5 segundos que o atalho mudou e termina; o Docker o reinicia com a versão nova. A conta `prancheta` nunca usa o Docker nem o administrador.
+O servidor, no contêiner, percebe em até 5 segundos que o atalho mudou e termina; o Docker o reinicia com a versão nova, que faz a anotação ao começar. A conferência é feita na própria VPS porque, com o endereço público fechado, o GitHub não alcança mais a Prancheta. A conta `prancheta` nunca usa o Docker nem o administrador.
 
 Para voltar a uma versão guardada, como administrador:
 
