@@ -17,7 +17,8 @@
 //   p de 0 a 1 e tempo t em milissegundos e, quando há, o contorno calculado
 //   pelo motor de canetas da Onyx, com x, y e a espessura l de cada ponto; e
 //   prancheta.definirTinta(modo), com 'nativa' quando a camada da Onyx
-//   desenha e 'web' quando não há camada.
+//   desenha e 'web' quando não há camada; e prancheta.toqueDescartado(motivo)
+//   quando descarta ou cancela um toque de dedos, para o diagnóstico.
 //
 // Usa o estado e as funções globais do artefato, como S, toWorld e flushInk,
 // sem mudá-los; deve ser carregado antes do código do artefato e só começa
@@ -75,15 +76,33 @@ html.casca #faixa-casca .pill{background:none;border:0;box-shadow:none;padding:0
 html.casca #faixa-casca .btn{width:32px}
 html.casca #zoomPct{min-width:48px;height:34px;padding:0 4px;font:inherit;font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg);background:none;border:0;border-radius:9px}
 html.casca #bottom{top:calc(var(--casca-faixa,48px) + 8px);bottom:auto}
-html.casca #inkbar,html.casca #menu{box-shadow:none;border:1px solid var(--line-strong,var(--line))}
 html.tinta-nativa #inkbar .stab,html.tinta-nativa #inkbar>span.sep:last-of-type{display:none}
 html.casca #keys{top:calc(var(--casca-faixa,48px) + 8px)}
 html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,48px) + 64px)}`;
 
+  // Modo e-ink, só na casca: o e-ink mostra sombras, transições, animações e
+  // fundos translúcidos como manchas cinzas e rastros. O destaque passa a ser
+  // escuro e opaco: a cor de destaque vira a cor do texto, o que deixa a
+  // seleção dos itens com contorno escuro e contínuo, e os botões ligados
+  // ficam invertidos. Bordas finas fazem o papel das sombras.
+  const ESTILO_DO_E_INK = `
+html.casca{--accent:var(--fg);--accent-soft:var(--hover);--on-accent:var(--bg)}
+html.casca *,html.casca *::before,html.casca *::after{box-shadow:none!important;text-shadow:none!important;transition:none!important;animation:none!important}
+html.casca .btn[aria-pressed=true],html.casca .wd[aria-pressed=true],html.casca .chip[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+html.casca .dot[aria-pressed=true]{outline:2px solid var(--fg);outline-offset:2px}
+html.casca .dot span{outline:1px solid var(--line-strong);outline-offset:-1px}
+html.casca .card.v-image img{outline:1px solid var(--line);outline-offset:-1px}
+html.casca .row.on{background:none;outline:1.5px solid var(--fg);outline-offset:-1.5px}
+html.casca .menu,html.casca .pill,html.casca .pbox,html.casca #keys,html.casca #inkbar,html.casca #selbar{background:var(--panel);border:1px solid var(--line-strong)}
+html.casca #over .ghost{background:none}
+html.casca #prev{background:var(--bg)}
+html.casca #sincDialogo{background:none}
+html.casca body.busy #head{opacity:1}`;
+
   document.documentElement.classList.add('casca');
   const estilo = document.createElement('style');
   estilo.id = 'estilo-da-casca';
-  estilo.textContent = `${ESTILO_DA_CASCA}\n${ESTILO_DOS_ICONES}${ESTILO_DA_FAIXA}`;
+  estilo.textContent = `${ESTILO_DA_CASCA}\n${ESTILO_DOS_ICONES}${ESTILO_DA_FAIXA}${ESTILO_DO_E_INK}`;
   document.head.appendChild(estilo);
 
   // Com a ferramenta de seleção, a caneta escreve e um dedo seleciona e
@@ -257,6 +276,12 @@ html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,48px) + 64px)}`;
     agendar();
   }
 
+  // A casca avisa cada toque de dedos que ela mesma descarta ou cancela, com o
+  // motivo; com o diagnóstico ligado, em "Mais opções", o motivo aparece num aviso.
+  function toqueDescartado(motivo) {
+    if (S.diag && typeof flash === 'function') flash(`Casca: ${motivo}`);
+  }
+
   function artefatoPronto() {
     try {
       return typeof S === 'object' && typeof toWorld === 'function' && typeof flushInk === 'function';
@@ -298,7 +323,7 @@ html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,48px) + 64px)}`;
   function iniciar() {
     if (!artefatoPronto()) return;
     montarFaixa();
-    window.prancheta = Object.freeze({ receberTraco, definirTinta, tintaNativa: () => nativa });
+    window.prancheta = Object.freeze({ receberTraco, definirTinta, toqueDescartado, tintaNativa: () => nativa });
     const mundo = document.getElementById('world');
     const palco = document.getElementById('stage');
     const tinta = document.getElementById('ink');

@@ -23,6 +23,7 @@ import androidx.webkit.ServiceWorkerClientCompat
 import androidx.webkit.ServiceWorkerControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewFeature
+import org.json.JSONObject
 
 /**
  * Activity da casca Android. Exibe em tela cheia uma WebView com a Prancheta
@@ -61,6 +62,13 @@ class MainActivity : Activity() {
         prepararServiceWorker(carregador)
 
         roteador.aoCancelarDedos = ::cancelarDedosNaWebView
+        // O motivo de cada toque descartado vai para a página, que o mostra
+        // quando o diagnóstico está ligado, em "Mais opções".
+        roteador.aoDescartar = { motivo ->
+            if (::webView.isInitialized) {
+                webView.evaluateJavascript("window.prancheta&&prancheta.toqueDescartado&&prancheta.toqueDescartado(${JSONObject.quote(motivo)})", null)
+            }
+        }
         roteador.pixelsPorMm = resources.displayMetrics.xdpi / 25.4f
 
         webView = WebView(this).apply {
