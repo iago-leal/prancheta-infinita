@@ -49,6 +49,7 @@ O computador e o Boox já sincronizam pela rede privada; no Boox, o Tailscale pr
 3. 003: Prancheta no Boox e sincronização com a VPS, concluído.
 4. 004: modo e-ink e ferramentas de reorganização, concluído.
 5. 005: livros e PDFs, com a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra ponta a ponta, ativo.
+6. Publicação no catálogo de aplicativos de código aberto da Hostinger, com o botão "Implantar no Hostinger" no LEIA-ME e comissão sobre as hospedagens compradas por ele, pedida pelo autor para depois do 005; exige uma licença de código aberto e uma implantação genérica, sem o Tailscale e sem nada da VPS do autor.
 
 ## Ambiente de nuvem
 
