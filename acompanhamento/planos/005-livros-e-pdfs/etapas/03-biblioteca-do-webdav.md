@@ -3,10 +3,10 @@ tipo: etapa
 plano: "005"
 etapa: "03"
 titulo: Biblioteca do WebDAV entregue pela Prancheta
-status: em_andamento
+status: concluida
 depende_de: ["01", "02"]
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 03: biblioteca do WebDAV entregue pela Prancheta
@@ -18,11 +18,11 @@ Mostrar na Prancheta, no Boox e no computador, os PDFs e EPUBs da subpasta de li
 ## Critérios de conclusão
 
 - [x] Na VPS, a subpasta de livros do WebDAV fica montada só para leitura no contêiner da Prancheta, por um roteiro executado pelo autor, sem que a Prancheta possa gravar nada nela; o caminho fica só na VPS e nunca entra no repositório.
-- [ ] O servidor lista os PDFs e EPUBs da subpasta, com nome, pasta, tamanho e um identificador do conteúdo igual ao que o KOReader usa, e entrega cada um só com a chave de um aparelho; nada fora da subpasta, nem por atalhos, é listado ou entregue.
-- [ ] No painel lateral, a seção "Biblioteca" mostra os livros; tocar num livro o baixa e o guarda no aparelho, que passa a mostrá-lo como guardado; sem rede, a lista e os livros guardados continuam disponíveis.
-- [ ] Os livros guardados ficam fora da sincronização dos quadros: não sobem ao servidor nem passam pela cifra.
+- [x] O servidor lista os PDFs e EPUBs da subpasta, com nome, pasta, tamanho e um identificador do conteúdo igual ao que o KOReader usa, e entrega cada um só com a chave de um aparelho; nada fora da subpasta, nem por atalhos, é listado ou entregue.
+- [x] No painel lateral, a seção "Biblioteca" mostra os livros; tocar num livro o baixa e o guarda no aparelho, que passa a mostrá-lo como guardado; sem rede, a lista e os livros guardados continuam disponíveis.
+- [x] Os livros guardados ficam fora da sincronização dos quadros: não sobem ao servidor nem passam pela cifra.
 - [x] Os testes automáticos cobrem a lista, a entrega com e sem a chave, os atalhos e os caminhos para fora da subpasta, o identificador, o download e o uso sem rede, e acusam mutações introduzidas.
-- [ ] O autor confirma, no Boox e no computador, que vê a biblioteca, baixa um livro e o encontra guardado com o aparelho sem rede.
+- [x] O autor confirma, no Boox e no computador, que vê a biblioteca, baixa um livro e o encontra guardado com o aparelho sem rede.
 
 ## Registro
 
@@ -61,4 +61,18 @@ Mostrar na Prancheta, no Boox e no computador, os PDFs e EPUBs da subpasta de li
 - Livros novos: a sessão do Mac verificou que o WebDAV é um nginx com o módulo dav, sem `dav_access` na configuração, o que vale o padrão `user:rw`, um modo 600 fixo, que torna o umask irrelevante. Ela deduziu, sem poder testar, que um livro novo não herdaria a permissão extra. O teste aqui confirmou: um arquivo gravado num temporário fora da pasta, com modo 600, e renomeado para dentro dela, como o nginx faz, ficou fora do alcance da conta de leitura. O autor escolheu reaplicar a permissão a cada 5 minutos, em vez de deixá-la para quando o roteiro rodar ou de testar antes.
 - Implementado: o comando `prancheta-biblioteca`, que põe e reaplica a permissão extra, só de leitura, lendo a subpasta do ambiente da VPS, e um temporizador do systemd que o chama a cada 5 minutos; o roteiro os instala com a biblioteca e os tira com `--sem-biblioteca`. Testado aqui no mesmo arranjo do nginx: depois da reaplicação, a conta de leitura passou a ler o livro novo e continuou sem conseguir gravar nele; sem subpasta no ambiente, o comando não faz nada.
 
+- Mesclado o PR #37, com o comando e o temporizador; a instalação na VPS foi pedida à sessão do Mac, que roda o roteiro de novo com a aprovação do autor.
+- O autor testou no Boox, com a casca 0.6.0, e no computador: a biblioteca aparece nos dois e funciona sem rede.
+
 ## Resultado
+
+A Prancheta mostra, no Boox e no computador, os 13 PDFs e EPUBs da subpasta de livros do WebDAV, montada só para leitura na VPS, e guarda cada livro aberto num banco separado dos quadros, disponível sem rede. Cada livro é identificado como no KOReader, o que prepara a ligação das marcações na etapa 04. A Prancheta lê a subpasta por uma permissão extra, só de leitura, reaplicada a cada 5 minutos para os livros novos, sem mudar o dono nem as permissões do WebDAV.
+
+Como cada critério foi verificado:
+
+1. Montagem só de leitura na VPS: verificada pela sessão do Mac, que rodou o roteiro com a aprovação do autor; `/biblioteca` ficou só para leitura, o dono dos arquivos não mudou e o caminho ficou só na VPS.
+2. Lista e entrega pelo servidor: verificadas pelos testes do servidor, inclusive a chave, os atalhos, as pastas ocultas, os caminhos para fora e o identificador do KOReader, e na VPS, onde a Prancheta lê os 13 livros que o autor viu nos aparelhos.
+3. Seção "Biblioteca", livro guardado e uso sem rede: verificados pelo teste no Chromium e pelo autor, no Boox e no computador.
+4. Livros fora da sincronização dos quadros: verificado pelo teste no Chromium, em que nada entra no registro de mudanças nem nos arquivos do servidor; os livros ficam no banco `prancheta-biblioteca`, separado do banco dos quadros.
+5. Testes e mutações: 8 de 10 mutações acusadas, e as 2 restantes não mudam o comportamento.
+6. Confirmação do autor: a biblioteca aparece nos dois aparelhos e funciona sem rede.
