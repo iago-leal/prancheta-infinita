@@ -303,6 +303,21 @@ test('na casca, os controles ficam numa faixa só, no alto da tela', async () =>
     assert.ok(caixa && caixa.y >= faixa.y && caixa.y + caixa.height <= embaixo, `${seletor} fica dentro da faixa: ${JSON.stringify(caixa)}`);
   }
   assert.ok(await pagina.evaluate(() => { const t = document.getElementById('tools'); return t.scrollWidth <= t.clientWidth; }), 'as ferramentas cabem sem rolar');
+  // A sincronização vira um ícone que muda com a situação, e o texto fica para leitores de tela.
+  const sinc = await pagina.locator('#sinc').boundingBox();
+  assert.ok(sinc.width >= 30 && sinc.width <= 36, `a sincronização ocupa o espaço de um botão de ícone: ${JSON.stringify(sinc)}`);
+  assert.ok(await pagina.evaluate(() => { const b = document.getElementById('sinc'); return b.scrollWidth <= b.clientWidth; }), 'o texto da situação não aparece sobre os outros botões');
+  assert.ok((await pagina.locator('#sinc').textContent()).length > 0, 'o botão continua com o texto da situação');
+  const icones = await pagina.evaluate(() => {
+    const b = document.getElementById('sinc');
+    const icone = () => getComputedStyle(b).getPropertyValue('--icone-sinc');
+    const antes = b.dataset.situacao;
+    const lidos = ['desligada', 'sincronizada', 'sem_rede', 'erro'].map((s) => { b.dataset.situacao = s; return icone(); });
+    b.dataset.situacao = antes || '';
+    return lidos;
+  });
+  assert.ok(icones.every((i) => i.includes('data:image/svg+xml')), 'cada situação tem um ícone');
+  assert.equal(new Set(icones).size, icones.length, 'cada situação tem um ícone diferente');
   // O título fica numa linha, e o que só serve no computador sai da tela.
   assert.equal(await pagina.evaluate(() => getComputedStyle(document.getElementById('bTitle')).whiteSpace), 'nowrap');
   for (const seletor of ['#bSub', '#status', '#zIn', '#zOut']) {
@@ -345,9 +360,11 @@ test('com o painel de quadros aberto numa tela estreita, a faixa ganha uma segun
   assert.ok(await pagina.evaluate(() => { const t = document.getElementById('tools'); return t.scrollWidth <= t.clientWidth; }), 'as ferramentas cabem sem rolar');
   const opcoes = await pagina.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--casca-faixa'));
   assert.equal(opcoes, `${Math.ceil(faixa.y + faixa.height)}px`, 'o que abre abaixo da faixa acompanha a altura dela');
-  // Com o painel fechado, na mesma largura, tudo volta a caber numa linha.
+  // Com o painel fechado, tudo cabe numa linha, mesmo numa página um pouco
+  // mais estreita que a do Boox, que tem cerca de 900 px.
   await pagina.keyboard.press('b');
   await esperar(pagina, () => !document.body.classList.contains('side'));
+  await pagina.setViewportSize({ width: 860, height: 1150 });
   await pausa(300);
   const sozinha = await pagina.locator('#faixa-casca').boundingBox();
   assert.ok(sozinha.height < 56, `uma linha só com o painel fechado: ${JSON.stringify(sozinha)}`);

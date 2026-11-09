@@ -35,4 +35,11 @@ Reunir os controles da Prancheta na casca numa faixa só, no alto da tela, para 
 - Testes: os testes da casca passaram a conferir a faixa, com um teste novo para a segunda linha; 61 testes na web, que acusam as 9 mutações introduzidas na faixa. Versão 0.3.6 da casca, código 10.
 - Os critérios 1 a 3 foram verificados pelos testes "na casca, os controles ficam numa faixa só, no alto da tela" e "com o painel de quadros aberto numa tela estreita, a faixa ganha uma segunda linha em vez de rolar", e pelo teste "fora da casca, o adaptador não faz nada", que confere a barra embaixo no navegador. Falta a confirmação do autor no Boox.
 
+### 2026-11-09, faixa quebrada no Boox com a versão 0.3.6
+
+- O autor mandou a foto IMG_5260, do Boox com a 0.3.6: a faixa quebrou em duas linhas, com sincronizar, desfazer, refazer, o zoom e mais opções na segunda. Pela proporção entre os ícones da foto e os da página, a página do Boox tem cerca de 900 px CSS de largura, menos que os 930 px supostos; a faixa só cabia numa linha a partir de cerca de 912 px.
+- Versão 0.3.7, código 11: na faixa, a sincronização passa a ser um ícone de nuvem, no traço dos ícones da Prancheta, que muda com a situação, desligada, sincronizando, sincronizada, sem rede ou erro; o texto continua dentro do botão para leitores de tela, e o diálogo mostra a situação por extenso. Os espaços da faixa ficaram menores, e o título pode encolher até 100 px com o botão do painel. A faixa cabe numa linha a partir de 820 px, medida no Chromium, e quebra em 800 px.
+- Testes: o teste da faixa passou a conferir o ícone de cada situação e que o texto não aparece sobre os outros botões, e o da segunda linha confere uma linha só em 860 px com o painel fechado; seguem 61 testes na web. Das 7 mutações introduzidas nos ajustes, 4 são acusadas; as 3 que escapam desfazem, uma de cada vez, a redução de um espaçamento, e a faixa continua cabendo em 860 px sem cada uma delas.
+- O detector da skill não apontou problemas.
+
 ## Resultado
