@@ -42,7 +42,7 @@ Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a 
 
 ## Próximo passo
 
-Detalhar com o autor a etapa 04 do plano 005, o leitor de PDF e EPUB com marcações ligadas a quadros; receber da sessão do Mac a confirmação de que o temporizador dos livros novos está ligado na VPS. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Detalhar com o autor a etapa 04 do plano 005, o leitor de PDF e EPUB com marcações ligadas a quadros; quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

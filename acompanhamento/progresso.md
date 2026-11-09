@@ -10,7 +10,7 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 
 ### Feito
 
-- Mesclado o PR #37. A [etapa 03 do plano 005](planos/005-livros-e-pdfs/etapas/03-biblioteca-do-webdav.md) foi concluída: o autor confirmou a biblioteca no Boox e no computador, inclusive sem rede. A instalação do temporizador dos livros novos foi pedida à sessão do Mac.
+- Mesclado o PR #37. A [etapa 03 do plano 005](planos/005-livros-e-pdfs/etapas/03-biblioteca-do-webdav.md) foi concluída: o autor confirmou a biblioteca no Boox e no computador, inclusive sem rede. A sessão do Mac, com a aprovação do autor, instalou na VPS o temporizador que reaplica a permissão de leitura aos livros novos a cada 5 minutos.
 
 ### Pendências
 

@@ -63,6 +63,7 @@ Mostrar na Prancheta, no Boox e no computador, os PDFs e EPUBs da subpasta de li
 
 - Mesclado o PR #37, com o comando e o temporizador; a instalação na VPS foi pedida à sessão do Mac, que roda o roteiro de novo com a aprovação do autor.
 - O autor testou no Boox, com a casca 0.6.0, e no computador: a biblioteca aparece nos dois e funciona sem rede.
+- A sessão do Mac, com a aprovação do autor, rodou o roteiro do commit 14ab333 sem argumentos, sem erro e sem recriar os contêineres: a Prancheta continua lendo os 13 livros, e o temporizador `prancheta-biblioteca` ficou habilitado e ativo, com a próxima execução em menos de 5 minutos e a última terminada com sucesso. Falta ver um livro novo de verdade, enviado pelo WebDAV, aparecer em até 5 minutos.
 
 ## Resultado
 
