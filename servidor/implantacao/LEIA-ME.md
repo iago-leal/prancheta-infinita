@@ -17,9 +17,12 @@ A Prancheta roda na VPS num contêiner próprio, atrás do Traefik, que já emit
 No computador do autor, a partir da raiz do repositório:
 
 ```sh
+ssh <vps> 'rm -rf /root/prancheta-implantacao'
 scp -r servidor/implantacao <vps>:/root/prancheta-implantacao
 ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh <endereço da Prancheta>'
 ```
+
+A pasta é apagada antes da cópia porque, se ela já existe, o `scp -r` cria uma subpasta dentro dela, e o roteiro executado seria o antigo.
 
 O roteiro confere a conta `prancheta`, criada junto com o canal de publicação, e se recusa a seguir se ela estiver no grupo `docker`, o que equivaleria a dar a ela acesso de administrador, ou se algum arquivo do administrador, em `/root` e `/etc`, tiver o mesmo dono numérico que ela, porque o servidor da Prancheta roda com esse número. Em seguida, instala os dois comandos, cria as pastas, grava o ambiente e o `compose.yml`, cria a rede `prancheta_borda`, sem saída para a internet, liga o Traefik a ela sem reiniciá-lo e liga o contêiner. Ele não edita o arquivo do Traefik: se a rede ainda não estiver declarada nele, mostra o trecho a acrescentar, para que ela continue lá quando o Traefik for recriado.
 
@@ -40,6 +43,10 @@ Por fim, no GitHub, cadastre o segredo `VPS_PRANCHETA_ANFITRIAO` com o endereço
 Pelo plano 005, a Prancheta passa a responder pela rede privada do Tailscale, e o endereço público fecha depois que os aparelhos estiverem nela. O contêiner `tailscale`, ao lado do da Prancheta, entrega por https, com o certificado do próprio Tailscale, a página e a sincronização num nome terminado em `.ts.net`. Ele fica na rede da Prancheta e numa segunda rede, `prancheta_saida`, só para falar com o Tailscale; roda no modo sem interface de rede do sistema, sem nenhum privilégio, e guarda o login em `/var/lib/prancheta-tailscale`. O contêiner da Prancheta continua sem saída para a internet.
 
 Antes de rodar o roteiro, no painel do Tailscale, em DNS, deixe ligados o MagicDNS e os certificados HTTPS. Na primeira vez, o roteiro mostra um endereço de login: abra-o logado na sua conta do Tailscale para aprovar a máquina `prancheta` e, no painel, desative a expiração da chave dela, em Machines. Rode o roteiro de novo para ver o endereço da Prancheta na rede privada. Nenhuma chave do Tailscale é guardada, e o nome da rede não entra no repositório.
+
+O login é feito num contêiner provisório, `prancheta-tailscale-login`, que espera a aprovação sem prazo: o contêiner do serviço daria só 60 segundos ao login e, a cada nova tentativa, geraria outro endereço, de modo que uma aprovação mais lenta cairia num endereço já morto e deixaria uma máquina desligada no painel, como aconteceu na primeira implantação. Rodado de novo depois da aprovação, o roteiro apaga o provisório e religa o serviço, que encontra o login salvo em `/var/lib/prancheta-tailscale`.
+
+O primeiro acesso pelo endereço da rede privada pode falhar por alguns minutos, com um erro de TLS, enquanto o Tailscale emite o certificado. Na primeira implantação, o erro durou cerca de 8 minutos, com a criação do registro de DNS do certificado falhando no lado do Tailscale, e cessou sozinho, sem nenhuma mudança na VPS.
 
 ## A cada envio à main
 

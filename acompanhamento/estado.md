@@ -40,7 +40,7 @@ Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a 
 
 ## Próximo passo
 
-O Boox e os outros aparelhos já estão no Tailscale, e a casca escreve igual com ele ligado. O autor ativa o MagicDNS e os certificados https no painel do Tailscale, roda o roteiro `servidor/implantacao/preparar-vps.sh` na sessão do Mac, aprova a máquina `prancheta` e desativa a expiração da chave dela; depois, sincroniza tudo e passa o Boox e o computador para o endereço da rede privada. Em seguida vem a segunda fase: fechar o endereço público e fazer o GitHub conferir que ele não responde mais. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+A VPS já está na rede privada: a Prancheta responde pelo endereço `.ts.net` dela, e cada publicação é conferida na própria VPS. O autor sincroniza tudo pelo endereço público e passa o computador e o Boox para o endereço da rede privada, conferindo que nenhum quadro se perdeu. Em seguida vem a segunda fase: fechar o endereço público e fazer o GitHub conferir que ele não responde mais. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

@@ -3,8 +3,11 @@
 # autor e seguro para repetir. Não mexe nos outros serviços: cria só o que é
 # da Prancheta e liga o Traefik a uma rede nova, sem reiniciá-lo.
 #
-# Uso, a partir da raiz do repositório, no computador do autor:
+# Uso, a partir da raiz do repositório, no computador do autor; a pasta é
+# apagada antes da cópia porque, se já existe, o scp -r cria uma subpasta
+# dentro dela, e o roteiro executado seria o antigo:
 #
+#   ssh <vps> 'rm -rf /root/prancheta-implantacao'
 #   scp -r servidor/implantacao <vps>:/root/prancheta-implantacao
 #   ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh <endereço da Prancheta>'
 #
@@ -25,8 +28,13 @@
 #     a ela sem reiniciá-lo; se o arquivo do Traefik ainda não a declara,
 #     mostra o trecho a acrescentar, para que ela continue lá quando ele for recriado;
 #  6. liga os contêineres: o da Prancheta, que espera a primeira publicação se
-#     o código ainda não chegou, e o do Tailscale, que mostra o endereço de
-#     login enquanto o autor não o aprova.
+#     o código ainda não chegou, e o do Tailscale;
+#  7. se o Tailscale ainda não tem login, faz o login num contêiner provisório,
+#     sem prazo, e mostra o endereço para o autor aprovar a máquina; o
+#     contêiner do serviço daria só 60 segundos ao login e geraria outro
+#     endereço a cada tentativa. Rodado de novo depois da aprovação, o roteiro
+#     desliga o provisório, religa o serviço com o login salvo e mostra o
+#     endereço da Prancheta na rede privada.
 #
 # Variáveis opcionais: TRAEFIK, o nome do contêiner do Traefik, por padrão
 # root-traefik-1; COMPOSE_DO_TRAEFIK, o arquivo dele, por padrão /root/docker-compose.yml.
@@ -130,6 +138,63 @@ passo "6. Contêineres da Prancheta e do Tailscale"
 docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml up -d
 echo "contêineres ligados"
 
+passo "7. Rede privada"
+COMPOSE=(docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml)
+PROVISORIO=prancheta-tailscale-login
+SOQUETE=/tmp/tailscaled.sock
+# Estado do Tailscale num contêiner, como Running ou NeedsLogin, ou vazio.
+estado() { docker exec "$1" tailscale "${@:2}" status --json 2>/dev/null | grep -m 1 -o '"BackendState": *"[A-Za-z]*"' | cut -d '"' -f 4 || true; }
+endereco_de_login() { docker exec "$PROVISORIO" tailscale --socket="$SOQUETE" status --json 2>/dev/null | grep -m 1 -o '"AuthURL": *"https://[^"]*"' | cut -d '"' -f 4 || true; }
+mostrar_login() {
+  echo "- aprove a VPS na rede privada abrindo este endereço, logado na sua conta do Tailscale:"
+  echo "    $1"
+  echo "  depois, no painel do Tailscale, desative a expiração da chave da máquina ${TAILSCALE_NOME:-prancheta}"
+  echo "  (Machines, ${TAILSCALE_NOME:-prancheta}, Disable key expiry) e rode este roteiro de novo"
+}
+
+if docker inspect "$PROVISORIO" > /dev/null 2>&1; then
+  if [[ "$(estado "$PROVISORIO" --socket="$SOQUETE")" == Running ]]; then
+    docker rm -f "$PROVISORIO" > /dev/null
+    "${COMPOSE[@]}" up -d tailscale
+    echo "login do Tailscale aprovado; o contêiner provisório saiu, e o do serviço voltou com o login salvo"
+  else
+    LOGIN="$(endereco_de_login)"
+    [[ -n "$LOGIN" ]] || falhar "o login do Tailscale ainda não foi aprovado; veja com: docker logs $PROVISORIO"
+    mostrar_login "$LOGIN"
+    exit 0
+  fi
+fi
+
+TAILSCALE_CONTEINER="$("${COMPOSE[@]}" ps -q tailscale)"
+[[ -n "$TAILSCALE_CONTEINER" ]] || falhar "o contêiner do Tailscale não está de pé; veja com: ${COMPOSE[*]} ps"
+for _ in $(seq 1 15); do
+  [[ "$(estado "$TAILSCALE_CONTEINER")" == Running ]] && break
+  sleep 2
+done
+if [[ "$(estado "$TAILSCALE_CONTEINER")" == Running ]]; then
+  NOME="$(docker exec "$TAILSCALE_CONTEINER" tailscale status --json | grep -m 1 -o '"DNSName": *"[^"]*"' | cut -d '"' -f 4 | sed 's/\.$//')"
+  echo "- o Tailscale está na rede privada; endereço da Prancheta nela: https://$NOME"
+  echo "  o primeiro acesso pode falhar por alguns minutos, com erro de TLS, enquanto o Tailscale"
+  echo "  emite o certificado; se persistir, veja: docker logs $TAILSCALE_CONTEINER | grep -i cert"
+  echo "  o endereço vale nos aparelhos ligados ao Tailscale e não entra no repositório"
+else
+  # Sem login: o serviço sai, e um contêiner provisório, com o mesmo login
+  # guardado em /var/lib/prancheta-tailscale, espera a aprovação sem prazo.
+  "${COMPOSE[@]}" stop tailscale
+  "${COMPOSE[@]}" run -d --no-deps --name "$PROVISORIO" --entrypoint tailscaled tailscale \
+    --tun=userspace-networking --statedir=/var/lib/tailscale --socket="$SOQUETE" > /dev/null
+  sleep 3
+  docker exec -d "$PROVISORIO" tailscale --socket="$SOQUETE" up --hostname="${TAILSCALE_NOME:-prancheta}" --accept-dns=false
+  LOGIN=""
+  for _ in $(seq 1 15); do
+    LOGIN="$(endereco_de_login)"
+    [[ -n "$LOGIN" ]] && break
+    sleep 2
+  done
+  [[ -n "$LOGIN" ]] || falhar "o Tailscale não mostrou o endereço de login; veja com: docker logs $PROVISORIO"
+  mostrar_login "$LOGIN"
+fi
+
 passo "Próximos passos"
 if [[ ! -s /etc/prancheta/acesso/chaves ]] || ! grep -qv '^#' /etc/prancheta/acesso/chaves; then
   echo "- crie uma chave para cada aparelho, guardando cada uma até digitá-la na Prancheta dele:"
@@ -143,25 +208,3 @@ if [[ ! -L "$CASA/publicado/atual" ]]; then
 fi
 echo "- para o GitHub conferir cada publicação, cadastre o segredo VPS_PRANCHETA_ANFITRIAO com o endereço"
 echo "- endereço público da Prancheta, enquanto estiver aberto: https://$ANFITRIAO"
-TAILSCALE_CONTEINER="$(docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml ps -q tailscale)"
-na_rede() { docker exec "$TAILSCALE_CONTEINER" tailscale status --json 2>/dev/null | grep -q '"BackendState": *"Running"'; }
-LOGIN=""
-for _ in $(seq 1 15); do
-  na_rede && break
-  LOGIN="$(docker logs "$TAILSCALE_CONTEINER" 2>&1 | grep -o 'https://login\.tailscale\.com/[^ ]*' | tail -n 1 || true)"
-  [[ -n "$LOGIN" ]] && break
-  sleep 2
-done
-if na_rede; then
-  NOME="$(docker exec "$TAILSCALE_CONTEINER" tailscale status --json | grep -m 1 -o '"DNSName": *"[^"]*"' | cut -d '"' -f 4 | sed 's/\.$//')"
-  echo "- o Tailscale está na rede privada; endereço da Prancheta nela: https://$NOME"
-  echo "  o primeiro acesso pode levar meio minuto, enquanto o certificado é emitido;"
-  echo "  o endereço vale nos aparelhos ligados ao Tailscale e não entra no repositório"
-elif [[ -n "$LOGIN" ]]; then
-  echo "- aprove a VPS na rede privada abrindo este endereço, logado na sua conta do Tailscale:"
-  echo "    $LOGIN"
-  echo "  depois, no painel do Tailscale, desative a expiração da chave da máquina prancheta"
-  echo "  (Machines, prancheta, Disable key expiry) e rode este roteiro de novo para ver o nome dela"
-else
-  echo "- o Tailscale ainda não mostrou o endereço de login; veja com: docker logs $TAILSCALE_CONTEINER"
-fi

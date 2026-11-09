@@ -20,7 +20,7 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
 - [x] No Boox, o Tailscale fica ligado junto com a casca, e a escrita com a tinta da Onyx continua como antes.
 - [ ] A VPS entra na rede privada, e a página e a sincronização da Prancheta respondem por https num nome da rede privada, com certificado válido, no Boox e no computador.
 - [ ] O endereço público da Prancheta deixa de responder à página e à sincronização.
-- [ ] A publicação pelo GitHub continua funcionando e confere, na própria VPS, que a versão nova está no ar e que a sincronização recusa pedidos sem a chave.
+- [x] A publicação pelo GitHub continua funcionando e confere, na própria VPS, que a versão nova está no ar e que a sincronização recusa pedidos sem a chave.
 - [ ] As ações de administrador na VPS ficam num roteiro do repositório, executado pelo autor; nenhum nome da rede privada, chave do Tailscale ou endereço entra no repositório.
 - [ ] O autor confirma, no Boox e no computador, que a Prancheta abre e sincroniza pela rede privada, sem perder nenhum quadro na troca de endereço.
 
@@ -41,5 +41,13 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
   - O roteiro cria a pasta do login do Tailscale, instala `tailscale-serve.json`, liga os dois contêineres e mostra o endereço de login ou, já aprovado, o endereço da Prancheta na rede privada, sem gravá-lo em lugar nenhum.
 - Testes: 4 novos no servidor, 23 ao todo, com o arquivo do contêiner conferido pelo Docker Compose, que agora existe no ambiente da nuvem. Acusam as sete mutações introduzidas: o servidor sem a anotação, a rota sem aceitar a falta de `/sync/`, a publicação sem esperar a anotação, a recusa sem a chave ignorada, o Tailscale com uma capacidade, a porta trocada no que ele entrega e o contêiner da Prancheta com saída para a internet. Um teste deixava o servidor de teste rodando quando falhava, o que travava a suíte; passou a encerrá-lo.
 - Segunda fase, depois que o Boox e o computador sincronizarem pela rede privada: tirar os rótulos do Traefik, desligá-lo da rede da Prancheta e fazer o fluxo do GitHub conferir que o endereço público não responde mais.
+
+- O autor ativou no painel do Tailscale o MagicDNS, que já estava ligado, e os certificados HTTPS, ciente de que o nome da máquina que pede o certificado e o da rede ficam em listas públicas de transparência de certificados.
+- Mesclado o PR #32, com a casca 0.4.2 publicada como `casca-16`. A sessão do Mac, com a aprovação do autor dada nela, rodou o roteiro na VPS. A trava do roteiro acusou arquivos antigos do administrador com o mesmo dono numérico da conta `prancheta`, que o autor aprovou passar ao administrador, e o roteiro terminou sem erro. O autor aprovou a máquina `prancheta` no Tailscale e desativou a expiração da chave dela. Na segunda rodada, o Tailscale estava na rede, sem reinícios, entregando `/` e `/sync/`. Do Mac, pela rede privada, `/versao.txt` mostrou 8021f46, a versão em uso, e `/sync/estado` respondeu 401. O endereço público continuou respondendo normalmente.
+- Problemas na implantação, relatados pela sessão do Mac e corrigidos no repositório:
+  - O contêiner do serviço do Tailscale dá só 60 segundos ao login interativo, depois recomeça e gera outro endereço; a primeira aprovação do autor caiu num endereço já morto e deixou uma máquina desligada no painel, que ele removeu. A sessão do Mac fez o login à mão num contêiner provisório, sem prazo, com o mesmo login guardado. O roteiro passou a fazer isso: sem login, ele desliga o serviço, liga o provisório, `prancheta-tailscale-login`, e mostra o endereço; rodado de novo depois da aprovação, apaga o provisório e religa o serviço.
+  - O `scp -r` do guia, com a pasta já existente na VPS, cria uma subpasta, e o roteiro executado seria o antigo; o guia e o cabeçalho do roteiro passaram a apagar a pasta antes da cópia.
+  - O primeiro acesso pela rede privada falhou por cerca de 8 minutos com erro de TLS, porque a criação do registro de DNS do certificado falhava no lado do Tailscale, e cessou sozinho; o guia e o roteiro passaram a avisar que isso pode durar alguns minutos.
+- Critério 4 verificado: a publicação disparada à mão em 2026-11-09, pelo GitHub, terminou com "no ar 8021f46…" e "conferido na VPS: a versão 8021f46… está no ar, e a sincronização recusa pedidos sem a chave", pelo comando novo, instalado pelo roteiro.
 
 ## Resultado
