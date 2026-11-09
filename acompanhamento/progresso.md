@@ -23,7 +23,7 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 
 ### Referências
 
-- O autor considerou guardar as gravações num repositório hospedado só no Entire, mas a versão estável 0.13.1 ainda não cria o segredo da conta de serviço de que as sessões na nuvem precisariam; ficou com o GitHub privado. O repositório `iago-leal/prancheta-sessoes` foi criado, privado e vazio, e esta sessão recebeu acesso de escrita a ele.
+- O autor considerou guardar as gravações num repositório hospedado só no Entire, mas a versão estável 0.13.1 ainda não cria o segredo da conta de serviço de que as sessões na nuvem precisariam; ficou com o GitHub privado. O repositório `iago-leal/prancheta-sessoes` foi criado, privado e vazio, e esta sessão recebeu acesso de escrita a ele. O primeiro envio falhou com erro 403: o intermediário de rede das sessões na nuvem recusa as referências `refs/entire/...`, que o Entire usa por padrão, mas aceita ramos. O Entire passou ao formato de ramo, e a gravação chegou ao ramo `entire/checkpoints/v1` do repositório privado, sem nada no público. O teste deixou no repositório privado dois ramos vazios, `claude/teste-de-envio` e `entire/teste-de-envio`, que o intermediário não deixa apagar; o autor pode apagá-los pelo GitHub.
 
 ## 2026-11-09 · Etapa 03 do plano 004: formas num botão só e seleção por laço
 
