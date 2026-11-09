@@ -1,9 +1,9 @@
 ---
 tipo: estado
 atualizado_em: 2026-11-09
-fase: Modo e-ink e ferramentas de reorganização
-plano_ativo: acompanhamento/planos/004-modo-e-ink/plano.md
-etapa_atual: acompanhamento/planos/004-modo-e-ink/etapas/04-sensibilidade-e-pontos.md
+fase: Livros e PDFs, com rede privada e cifra
+plano_ativo: acompanhamento/planos/005-livros-e-pdfs/plano.md
+etapa_atual: acompanhamento/planos/005-livros-e-pdfs/etapas/01-rede-privada.md
 bloqueios: []
 ---
 
@@ -30,25 +30,25 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 - Atualizações da casca pelo próprio aplicativo: o GitHub compila e publica cada versão, assinada com a chave das versões instaladas, e a casca oferece a atualização ao abrir com internet.
 - Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` envia a página e o servidor a cada mudança deles na `main`, por uma conta sem privilégios e sem acesso ao Docker, que só troca a versão em uso; as ações de administrador ficam num roteiro executado pelo autor, e o endereço da Prancheta nunca entra no repositório.
-- Segurança, conforme o debate de 2026-11-08: a página fica aberta, porque é o código público, e os quadros só respondem com a chave de cada aparelho; arquivos isolados da página, versão nova só quando o autor pede, histórico de 30 dias e cópia puxada pelo computador; rede privada e cifra no aparelho antes dos livros.
+- Segurança, conforme o debate de 2026-11-08: a página fica aberta, porque é o código público, e os quadros só respondem com a chave de cada aparelho; arquivos isolados da página, versão nova só quando o autor pede, histórico de 30 dias e cópia puxada pelo computador; rede privada e cifra no aparelho antes dos livros. Em 2026-11-09, o autor escolheu o Tailscale como rede privada, o fechamento do endereço público depois que ela funcionar e a cifra ponta a ponta, com a senha só nos aparelhos.
 - Servidor de sincronização em Node puro, sem dependências e com os dados em arquivos: numera as mudanças, devolve os conflitos para o aparelho combinar e só atende com a chave; a única exceção, aceita pelo autor, é a consulta prévia do navegador vinda da casca, que não recebe dados.
 - Sincronização no próprio banco local, em segundo plano: combina item a item, pelo id; no mesmo campo mudado nos dois aparelhos, prevalece a gravação mais recente; a gravação da página também é combinada com o que chegou do servidor desde a anterior; endereço e chave ficam no banco de cada aparelho.
 
 ## Em andamento
 
-Plano 004, modo e-ink e ferramentas de reorganização, aberto em 2026-11-09: a etapa 01, concluída no mesmo dia, reuniu os controles da casca numa faixa só no alto da tela, desenhada com a skill Impeccable; a 02, também concluída, tirou da casca sombras, transições, animações e fundos translúcidos e consertou o refazer com três dedos; a 03, também concluída, na casca 0.3.9, trouxe um botão só para as formas e os símbolos elétricos e a seleção por laço. O autor dispensou as ferramentas de reorganização e pediu a etapa 04, em andamento na casca 0.4.1: o controle da sensibilidade à pressão, nas opções da caneta, e os pontos do fundo 15% mais espaçados, no Boox e no computador. No Boox, o traço provisório da Onyx não segue o controle e muda na atualização da tela. Os planos 001, casca Android, 002, Prancheta independente em `web/app/`, e 003, Prancheta no Boox e sincronização com a VPS, estão concluídos; o 003 terminou em 2026-11-09, com o Boox e o computador sincronizando pela VPS e o traço igual antes e depois da troca.
+Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, em andamento; 02 cifra ponta a ponta dos quadros; 03 biblioteca do WebDAV entregue pela Prancheta; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e, na casca 0.4.1, a sensibilidade à pressão e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e o traço provisório igual fora de 90%. Os planos 001 a 003 estão concluídos.
 
 ## Próximo passo
 
-O autor testa a curva nova da casca 0.4.1 no Boox e manda a foto do aviso dos parâmetros do traço da Onyx, que aparece ao ligar o diagnóstico, de preferência antes e depois de mudar a sensibilidade da caneta no aplicativo de notas da Boox, para descobrir se `setStrokeParameters` regula a pressão do traço provisório, que hoje não segue o controle. Concluída a etapa 04, encerrar o plano 004 e seguir para os livros, no plano 005. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor cria a rede no Tailscale, liga nela o Boox e o computador, ativa MagicDNS e os certificados https no painel do Tailscale e confere no Boox que a casca continua escrevendo com o Tailscale ligado. Com isso confirmado, implementar o contêiner do Tailscale na VPS, a conferência da publicação na própria VPS e o fechamento do endereço público, num roteiro que o autor executa na sessão do Mac. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
 1. 001: experimento da casca Android, concluído.
 2. 002: Prancheta independente do claude.ai, concluído.
 3. 003: Prancheta no Boox e sincronização com a VPS, concluído.
-4. 004: modo e-ink e ferramentas de reorganização, ativo.
-5. Livros e PDFs: a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra dos dados no aparelho.
+4. 004: modo e-ink e ferramentas de reorganização, concluído.
+5. 005: livros e PDFs, com a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra ponta a ponta, ativo.
 
 ## Ambiente de nuvem
 

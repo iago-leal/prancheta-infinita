@@ -3,10 +3,10 @@ tipo: etapa
 plano: "004"
 etapa: "04"
 titulo: Sensibilidade à pressão e pontos do fundo mais espaçados
-status: em_andamento
+status: concluida
 depende_de: ["03"]
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 04: sensibilidade à pressão e pontos do fundo mais espaçados
@@ -19,10 +19,10 @@ Dar ao autor um controle da sensibilidade da caneta à pressão, porque o traço
 
 - [ ] Nas opções da caneta, um controle deslizante "Sensibilidade à pressão", de 0 a 100%, que começa em 90% e, nessa posição, desenha o traço igual ao de hoje. Abaixo de 90%, a diferença entre a pressão leve e a forte diminui; a 0%, o traço tem espessura constante; acima de 90%, a diferença aumenta. A posição escolhida fica guardada no aparelho.
 - [ ] No Boox, a casca aplica o mesmo ajuste à pressão que entrega à Onyx, para que o traço provisório e o definitivo continuem com a mesma forma em qualquer posição do controle.
-- [ ] Os pontos do fundo ficam 15% mais espaçados em todos os níveis de zoom.
-- [ ] Testes cobrem a curva de pressão, na página e na casca, e o espaçamento dos pontos.
+- [x] Os pontos do fundo ficam 15% mais espaçados em todos os níveis de zoom.
+- [x] Testes cobrem a curva de pressão, na página e na casca, e o espaçamento dos pontos.
 - [ ] O autor confirma no Boox que o controle muda a sensibilidade como esperado, que o traço não muda quando a tela se atualiza e que os pontos ficaram mais espaçados.
-- [ ] Nas opções da caneta, o controle "Sensibilidade à pressão", de 0 a 100%, começa em 90%, o traço de antes. Abaixo de 90%, a escrita leve fica mais fina e é preciso mais força para engrossar o traço; a 0%, o traço fica sempre fino; acima de 90%, o traço engrossa com menos força. A posição escolhida fica guardada no aparelho.
+- [x] Nas opções da caneta, o controle "Sensibilidade à pressão", de 0 a 100%, começa em 90%, o traço de antes. Abaixo de 90%, a escrita leve fica mais fina e é preciso mais força para engrossar o traço; a 0%, o traço fica sempre fino; acima de 90%, o traço engrossa com menos força. A posição escolhida fica guardada no aparelho.
 
 ## Registro
 
@@ -42,5 +42,16 @@ Dar ao autor um controle da sensibilidade da caneta à pressão, porque o traço
 - Mudança de critério: o critério 1, "Nas opções da caneta, um controle deslizante "Sensibilidade à pressão", de 0 a 100%, que começa em 90% e, nessa posição, desenha o traço igual ao de hoje. Abaixo de 90%, a diferença entre a pressão leve e a forte diminui; a 0%, o traço tem espessura constante; acima de 90%, a diferença aumenta. A posição escolhida fica guardada no aparelho.", descreve a curva antiga e foi dispensado pelo autor em 2026-11-09, que aprovou no lugar dele o último critério da lista.
 - O SDK do lado do aplicativo não tem parâmetro de sensibilidade: o cálculo do contorno da caneta-tinteiro recebe só os pontos, a espessura e a pressão máxima. Resta a chamada do sistema, `setStrokeParameters`, cujos valores o diagnóstico mostra.
 - Testes: os testes do controle e da curva foram refeitos, na web e no JUnit, e acusam a volta da curva antiga; 72 testes na web e 41 na casca passam.
+- Publicação da 0.4.1: o CI do PR #31 falhou duas vezes sem que o GitHub criasse nenhum job, e o mesmo fluxo, disparado à mão no mesmo commit, passou nos testes e na compilação; a casca 0.4.1 foi publicada como `casca-15`. A publicação na VPS falhou três vezes do mesmo modo, sem job, e passou na quarta tentativa, disparada à mão uns 10 minutos depois.
+- O autor atualizou o Boox para a 0.4.1, testou e respondeu "ok". Perguntado, dispensou o critério 2, "No Boox, a casca aplica o mesmo ajuste à pressão que entrega à Onyx, para que o traço provisório e o definitivo continuem com a mesma forma em qualquer posição do controle.", e o trecho "que o traço não muda quando a tela se atualiza" do critério 5: fora de 90%, o traço provisório da Onyx continua com a sensibilidade de antes e muda quando a tela se atualiza. A investigação de `setStrokeParameters` fica guardada como ideia.
 
 ## Resultado
+
+Etapa concluída em 2026-11-09, com a casca 0.4.1. Cada critério foi tratado assim:
+
+1. Controle com a curva antiga: dispensado pelo autor, que aprovou o critério 6 no lugar dele.
+2. Traço provisório igual ao definitivo em qualquer posição do controle: dispensado pelo autor. No Boox, o traço provisório é desenhado pelo sistema da Onyx com a pressão lida da caneta, e o SDK não oferece ajuste documentado dela; em 90%, nada muda na atualização da tela.
+3. Pontos 15% mais espaçados em todos os níveis de zoom: o teste "os pontos do fundo ficam 15% mais espaçados em todos os níveis de zoom", de 0,1 a 4 vezes de zoom, e o teste do autor no Boox.
+4. Testes da curva e do espaçamento: na página, os testes do controle com a caneta simulada e o do espaçamento; na casca, os testes JUnit de `Tinta.ajustarPressao`.
+5. Confirmação do autor no Boox: o autor testou a 0.4.1 e respondeu "ok"; o trecho sobre o traço não mudar na atualização da tela foi dispensado por ele, e o critério fica sem marca.
+6. Controle com a curva nova: o teste "o controle de sensibilidade à pressão ajusta a pressão dos traços da caneta e fica guardado", que confere a 90%, 45%, 0% e 100% a pressão gravada e a escolha guardada no aparelho, o teste da casca com a tinta nativa e o teste do autor no Boox.

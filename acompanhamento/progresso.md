@@ -6,6 +6,28 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Plano 004 concluído e plano 005 aberto
+
+### Feito
+
+- A casca 0.4.1 foi publicada como `casca-15` e a página, na VPS. O CI do PR #31 e a publicação na VPS falharam algumas vezes sem que o GitHub criasse nenhum job; disparados à mão, passaram.
+- O autor testou a 0.4.1 no Boox e respondeu "ok". A [etapa 04](planos/004-modo-e-ink/etapas/04-sensibilidade-e-pontos.md) e o [plano 004](planos/004-modo-e-ink/plano.md) foram concluídos.
+- Aberto o [plano 005](planos/005-livros-e-pdfs/plano.md), livros e PDFs, com rede privada e cifra, e iniciada a [etapa 01](planos/005-livros-e-pdfs/etapas/01-rede-privada.md), com os critérios aprovados pelo autor.
+
+### Decidido
+
+- **Traço provisório fora de 90% dispensado.** O autor dispensou, na etapa 04, o traço provisório da Onyx igual ao definitivo em qualquer sensibilidade; em 90%, nada muda na atualização da tela.
+- **Rede privada com o Tailscale e endereço público fechado.** Depois que a rede privada funcionar, a página, a sincronização e os livros só respondem por ela.
+- **Cifra ponta a ponta.** O aparelho cifra os quadros antes de enviar, e a VPS guarda só dados cifrados; a senha fica só nos aparelhos.
+
+### Ideias guardadas
+
+- Investigar `setStrokeParameters`, com o aviso de diagnóstico dos parâmetros do traço, para o traço provisório seguir a sensibilidade escolhida.
+
+### Pendências
+
+- O autor criar a rede no Tailscale e testar a casca no Boox com ele ligado.
+
 ## 2026-11-09 · Curva da sensibilidade à pressão refeita
 
 ### Feito
