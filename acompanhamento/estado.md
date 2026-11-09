@@ -1,9 +1,9 @@
 ---
 tipo: estado
 atualizado_em: 2026-11-09
-fase: Livros e PDFs, com rede privada e cifra
-plano_ativo: acompanhamento/planos/005-livros-e-pdfs/plano.md
-etapa_atual: acompanhamento/planos/005-livros-e-pdfs/etapas/04-leitor-com-marcacoes.md
+fase: Entre planos, depois dos livros e PDFs
+plano_ativo:
+etapa_atual:
 bloqueios: []
 ---
 
@@ -38,16 +38,16 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, concluída no mesmo dia; 02 cifra ponta a ponta dos quadros, concluída no mesmo dia, com a casca 0.5.0 e a VPS só com dados cifrados desde a limpeza; 03 biblioteca do WebDAV entregue pela Prancheta, concluída no mesmo dia, com a casca 0.6.0 e 13 livros; 04 leitor de PDF e EPUB com marcações ligadas a quadros, com o leitor e as marcações prontos, a testar no Boox. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
+Nenhum plano ativo. O plano 005, livros e PDFs, com rede privada e cifra, terminou em 2026-11-09, com as quatro etapas no mesmo dia: rede privada do Tailscale com o endereço público fechado; cifra ponta a ponta, com a VPS só com dados cifrados; biblioteca do WebDAV, com 13 livros; e leitor de EPUB e PDF, com destaques e cartões que reabrem o livro, na casca 0.8.0. Depois do teste, o autor pediu o leitor à esquerda do quadro, apagar um destaque tocando nele e um estudo do Readest para aproveitar funções dele. Os planos 001 a 004 estão concluídos.
 
 ## Próximo passo
 
-Mesclar a segunda parte da etapa 04 do plano 005, os destaques, os cartões e os links de volta, com a casca 0.8.0; o autor testa no Boox a seleção, a leitura lado a lado e a caneta ao lado do livro, e confirma o critério do plano, com a marcação chegando ao computador. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Trazer ao autor o levantamento do Readest, com a licença e as funções que cabem na Prancheta, e abrir com ele o plano seguinte, de melhorias do leitor: o leitor à esquerda, apagar um destaque tocando nele e as funções escolhidas do Readest, implementadas a partir das especificações. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
-1. 001 a 004, concluídos: experimento da casca Android, Prancheta independente do claude.ai, Prancheta no Boox e sincronização com a VPS, e modo e-ink.
-2. 005: livros e PDFs, com a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra ponta a ponta, ativo.
+1. 001 a 005, concluídos: experimento da casca Android, Prancheta independente do claude.ai, Prancheta no Boox e sincronização com a VPS, modo e-ink, e livros e PDFs, com rede privada e cifra.
+2. Melhorias do leitor, a detalhar com o autor: leitor à esquerda, apagar destaques e funções do Readest, a partir das especificações e conforme a licença.
 3. Publicação no catálogo de aplicativos de código aberto da Hostinger, com o botão "Implantar no Hostinger" no LEIA-ME e comissão sobre as hospedagens compradas por ele, pedida pelo autor para depois do 005; exige uma licença de código aberto e uma implantação genérica, sem o Tailscale e sem nada da VPS do autor.
 
 ## Ambiente de nuvem

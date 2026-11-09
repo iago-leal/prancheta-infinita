@@ -6,6 +6,21 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Plano 005 concluído
+
+### Feito
+
+- O autor testou a casca 0.8.0 no Boox e no computador: o leitor, a seleção, a caneta ao lado do livro e a marcação levada ao quadro e aberta pelo link no outro aparelho funcionaram. A [etapa 04](planos/005-livros-e-pdfs/etapas/04-leitor-com-marcacoes.md) e o [plano 005](planos/005-livros-e-pdfs/plano.md) foram concluídos.
+- Antes do teste, o Boox perdeu a sincronização por ter saído do Wi-Fi; com o Wi-Fi de volta, ela retomou sozinha.
+
+### Decidido
+
+- **Próximo plano: melhorias do leitor.** O autor pediu o leitor à esquerda do quadro, apagar um destaque tocando nele e um estudo do Readest, para aproveitar funções dele a partir das especificações, conforme a licença; a publicação na Hostinger fica para depois.
+
+### Pendências
+
+- Trazer o levantamento do Readest e detalhar com o autor o plano de melhorias do leitor.
+
 ## 2026-11-09 · Destaques, cartões e links de volta
 
 ### Feito

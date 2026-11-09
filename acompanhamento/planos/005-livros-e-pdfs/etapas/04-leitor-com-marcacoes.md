@@ -3,10 +3,10 @@ tipo: etapa
 plano: "005"
 etapa: "04"
 titulo: Leitor de PDF e EPUB com marcações ligadas a quadros
-status: em_andamento
+status: concluida
 depende_de: ["03"]
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 04: leitor de PDF e EPUB com marcações ligadas a quadros
@@ -17,12 +17,12 @@ Ler na Prancheta, ao lado do quadro ou em tela inteira, os PDFs e EPUBs da bibli
 
 ## Critérios de conclusão
 
-- [ ] Tocar num livro da biblioteca o abre ao lado do quadro atual, com um botão que passa o leitor para a tela inteira e volta; EPUB e PDF abrem no Boox e no computador, e os livros guardados abrem também sem rede.
-- [ ] No leitor, um trecho selecionado pode ser destacado; o destaque guarda o trecho e a posição no livro, reaparece ao reabrir o livro e sincroniza entre os aparelhos, cifrado como os quadros.
-- [ ] Um destaque, ou a posição atual do livro sem destaque, vai para o quadro aberto como um cartão com o nome do livro e o trecho ou a página; tocar no link do cartão abre o livro naquela posição, inclusive no outro aparelho.
-- [ ] No Boox, a caneta continua escrevendo no quadro com a tinta da Onyx sem riscar o leitor ao lado, e a seleção de um trecho funciona no leitor.
+- [x] Tocar num livro da biblioteca o abre ao lado do quadro atual, com um botão que passa o leitor para a tela inteira e volta; EPUB e PDF abrem no Boox e no computador, e os livros guardados abrem também sem rede.
+- [x] No leitor, um trecho selecionado pode ser destacado; o destaque guarda o trecho e a posição no livro, reaparece ao reabrir o livro e sincroniza entre os aparelhos, cifrado como os quadros.
+- [x] Um destaque, ou a posição atual do livro sem destaque, vai para o quadro aberto como um cartão com o nome do livro e o trecho ou a página; tocar no link do cartão abre o livro naquela posição, inclusive no outro aparelho.
+- [x] No Boox, a caneta continua escrevendo no quadro com a tinta da Onyx sem riscar o leitor ao lado, e a seleção de um trecho funciona no leitor.
 - [x] Os testes automáticos cobrem abrir EPUB e PDF, destacar, levar ao quadro um destaque e uma posição, reabrir pelo link, sincronizar os destaques entre dois perfis e o uso sem rede, e acusam mutações introduzidas.
-- [ ] O autor confirma o critério do plano: no Boox, abre um livro da biblioteca, faz uma marcação, a leva a um quadro, e a marcação aparece no computador depois da sincronização, com o link abrindo o livro na mesma posição.
+- [x] O autor confirma o critério do plano: no Boox, abre um livro da biblioteca, faz uma marcação, a leva a um quadro, e a marcação aparece no computador depois da sincronização, com o link abrindo o livro na mesma posição.
 
 ## Registro
 
@@ -64,4 +64,19 @@ Ler na Prancheta, ao lado do quadro ou em tela inteira, os PDFs e EPUBs da bibli
 - Critério 5 verificado pelos testes e pelas mutações das duas partes: 7 no leitor e 8 nas marcações, todas acusadas.
 - A testar no Boox, com a casca 0.8.0: a seleção de um trecho com o dedo ou a caneta, a leitura lado a lado na largura da tela, a caneta escrevendo no quadro ao lado sem riscar o livro e o critério do plano, com a marcação chegando ao computador.
 
+- Mesclado o PR #40, com a segunda parte e a casca 0.8.0. Antes do teste, o Boox perdeu a sincronização porque saiu do Wi-Fi, embora o Tailscale aparecesse ligado; com o Wi-Fi de volta, ela retomou sozinha.
+- O autor instalou a casca 0.8.0 e testou no Boox e no computador: funcionou bem, inclusive a seleção, a caneta ao lado do livro e a marcação levada ao quadro no Boox e aberta pelo link no computador.
+- Pedidos do autor depois do teste, para o próximo plano: o leitor abrir à esquerda do quadro, porque ele é destro e escreve à direita; apagar um destaque tocando nele de novo; e estudar o Readest, leitor de código aberto que já sincroniza com o KOReader, para aproveitar funções dele, conforme a licença, extraindo as especificações e implementando-as aqui.
+
 ## Resultado
+
+A Prancheta lê os EPUBs e PDFs da biblioteca ao lado do quadro ou em tela inteira, no Boox e no computador, com a última posição lembrada. Um trecho selecionado vira destaque, sincronizado e cifrado como os quadros, e um destaque ou a posição atual vai ao quadro como cartão com o link "abrir no livro", que reabre o livro na posição, também no outro aparelho.
+
+Como cada critério foi verificado:
+
+1. Abrir ao lado e em tela inteira, EPUB e PDF, também sem rede: pelos testes do leitor no Chromium e pelo autor, no Boox e no computador.
+2. Destaque guardado, reaparecendo e sincronizado cifrado: pelos testes das marcações, com dois perfis e a cifra, e pelo autor, com a marcação feita no Boox chegando ao computador.
+3. Cartão com o trecho ou a posição e o link de volta, também no outro aparelho: pelos testes das marcações e pelo autor, que abriu no computador, pelo link, a marcação feita no Boox.
+4. Caneta ao lado do leitor e seleção no Boox: pelo teste da casca, simulada, com o painel nas áreas reservadas, e pelo autor, no Boox.
+5. Testes e mutações: 7 mutações no leitor e 8 nas marcações, todas acusadas.
+6. Confirmação do autor do critério do plano: no Boox, abriu um livro, fez a marcação, levou-a ao quadro, e ela apareceu no computador, com o link abrindo o livro na posição.
