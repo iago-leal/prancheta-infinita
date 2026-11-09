@@ -195,32 +195,4 @@ function lassoSelect(p,base){const ids=new Set(base||[]);if(p.length>=6){const d
     de: `let s=24*v.k;while(s<14)s*=2;while(s>44)s/=2;`,
     para: `let s=24*v.k;while(s<14)s*=2;while(s>44)s/=2;s*=1.15;`,
   },
-  {
-    motivo: 'Sensibilidade da caneta à pressão, pedida pelo autor, que avalia o traço de hoje como uns 90% de sensibilidade: a pressão é elevada a 90 sobre a sensibilidade escolhida. Em 90%, a pressão segue sem mudança; abaixo disso, a escrita leve fica mais fina e é preciso mais força para engrossar o traço, até que, a 0%, toda pressão vale a mínima e o traço fica sempre fino; acima de 90%, o traço engrossa com menos força. A primeira versão aproximava a pressão do meio da escala, e a 0% o traço ficava com a espessura da pressão média, grossa demais para o autor. A pressão ajustada é a que o traço guarda, de modo que mudar o controle não altera os traços já feitos.',
-    de: `  return clamp(p,.04,1);`,
-    para: `  return clamp(ajustePressao(p,sensDaPressao()),.04,1);`,
-  },
-  {
-    motivo: 'Continuação da mudança anterior: o ajuste da pressão e a sensibilidade escolhida, guardada com as opções da caneta no aparelho; sem escolha, vale 90%.',
-    de: `function penPressure(ev,last){`,
-    para: `const sensDaPressao=()=>{const s=S.ink&&S.ink.pen&&S.ink.pen.ps;return typeof s==='number'?s:90};
-function ajustePressao(p,s){return s===90?p:s>0?Math.pow(p,90/s):0}
-function penPressure(ev,last){`,
-  },
-  {
-    motivo: 'Continuação das mudanças anteriores: nas opções da caneta, um controle deslizante "Sensibilidade à pressão", de 0 a 100% em passos de 5, entre as espessuras e a estabilização; o marca-texto, que não varia com a pressão, não tem o controle.',
-    de: '`<span class="sep"></span><label class="stab" for="inkStab">',
-    para: "(t==='pen'?`<span class=\"sep\"></span><label class=\"stab sens\" for=\"inkSens\">Sensibilidade à pressão<input type=\"range\" id=\"inkSens\" min=\"0\" max=\"100\" step=\"5\" value=\"${sensDaPressao()}\"><output id=\"inkSensV\">${sensDaPressao()}%</output></label>`:'')+`<span class=\"sep\"></span><label class=\"stab\" for=\"inkStab\">",
-  },
-  {
-    motivo: 'Continuação das mudanças anteriores: mover o controle grava a sensibilidade com as opções da caneta.',
-    de: `if(id==='inkStab'){cfg.st=+e.target.value;$('#inkStabV').textContent=cfg.st}`,
-    para: `if(id==='inkSens'){cfg.ps=+e.target.value;$('#inkSensV').textContent=cfg.ps+'%'}else if(id==='inkStab'){cfg.st=+e.target.value;$('#inkStabV').textContent=cfg.st}`,
-  },
-  {
-    motivo: 'Continuação das mudanças anteriores: o valor da sensibilidade, com o sinal de porcentagem, ganha espaço para não empurrar o controle quando chega a 100%.',
-    de: `.stab output{min-width:2.2em;text-align:right;font-variant-numeric:tabular-nums}`,
-    para: `.stab output{min-width:2.2em;text-align:right;font-variant-numeric:tabular-nums}
-.stab.sens output{min-width:3.2em}`,
-  },
 ];

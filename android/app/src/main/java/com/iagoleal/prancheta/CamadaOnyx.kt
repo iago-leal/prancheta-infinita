@@ -28,12 +28,6 @@ import java.util.concurrent.Executors
  * motor de canetas da Onyx, com a espessura de cada ponto, para que a
  * Prancheta desenhe o traço definitivo com a mesma forma do provisório.
  *
- * A pressão de cada ponto, antes de seguir para a Prancheta e para o cálculo
- * do contorno, é ajustada à sensibilidade escolhida, por [Tinta.ajustarPressao].
- * O traço provisório é desenhado pelo sistema a partir da leitura direta da
- * caneta, e o SDK não oferece ajuste documentado da pressão dele; fora dos
- * 90% de sensibilidade, ele pode diferir do definitivo.
- *
  * As operações no `TouchHelper` rodam numa thread própria. Os eventos da
  * caneta chegam por [onTouchEvent], encaminhados pela Activity conforme o
  * [RoteadorDeToques].
@@ -288,11 +282,7 @@ class CamadaOnyx private constructor(
         }
     }
 
-    /** Pressão do ponto de 0 a 1, ajustada à sensibilidade da tinta do traço. */
-    private fun pressaoAjustada(p: TouchPoint, tintaDoTraco: Tinta) = tintaDoTraco.ajustarPressao(p.pressure / pressaoMaxima)
-
-    private fun converter(p: TouchPoint, tintaDoTraco: Tinta) =
-        PontoTela(p.x, p.y, pressaoAjustada(p, tintaDoTraco).coerceIn(0f, 1f), p.timestamp)
+    private fun converter(p: TouchPoint) = PontoTela(p.x, p.y, (p.pressure / pressaoMaxima).coerceIn(0f, 1f), p.timestamp)
 
     /**
      * Calcula, com o motor da caneta-tinteiro da Onyx, a espessura de cada ponto
@@ -314,34 +304,23 @@ class CamadaOnyx private constructor(
 
     /**
      * Junta os pontos de cada traço. A lista completa, quando chega, substitui
-     * os pontos recebidos um a um. Os pontos brutos, na escala de pressão da
-     * Onyx, com a pressão ajustada à sensibilidade, servem ao cálculo do
-     * contorno. A tinta vale a do começo do traço, mesmo que mude durante ele.
+     * os pontos recebidos um a um. Os pontos brutos, com a pressão original,
+     * servem ao cálculo do contorno.
      */
     private inner class Retorno : RawInputCallback() {
         private val pontos = ArrayList<PontoTela>()
         private val brutos = ArrayList<TouchPoint>()
         private var listaRecebida = false
-        private var tintaDoTraco = Tinta.PADRAO
 
         private fun guardar(ponto: TouchPoint) {
-            pontos.add(converter(ponto, tintaDoTraco))
-            // Na sensibilidade padrão, a pressão bruta segue intacta, sem o
-            // arredondamento da ida e volta pela escala de 0 a 1.
-            brutos.add(
-                TouchPoint(ponto).also { copia ->
-                    if (tintaDoTraco.sensibilidade != Tinta.SENSIBILIDADE_PADRAO) {
-                        copia.pressure = pressaoAjustada(ponto, tintaDoTraco) * pressaoMaxima
-                    }
-                },
-            )
+            pontos.add(converter(ponto))
+            brutos.add(TouchPoint(ponto))
         }
 
         @Synchronized
         override fun onBeginRawDrawing(sucesso: Boolean, ponto: TouchPoint?) {
             emTraco = true
             agenda.sinalDaCaneta(agora())
-            tintaDoTraco = tinta
             pontos.clear()
             brutos.clear()
             listaRecebida = false
@@ -366,7 +345,7 @@ class CamadaOnyx private constructor(
         @Synchronized
         override fun onEndRawDrawing(sucesso: Boolean, ponto: TouchPoint?) {
             if (!listaRecebida) ponto?.let { guardar(it) }
-            if (pontos.size >= 2) aoTerminarTraco(ArrayList(pontos), calcularContorno(brutos, tintaDoTraco, larguraTraco))
+            if (pontos.size >= 2) aoTerminarTraco(ArrayList(pontos), calcularContorno(brutos, tinta, larguraTraco))
             pontos.clear()
             brutos.clear()
             listaRecebida = false

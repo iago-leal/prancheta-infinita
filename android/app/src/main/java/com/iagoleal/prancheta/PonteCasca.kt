@@ -85,8 +85,7 @@ class PonteCasca(private val webView: WebView) {
 
     /**
      * Recebe a tinta ativa na Prancheta: `ferramenta`, "pen" ou "hl", `cor`,
-     * como no CSS, `largura`, a espessura escolhida, em pixels CSS do quadro,
-     * e `sensibilidade`, a sensibilidade da caneta à pressão, de 0 a 100.
+     * como no CSS, e `largura`, a espessura escolhida, em pixels CSS do quadro.
      */
     @JavascriptInterface
     fun tinta(json: String) {
@@ -95,7 +94,6 @@ class PonteCasca(private val webView: WebView) {
             marcaTexto = o.optString("ferramenta") == "hl",
             cor = Tinta.lerCor(o.optString("cor")) ?: Tinta.PRETO,
             larguraCss = o.optDouble("largura", Tinta.PADRAO.larguraCss.toDouble()).toFloat(),
-            sensibilidade = o.optInt("sensibilidade", Tinta.SENSIBILIDADE_PADRAO).coerceIn(0, 100),
         )
         webView.post { ouvinte?.aoMudarTinta(tinta) }
     }
@@ -103,8 +101,8 @@ class PonteCasca(private val webView: WebView) {
     /**
      * Devolve, para o diagnóstico da página, os parâmetros de traço que o
      * sistema da Onyx guarda para cada estilo e a pressão máxima da caneta. A
-     * chamada que os lê não é documentada; o objetivo é descobrir se algum
-     * deles regula a resposta à pressão do traço provisório.
+     * chamada que os lê não é documentada e só lê; serve para descobrir, no
+     * futuro, se algum deles regula a resposta à pressão do traço provisório.
      */
     @JavascriptInterface
     fun parametrosDoTraco(): String {

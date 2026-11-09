@@ -179,16 +179,16 @@ test('informa a casca da tinta ativa, com a ferramenta, a cor e a espessura', as
   const { contexto, pagina, erros } = await abrirNaCasca();
   const corDe = (nome) => pagina.evaluate((n) => getComputedStyle(document.documentElement).getPropertyValue(`--${n}`).trim(), nome);
   const caneta = await pagina.evaluate(() => ({ ...S.ink.pen }));
-  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'pen', cor: await corDe(caneta.c), largura: caneta.w, sensibilidade: 90 });
+  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'pen', cor: await corDe(caneta.c), largura: caneta.w });
   await pagina.mouse.click(600, 600);
   await pagina.keyboard.press('m');
   const marca = await pagina.evaluate(() => ({ ...S.ink.hl }));
   await esperar(pagina, () => window.__chamadas.filter((c) => c[0] === 'tinta').at(-1)[1].ferramenta === 'hl');
-  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'hl', cor: await corDe(marca.c), largura: marca.w, sensibilidade: 90 });
+  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'hl', cor: await corDe(marca.c), largura: marca.w });
   // Trocar a cor da caneta chega à casca na próxima mudança da interface.
   await pagina.evaluate(() => { S.ink.pen.c = 'red'; S.ink.pen.w = 6; setTool('select'); });
   await esperar(pagina, () => window.__chamadas.filter((c) => c[0] === 'tinta').at(-1)[1].ferramenta === 'pen');
-  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'pen', cor: await corDe('red'), largura: 6, sensibilidade: 90 });
+  assert.deepEqual((await ultima(pagina, 'tinta'))[0], { ferramenta: 'pen', cor: await corDe('red'), largura: 6 });
   assert.notEqual(await corDe('red'), '');
   assert.deepEqual(erros, []);
   await contexto.close();
@@ -792,108 +792,6 @@ test('o que o laço seleciona pode ser movido, copiado e apagado como numa sele�
   await pagina.keyboard.press('Delete');
   await esperar(pagina, (ids) => !S.items.has(ids.a) && !S.items.has(ids.c), ids);
   assert.ok(await pagina.evaluate((ids) => S.items.has(ids.b) && S.items.has(ids.d), ids), 'os itens de fora continuam');
-  assert.deepEqual(erros, []);
-  await contexto.close();
-});
-
-// Traça com a caneta, pelo protocolo do Chromium, uma linha com força constante.
-async function tracarComCaneta(cdp, x0, y0, x1, forca) {
-  const evento = (type, x) => cdp.send('Input.dispatchMouseEvent', { type, x, y: y0, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1, pointerType: 'pen', force: forca });
-  await evento('mousePressed', x0);
-  for (let i = 1; i <= 12; i++) await evento('mouseMoved', x0 + ((x1 - x0) * i) / 12);
-  await evento('mouseReleased', x1);
-}
-
-// A pressão que a Prancheta guarda para uma força da caneta, na sensibilidade dada,
-// com a mesma quantização da gravação, em vigésimos: a pressão na escala da
-// Prancheta é elevada a 90 sobre a sensibilidade, e a 0% vale a mínima.
-const pressaoEsperada = (forca, sensibilidade) => {
-  const q = Math.pow(forca, 0.65);
-  const ajustada = Math.min(1, Math.max(0.04, sensibilidade > 0 ? Math.pow(q, 90 / sensibilidade) : 0));
-  return Math.round(ajustada * 20) / 20;
-};
-
-test('o controle de sensibilidade à pressão ajusta a pressão dos traços da caneta e fica guardado', async () => {
-  const { contexto, pagina, erros } = await abrirNaCasca({ casca: false });
-  await pagina.evaluate(() => { setTool('pen'); S.inkOpen = true; renderInkbar(); });
-  const controle = pagina.locator('#inkSens');
-  // Escrever fecha as opções da caneta; cada ajuste as abre de novo.
-  const ajustar = async (valor) => {
-    await pagina.evaluate(() => { S.inkOpen = true; renderInkbar(); });
-    await controle.fill(valor);
-  };
-  assert.equal(await controle.isVisible(), true);
-  assert.equal(await controle.inputValue(), '90');
-  assert.equal(await pagina.locator('#inkSensV').textContent(), '90%');
-  assert.equal(await pagina.locator('label[for=inkSens]').textContent(), 'Sensibilidade à pressão90%');
-  assert.deepEqual(await pagina.evaluate(() => [document.getElementById('inkSens').min, document.getElementById('inkSens').max]), ['0', '100']);
-
-  const cdp = await contexto.newCDPSession(pagina);
-  const pressoesDoUltimo = async (n) => {
-    const itens = await aguardarItens(pagina, (it) => it.filter((i) => i.type === 'stroke').length === n);
-    const ultimo = itens.filter((i) => i.type === 'stroke').at(-1);
-    const p = await pagina.evaluate((d) => decode(d), ultimo.d);
-    return [...new Set(p.filter((_, i) => i % 3 === 2))];
-  };
-  // Em 90%, o traço sai como antes do controle.
-  await tracarComCaneta(cdp, 450, 300, 750, 0.8);
-  assert.deepEqual(await pressoesDoUltimo(1), [pressaoEsperada(0.8, 90)]);
-  // A 45%, a mesma força dá um traço mais fino: é preciso mais força para engrossar.
-  await ajustar('45');
-  assert.equal(await pagina.locator('#inkSensV').textContent(), '45%');
-  assert.equal(await pagina.evaluate(() => S.ink.pen.ps), 45);
-  await tracarComCaneta(cdp, 450, 360, 750, 0.8);
-  const metade = await pressoesDoUltimo(2);
-  assert.deepEqual(metade, [pressaoEsperada(0.8, 45)]);
-  assert.ok(metade[0] < pressaoEsperada(0.8, 90));
-  // A 0%, a pressão forte e a leve valem a mínima: o traço fica sempre fino.
-  await ajustar('0');
-  await tracarComCaneta(cdp, 450, 420, 750, 0.9);
-  const fino = await pressoesDoUltimo(3);
-  assert.deepEqual(fino, [pressaoEsperada(0.9, 0)]);
-  assert.ok(fino[0] <= 0.05, `${fino[0]}`);
-  await tracarComCaneta(cdp, 450, 480, 750, 0.1);
-  assert.deepEqual(await pressoesDoUltimo(4), fino);
-  // A 100%, a pressão leve engrossa mais que em 90%.
-  await ajustar('100');
-  await tracarComCaneta(cdp, 450, 540, 750, 0.2);
-  const leve = await pressoesDoUltimo(5);
-  assert.deepEqual(leve, [pressaoEsperada(0.2, 100)]);
-  assert.ok(leve[0] > pressaoEsperada(0.2, 90), `${leve[0]} e ${pressaoEsperada(0.2, 90)}`);
-  // Os traços já feitos não mudam com o controle.
-  const desenhos = await pagina.evaluate(() => [...S.items.values()].filter((i) => i.type === 'stroke').map((i) => i.d));
-  await ajustar('30');
-  assert.deepEqual(await pagina.evaluate(() => [...S.items.values()].filter((i) => i.type === 'stroke').map((i) => i.d)), desenhos);
-
-  // A escolha fica guardada no aparelho e volta ao abrir de novo.
-  assert.equal(JSON.parse(await pagina.evaluate(() => localStorage.getItem('prancheta.ink'))).pen.ps, 30);
-  await pagina.reload();
-  await esperar(pagina, () => window.__booted === true);
-  assert.equal(await pagina.evaluate(() => sensDaPressao()), 30);
-  // O marca-texto, que não varia com a pressão, não tem o controle.
-  await pagina.evaluate(() => { setTool('hl'); S.inkOpen = true; renderInkbar(); });
-  assert.equal(await pagina.locator('#inkSens').count(), 0);
-  assert.equal(await pagina.locator('#inkStab').isVisible(), true);
-  assert.deepEqual(erros, []);
-  await contexto.close();
-});
-
-test('na casca, o controle de sensibilidade aparece com a tinta nativa e chega à casca', async () => {
-  const { contexto, pagina, erros } = await abrirNaCasca();
-  await pagina.evaluate(() => { prancheta.definirTinta('nativa'); setTool('pen'); S.inkOpen = true; renderInkbar(); });
-  // Com a tinta da Onyx, a estabilização e a previsão somem, mas a sensibilidade fica.
-  assert.equal(await pagina.locator('#inkSens').isVisible(), true);
-  assert.equal(await pagina.locator('#inkStab').isVisible(), false);
-  assert.equal(await pagina.locator('#inkPred').isVisible(), false);
-  assert.equal((await ultima(pagina, 'tinta'))[0].sensibilidade, 90);
-  await pagina.locator('#inkSens').fill('60');
-  await esperar(pagina, () => window.__chamadas.filter((c) => c[0] === 'tinta').at(-1)[1].sensibilidade === 60);
-  assert.equal((await ultima(pagina, 'tinta'))[0].ferramenta, 'pen');
-  // O traço da casca já chega com a pressão ajustada e é guardado como veio.
-  await pagina.evaluate((p) => prancheta.receberTraco(p), traco(300, 300, 500, 300, 10, 0.5));
-  const itens = await aguardarItens(pagina, (it) => it.some((i) => i.type === 'stroke'));
-  const p = await pagina.evaluate((d) => decode(d), itens.find((i) => i.type === 'stroke').d);
-  assert.equal(p[2], Math.round(Math.pow(0.5, 0.65) * 20) / 20);
   assert.deepEqual(erros, []);
   await contexto.close();
 });

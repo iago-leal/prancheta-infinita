@@ -25,7 +25,7 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - No Boox, a caneta escreve, um dedo seleciona e arrasta, e dois dedos movem e ampliam o quadro; com a borracha ou as ferramentas de forma e de texto, a caneta age sobre a página. Um toque de dedo até 1 s depois da caneta, ou maior que a ponta de um dedo, é tido como palma, e a caneta que chega cancela o gesto de dedos em andamento, sem deixar efeito; desfazer e refazer pelos dedos pedem dois toques seguidos, e os controles ficam numa faixa só no alto da tela, sem sombras.
 - Modo e-ink na casca, sem sombras, animações ou transparências. O contorno durante o arrasto e o mover por toque foram dispensados pelo autor em 2026-11-09, porque o arrasto atual não deixa rastro no Boox.
 - Cada traço guarda identificador, posição e horário, para permitir agrupamento e transcrição no futuro.
-- Traço sensível à pressão, por decisão do autor, com o traço provisório da Onyx e o definitivo da página na mesma forma, para que nada mude quando a tela do Boox se atualiza. A sensibilidade vai de 0 a 100%, com 90% igual ao traço anterior; abaixo disso, a escrita leve afina e engrossar pede mais força, e a pressão ajustada é a que o traço guarda.
+- Traço sensível à pressão, por decisão do autor, com o traço provisório da Onyx e o definitivo da página na mesma forma, para que nada mude quando a tela do Boox se atualiza. O controle de sensibilidade à pressão, testado nas casca 0.4.0 e 0.4.1, foi retirado pelo autor em 2026-11-09.
 - A Prancheta independente começa com o banco limpo: os dados do artefato não serão migrados, por decisão do autor.
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 - Atualizações da casca pelo próprio aplicativo: o GitHub compila e publica cada versão, assinada com a chave das versões instaladas, e a casca oferece a atualização ao abrir com internet.
@@ -36,7 +36,7 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, em andamento; 02 cifra ponta a ponta dos quadros; 03 biblioteca do WebDAV entregue pela Prancheta; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e, na casca 0.4.1, a sensibilidade à pressão e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e o traço provisório igual fora de 90%. Os planos 001 a 003 estão concluídos.
+Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, em andamento; 02 cifra ponta a ponta dos quadros; 03 biblioteca do WebDAV entregue pela Prancheta; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
 
 ## Próximo passo
 

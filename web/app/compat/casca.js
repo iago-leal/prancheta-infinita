@@ -9,10 +9,10 @@
 //   Casca.transformacao(json) quando a vista muda; Casca.areasReservadas(json)
 //   com as barras, menus e painéis em que a caneta deve agir sobre a página
 //   em vez de escrever; Casca.canetaEscreve(booleano) conforme a ferramenta
-//   ativa; Casca.tinta(json) com a ferramenta de tinta, a cor, a espessura e
-//   a sensibilidade à pressão escolhidas, para a camada da Onyx desenhar
-//   igual; Casca.parametrosDoTraco(), que devolve em texto os parâmetros de
-//   traço do sistema da Onyx, quando o diagnóstico é ligado; e Casca.redesenharTela()
+//   ativa; Casca.tinta(json) com a ferramenta de tinta, a cor e a espessura
+//   escolhidas, para a camada da Onyx desenhar igual; Casca.parametrosDoTraco(),
+//   que devolve em texto os parâmetros de traço do sistema da Onyx, quando o
+//   diagnóstico é ligado; e Casca.redesenharTela()
 //   quando o traço provisório da Onyx pode ter ficado fora do lugar, porque a
 //   vista mudou ou traços foram movidos ou apagados;
 // - a casca chama prancheta.receberTraco(pontos, contorno), com x, y, pressão
@@ -78,7 +78,7 @@ html.casca #faixa-casca .pill{background:none;border:0;box-shadow:none;padding:0
 html.casca #faixa-casca .btn{width:32px}
 html.casca #zoomPct{min-width:48px;height:34px;padding:0 4px;font:inherit;font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg);background:none;border:0;border-radius:9px}
 html.casca #bottom{top:calc(var(--casca-faixa,48px) + 8px);bottom:auto}
-html.tinta-nativa #inkbar .stab:not(.sens),html.tinta-nativa #inkbar>span.sep:last-of-type{display:none}
+html.tinta-nativa #inkbar .stab,html.tinta-nativa #inkbar>span.sep:last-of-type{display:none}
 html.casca #keys{top:calc(var(--casca-faixa,48px) + 8px)}
 html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,48px) + 64px)}`;
 
@@ -159,18 +159,16 @@ html.casca body.busy #head{opacity:1}`;
   }
 
   // A tinta que a casca deve usar: a do marca-texto quando ele está ativo, e
-  // a da caneta nos demais casos, com a cor já resolvida para o valor final e
-  // a sensibilidade à pressão da caneta, de 0 a 100, que vale 90 sem escolha.
+  // a da caneta nos demais casos, com a cor já resolvida para o valor final.
   function tintaAtiva() {
     const ferramenta = S.tool === 'hl' ? 'hl' : 'pen';
     const cfg = S.ink[ferramenta];
     const cor = getComputedStyle(document.documentElement).getPropertyValue(`--${cfg.c}`).trim();
-    const sensibilidade = typeof sensDaPressao === 'function' ? sensDaPressao() : 90;
-    return { ferramenta, cor, largura: cfg.w, sensibilidade };
+    return { ferramenta, cor, largura: cfg.w };
   }
 
   // Ao ligar o diagnóstico, mostra os parâmetros de traço do sistema da Onyx,
-  // para descobrir se algum deles regula a resposta à pressão do traço provisório.
+  // para um dia descobrir se algum deles regula a resposta à pressão do traço provisório.
   function mostrarParametrosDoTraco() {
     if (typeof casca.parametrosDoTraco !== 'function') return;
     let texto = '';

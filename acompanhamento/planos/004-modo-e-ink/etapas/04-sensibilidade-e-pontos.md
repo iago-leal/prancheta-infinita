@@ -45,6 +45,8 @@ Dar ao autor um controle da sensibilidade da caneta à pressão, porque o traço
 - Publicação da 0.4.1: o CI do PR #31 falhou duas vezes sem que o GitHub criasse nenhum job, e o mesmo fluxo, disparado à mão no mesmo commit, passou nos testes e na compilação; a casca 0.4.1 foi publicada como `casca-15`. A publicação na VPS falhou três vezes do mesmo modo, sem job, e passou na quarta tentativa, disparada à mão uns 10 minutos depois.
 - O autor atualizou o Boox para a 0.4.1, testou e respondeu "ok". Perguntado, dispensou o critério 2, "No Boox, a casca aplica o mesmo ajuste à pressão que entrega à Onyx, para que o traço provisório e o definitivo continuem com a mesma forma em qualquer posição do controle.", e o trecho "que o traço não muda quando a tela se atualiza" do critério 5: fora de 90%, o traço provisório da Onyx continua com a sensibilidade de antes e muda quando a tela se atualiza. A investigação de `setStrokeParameters` fica guardada como ideia.
 
+- Depois da conclusão da etapa, ainda em 2026-11-09, o autor pediu para tirar o controle de sensibilidade à pressão: ficou ruim e, mesmo a 90%, o traço varia da prévia ao traço final. Na casca 0.4.2, a página e a casca voltaram ao código de antes do controle, o da 0.3.9, e ficaram os pontos 15% mais espaçados e a leitura dos parâmetros de traço da Onyx no diagnóstico, que só lê. Como a 90% o ajuste não mudava nenhuma pressão, a variação que o autor viu já existia antes do controle.
+
 ## Resultado
 
 Etapa concluída em 2026-11-09, com a casca 0.4.1. Cada critério foi tratado assim:

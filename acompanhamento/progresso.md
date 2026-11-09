@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Rede privada, primeira fase, e controle de sensibilidade retirado
+
+### Feito
+
+- Na [etapa 01 do plano 005](planos/005-livros-e-pdfs/etapas/01-rede-privada.md), o autor ligou o Boox e os outros aparelhos ao Tailscale e confirmou que a casca escreve igual com ele ligado. Primeira fase pronta: o contêiner do Tailscale entrega a página e a sincronização pela rede privada, ao lado do endereço público, e a publicação passa a ser conferida na própria VPS; falta o autor rodar o roteiro na sessão do Mac.
+- Na casca 0.4.2, a pedido do autor, saiu o controle de sensibilidade à pressão; ficaram os pontos mais espaçados.
+
+### Decidido
+
+- **Controle de sensibilidade retirado.** A decisão vigente dizia que a sensibilidade ia de 0 a 100%, com 90% igual ao traço anterior. O autor achou o controle ruim e viu, mesmo a 90%, o traço variar da prévia ao traço final; a página e a casca voltaram ao código da 0.3.9 nesse ponto.
+
+### Pendências
+
+- O autor rodar o roteiro da VPS, aprovar a máquina `prancheta` no Tailscale e passar o Boox e o computador para o endereço da rede privada.
+- Se a variação entre a prévia e o traço final continuar, comparar de novo as espessuras, como na etapa 02 do plano 003.
+
 ## 2026-11-09 · Plano 004 concluído e plano 005 aberto
 
 ### Feito
