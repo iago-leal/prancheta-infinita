@@ -36,11 +36,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 004, modo e-ink e ferramentas de reorganização, aberto em 2026-11-09: a etapa 01 reúne os controles da casca numa faixa só no alto da tela, desenhada com a skill Impeccable, na casca 0.3.6. Os planos 001, casca Android, 002, Prancheta independente em `web/app/`, e 003, Prancheta no Boox e sincronização com a VPS, estão concluídos; o 003 terminou em 2026-11-09, com o Boox e o computador sincronizando pela VPS e o traço igual antes e depois da troca.
+Plano 004, modo e-ink e ferramentas de reorganização, aberto em 2026-11-09: a etapa 01 reúne os controles da casca numa faixa só no alto da tela, desenhada com a skill Impeccable, na casca 0.3.7. Os planos 001, casca Android, 002, Prancheta independente em `web/app/`, e 003, Prancheta no Boox e sincronização com a VPS, estão concluídos; o 003 terminou em 2026-11-09, com o Boox e o computador sincronizando pela VPS e o traço igual antes e depois da troca.
 
 ## Próximo passo
 
-O autor atualizar para a casca 0.3.6 e confirmar no Boox que a faixa ocupa pouco espaço e que todos os controles continuam ao alcance, para fechar a etapa 01 do plano 004; depois, detalhar com ele as etapas seguintes, como o modo e-ink sem sombras, animações ou transparências, os ícones selecionados legíveis e as ferramentas de reorganização. O controle de sensibilidade à pressão, que o SDK da Onyx não permite aplicar ao traço provisório, foi adiado pelo autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor atualizar para a casca 0.3.7 e confirmar no Boox que a faixa cabe numa linha, ocupa pouco espaço e que todos os controles continuam ao alcance, para fechar a etapa 01 do plano 004; depois, detalhar com ele as etapas seguintes, como o modo e-ink sem sombras, animações ou transparências, os ícones selecionados legíveis e as ferramentas de reorganização. O controle de sensibilidade à pressão, que o SDK da Onyx não permite aplicar ao traço provisório, foi adiado pelo autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

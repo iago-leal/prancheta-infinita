@@ -13,6 +13,7 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 - O autor confirmou, com a casca 0.3.5, que o traço forte não afina mais na troca, que a espessura e a cor valem em qualquer zoom e que o traço não muda nem na atualização completa; com isso, a [etapa 02](planos/003-boox-e-sincronizacao/etapas/02-traco-sensivel-a-pressao.md) e o plano 003 foram concluídos.
 - Instalada no projeto a skill de design Impeccable, em `.claude/skills/impeccable/`, a pedido do autor.
 - Aberto o plano 004, com a [etapa 01](planos/004-modo-e-ink/etapas/01-faixa-unica-no-boox.md): na casca 0.3.6, os controles ficam numa faixa só no alto da tela, de 47 px, no lugar das duas faixas de cerca de 150 px da 0.3.5.
+- Na foto do Boox com a 0.3.6, a faixa quebrou em duas linhas, porque a página do Boox tem cerca de 900 px de largura; na 0.3.7, a sincronização vira um ícone e os espaços diminuem, e a faixa cabe numa linha a partir de 820 px.
 
 ### Decidido
 
@@ -20,7 +21,7 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 
 ### Pendências
 
-- O autor confirmar no Boox, com a 0.3.6, que a faixa ocupa pouco espaço e que os controles continuam ao alcance.
+- O autor confirmar no Boox, com a 0.3.7, que a faixa cabe numa linha, ocupa pouco espaço e mantém os controles ao alcance.
 - Detalhar com o autor as etapas seguintes do plano 004.
 
 ## 2026-11-09 · Etapa 02 do plano 003: casca 0.3.5, traço forte, mão apoiada e barra no alto
