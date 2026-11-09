@@ -6,6 +6,18 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Etapa 05 do plano 003 concluída: Boox e computador sincronizam pela VPS
+
+### Feito
+
+- O autor configurou a sincronização no computador e no Boox, cada um com a sua chave, guardada no Bitwarden, e confirmou que os quadros passam nos dois sentidos e que a Prancheta abre sem internet no computador depois da primeira visita.
+- Concluída a etapa 05, com os cinco critérios verificados, e marcado o critério do plano 003.
+- Agendada no Mac a cópia de segurança diária, às 3h30, pelo launchd, com a chave `copia` guardada nas Chaves do Mac, tirada do Bitwarden sem aparecer na tela; a primeira cópia trouxe 15 documentos e 2 arquivos.
+
+### Pendências
+
+- A etapa 02: o autor confirmar no Boox, com a casca 0.3.4, que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca; com ela, o plano 003 se encerra.
+
 ## 2026-11-08 · Etapa 05 do plano 003: Prancheta no ar na VPS
 
 ### Feito
@@ -13,6 +25,7 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 - Mesclado o PR #19. A sessão do Mac, com a aprovação do autor, corrigiu a posse de dois arquivos do administrador, rodou o roteiro, acrescentou a rede ao arquivo do Traefik sem recriá-lo e cadastrou o segredo do endereço; o autor criou as chaves dos três aparelhos no próprio terminal, direto no Bitwarden.
 - A publicação pelo GitHub passou: a versão c8967a3 respondeu por https no endereço da Prancheta seis segundos depois do envio.
 - A conferência de cada publicação passou a verificar que a sincronização recusa pedidos sem a chave no endereço real.
+- Mesclado o PR #20; a publicação disparada pelo envio à `main` pôs ce7fda3 no ar e confirmou a recusa sem a chave, o que verificou os critérios 1 e 3 da etapa 05.
 - Recebido o levantamento do WebDAV, lido no histórico da sessão do Mac.
 
 ### Decidido
