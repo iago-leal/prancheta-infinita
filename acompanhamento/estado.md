@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-09
 fase: Livros e PDFs, com rede privada e cifra
 plano_ativo: acompanhamento/planos/005-livros-e-pdfs/plano.md
-etapa_atual:
+etapa_atual: acompanhamento/planos/005-livros-e-pdfs/etapas/04-leitor-com-marcacoes.md
 bloqueios: []
 ---
 
@@ -38,11 +38,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, concluída no mesmo dia; 02 cifra ponta a ponta dos quadros, concluída no mesmo dia, com a casca 0.5.0 e a VPS só com dados cifrados desde a limpeza; 03 biblioteca do WebDAV entregue pela Prancheta, concluída no mesmo dia, com a casca 0.6.0 e 13 livros; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
+Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, concluída no mesmo dia; 02 cifra ponta a ponta dos quadros, concluída no mesmo dia, com a casca 0.5.0 e a VPS só com dados cifrados desde a limpeza; 03 biblioteca do WebDAV entregue pela Prancheta, concluída no mesmo dia, com a casca 0.6.0 e 13 livros; 04 leitor de PDF e EPUB com marcações ligadas a quadros, em andamento, com os critérios aprovados. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
 
 ## Próximo passo
 
-Detalhar com o autor a etapa 04 do plano 005, o leitor de PDF e EPUB com marcações ligadas a quadros; quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar a primeira parte da etapa 04 do plano 005, o leitor de EPUB e PDF, com a casca 0.7.0, e o autor testar no Boox a seleção de um trecho e a leitura lado a lado; depois, a segunda parte: os destaques, os cartões e os links de volta. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

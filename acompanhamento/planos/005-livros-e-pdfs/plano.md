@@ -28,9 +28,9 @@ Os planos 003 e 004 deixaram a escrita no Boox e a sincronização com o computa
 | [01](etapas/01-rede-privada.md) | Rede privada com o Tailscale e endereço público fechado | concluida |
 | [02](etapas/02-cifra-ponta-a-ponta.md) | Cifra ponta a ponta dos quadros | concluida |
 | [03](etapas/03-biblioteca-do-webdav.md) | Biblioteca do WebDAV entregue pela Prancheta | concluida |
-| 04 | Leitor de PDF e EPUB com marcações ligadas a quadros | pendente |
+| [04](etapas/04-leitor-com-marcacoes.md) | Leitor de PDF e EPUB com marcações ligadas a quadros | em_andamento |
 
-As decisões de 2026-11-09, do autor: a rede privada usa o Tailscale; depois que ela funcionar, o endereço público da Prancheta fecha de vez, para a página, a sincronização e os livros; a cifra é ponta a ponta, com a senha só nos aparelhos. A etapa 04 será detalhada com o autor antes de começar. Para a etapa 02, o autor decidiu em 2026-11-09 que a chave é aleatória e guardada no Bitwarden, que a recuperação depende só dele e que as versões legíveis saem da VPS depois da troca.
+As decisões de 2026-11-09, do autor: a rede privada usa o Tailscale; depois que ela funcionar, o endereço público da Prancheta fecha de vez, para a página, a sincronização e os livros; a cifra é ponta a ponta, com a senha só nos aparelhos. Para a etapa 04, o autor decidiu em 2026-11-09 o destaque de trecho e a posição sem destaque, levados ao quadro como cartões com link de volta, o leitor lado a lado com tela inteira opcional e EPUB e PDF juntos. Para a etapa 02, o autor decidiu em 2026-11-09 que a chave é aleatória e guardada no Bitwarden, que a recuperação depende só dele e que as versões legíveis saem da VPS depois da troca.
 
 ## Riscos
 

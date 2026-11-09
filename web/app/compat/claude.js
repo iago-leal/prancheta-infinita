@@ -116,6 +116,10 @@
         if (window.BibliotecaPrancheta && window.sincronizacaoDaPrancheta && !window.bibliotecaDaPrancheta) {
           window.bibliotecaDaPrancheta = window.BibliotecaPrancheta.ligar(window.sincronizacaoDaPrancheta);
         }
+        // O leitor abre os livros guardados pela biblioteca.
+        if (window.LeitorPrancheta && window.bibliotecaDaPrancheta && !window.leitorDaPrancheta) {
+          window.leitorDaPrancheta = window.LeitorPrancheta.ligar(window.bibliotecaDaPrancheta);
+        }
       }, () => { banco = null; });
     }
     return banco;

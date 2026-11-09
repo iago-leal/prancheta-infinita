@@ -6,6 +6,17 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Leitor de EPUB e PDF
+
+### Feito
+
+- Mesclado o PR #38. O autor aprovou os critérios da [etapa 04 do plano 005](planos/005-livros-e-pdfs/etapas/04-leitor-com-marcacoes.md) e escolheu: destaque de trecho e posição sem destaque, levados ao quadro como cartões com link de volta; leitor lado a lado, com tela inteira; EPUB e PDF juntos.
+- Primeira parte pronta: o leitor de EPUB, pela epub.js, e de PDF, pelo pdf.js, lado a lado com o quadro e em tela inteira, com a última posição lembrada e o trecho selecionado mostrado, para testar a seleção no Boox. Casca 0.7.0.
+
+### Pendências
+
+- Mesclar, testar a seleção no Boox e fazer a segunda parte: os destaques, os cartões e os links de volta.
+
 ## 2026-11-09 · Biblioteca do WebDAV concluída
 
 ### Feito
