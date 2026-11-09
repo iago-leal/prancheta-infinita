@@ -40,7 +40,7 @@ Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a 
 
 ## Próximo passo
 
-A VPS já está na rede privada: a Prancheta responde pelo endereço `.ts.net` dela, e cada publicação é conferida na própria VPS. O autor sincroniza tudo pelo endereço público e passa o computador e o Boox para o endereço da rede privada, conferindo que nenhum quadro se perdeu. Em seguida vem a segunda fase: fechar o endereço público e fazer o GitHub conferir que ele não responde mais. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O computador e o Boox já sincronizam pela rede privada; no Boox, o Tailscale precisa ficar sempre ligado, com a "VPN sempre ativa". Com a confirmação do autor de que nenhum quadro se perdeu, a segunda fase, pronta no PR #33, fecha o endereço público: a sessão do Mac roda o roteiro a partir do ramo do PR, e depois o PR é mesclado, para a publicação conferir que o endereço público está fechado. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

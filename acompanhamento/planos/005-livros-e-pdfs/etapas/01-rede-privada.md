@@ -18,7 +18,7 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
 ## Critérios de conclusão
 
 - [x] No Boox, o Tailscale fica ligado junto com a casca, e a escrita com a tinta da Onyx continua como antes.
-- [ ] A VPS entra na rede privada, e a página e a sincronização da Prancheta respondem por https num nome da rede privada, com certificado válido, no Boox e no computador.
+- [x] A VPS entra na rede privada, e a página e a sincronização da Prancheta respondem por https num nome da rede privada, com certificado válido, no Boox e no computador.
 - [ ] O endereço público da Prancheta deixa de responder à página e à sincronização.
 - [x] A publicação pelo GitHub continua funcionando e confere, na própria VPS, que a versão nova está no ar e que a sincronização recusa pedidos sem a chave.
 - [ ] As ações de administrador na VPS ficam num roteiro do repositório, executado pelo autor; nenhum nome da rede privada, chave do Tailscale ou endereço entra no repositório.
@@ -49,5 +49,9 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
   - O `scp -r` do guia, com a pasta já existente na VPS, cria uma subpasta, e o roteiro executado seria o antigo; o guia e o cabeçalho do roteiro passaram a apagar a pasta antes da cópia.
   - O primeiro acesso pela rede privada falhou por cerca de 8 minutos com erro de TLS, porque a criação do registro de DNS do certificado falhava no lado do Tailscale, e cessou sozinho; o guia e o roteiro passaram a avisar que isso pode durar alguns minutos.
 - Critério 4 verificado: a publicação disparada à mão em 2026-11-09, pelo GitHub, terminou com "no ar 8021f46…" e "conferido na VPS: a versão 8021f46… está no ar, e a sincronização recusa pedidos sem a chave", pelo comando novo, instalado pelo roteiro.
+
+- Passagem dos aparelhos: no computador, depois de conferir que tudo estava sincronizado pelo endereço público, o autor abriu a Prancheta pelo endereço da rede privada, informou nele o endereço e a chave do computador, e os quadros vieram do servidor. No Boox, trocou o endereço da sincronização pelo da rede privada, com a mesma chave, e sincronizou; depois a sincronização caiu, com "Sem rede", porque o Tailscale do Boox tinha se desconectado, e voltou assim que ele se reconectou. O sistema da Boox costuma congelar os aplicativos em segundo plano; com o endereço público fechado, o Boox só sincroniza com o Tailscale ligado, e a recomendação ao autor é permitir o Tailscale em segundo plano, sem congelamento, e ligar para ele a "VPN sempre ativa" do Android.
+- Critério 2 verificado: a VPS está na rede privada; no computador, a página e a sincronização responderam por https no nome da rede privada, com certificado válido, e no Boox a sincronização respondeu por ele. Na casca, a página vem do APK, e só a sincronização passa pela rede.
+- Segunda fase preparada, a aplicar depois da confirmação do autor de que nenhum quadro se perdeu: o contêiner da Prancheta perde os rótulos do Traefik, e o roteiro deixa de pedir o endereço público, desliga o Traefik da rede da Prancheta sem reiniciá-lo e mostra o trecho a tirar do arquivo dele; o fluxo do GitHub passa a conferir que o endereço público não entrega mais a versão publicada nem uma sincronização que pede a chave. O guia e o do servidor passam a tratar só do endereço da rede privada. Os testes acusam as duas mutações introduzidas: um rótulo do Traefik de volta no contêiner e o roteiro ligando o Traefik à rede.
 
 ## Resultado

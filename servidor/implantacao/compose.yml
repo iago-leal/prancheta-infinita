@@ -3,9 +3,8 @@
 #
 #   docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml up -d
 #
-# /etc/prancheta/ambiente, legível só pelo administrador, define ANFITRIAO, o
-# endereço da Prancheta, que não fica no repositório, e PRANCHETA_UID e
-# PRANCHETA_GID, os da conta prancheta, com que o servidor roda.
+# /etc/prancheta/ambiente, legível só pelo administrador, define PRANCHETA_UID
+# e PRANCHETA_GID, os da conta prancheta, com que o servidor roda.
 #
 # O código vem de /home/prancheta/publicado, que a conta prancheta atualiza a
 # cada publicação, sem acesso ao Docker: o servidor percebe que o atalho
@@ -13,10 +12,12 @@
 # primeira publicação, o contêiner só espera o código chegar.
 #
 # O contêiner não tem privilégios, só lê o próprio sistema de arquivos, fica
-# numa rede só com o Traefik e o Tailscale, sem saída para a internet, e não vê
-# nenhum segredo: as chaves dos aparelhos ficam como resumos em /etc/prancheta/acesso.
+# numa rede só com o Tailscale, sem saída para a internet, e não vê nenhum
+# segredo: as chaves dos aparelhos ficam como resumos em /etc/prancheta/acesso.
 #
-# Pela rede privada, o contêiner tailscale entrega a Prancheta por https, com
+# A Prancheta só responde pela rede privada: o endereço público, que o Traefik
+# entregava até o plano 005, foi fechado, e o contêiner não tem rótulos do
+# Traefik. O contêiner tailscale entrega a Prancheta por https, com
 # o certificado do próprio Tailscale, no nome TAILSCALE_NOME, por padrão
 # prancheta, seguido do nome da rede do autor, que não fica no repositório. Ele
 # fica na rede da Prancheta e numa segunda rede, só para falar com o Tailscale;
@@ -53,23 +54,6 @@ services:
       - /var/lib/prancheta:/dados
       - /etc/prancheta/acesso:/run/prancheta:ro
     networks: [prancheta_borda]
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=prancheta_borda"
-      # A sincronização, em /sync/, vai para a porta que exige a chave.
-      - "traefik.http.routers.prancheta-sincronizacao.rule=Host(`${ANFITRIAO:?defina ANFITRIAO}`) && PathPrefix(`/sync/`)"
-      - "traefik.http.routers.prancheta-sincronizacao.entrypoints=websecure"
-      - "traefik.http.routers.prancheta-sincronizacao.tls=true"
-      - "traefik.http.routers.prancheta-sincronizacao.tls.certresolver=mytlschallenge"
-      - "traefik.http.routers.prancheta-sincronizacao.service=prancheta-sincronizacao"
-      - "traefik.http.services.prancheta-sincronizacao.loadbalancer.server.port=8787"
-      # O resto do endereço é a página.
-      - "traefik.http.routers.prancheta-pagina.rule=Host(`${ANFITRIAO:?defina ANFITRIAO}`)"
-      - "traefik.http.routers.prancheta-pagina.entrypoints=websecure"
-      - "traefik.http.routers.prancheta-pagina.tls=true"
-      - "traefik.http.routers.prancheta-pagina.tls.certresolver=mytlschallenge"
-      - "traefik.http.routers.prancheta-pagina.service=prancheta-pagina"
-      - "traefik.http.services.prancheta-pagina.loadbalancer.server.port=8788"
 
   tailscale:
     image: ${TAILSCALE_IMAGEM:-tailscale/tailscale:stable}
@@ -85,7 +69,7 @@ services:
       TS_ACCEPT_DNS: "false"
       TS_AUTH_ONCE: "true"
       TS_STATE_DIR: /var/lib/tailscale
-      # A página em / e a sincronização em /sync/, como o Traefik faz no endereço público.
+      # A página em / e a sincronização em /sync/, no mesmo endereço.
       TS_SERVE_CONFIG: /config/serve.json
     volumes:
       - /var/lib/prancheta-tailscale:/var/lib/tailscale

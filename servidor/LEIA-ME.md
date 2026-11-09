@@ -13,7 +13,7 @@ PRANCHETA_CHAVE='uma chave longa e aleatória' PRANCHETA_DADOS=/caminho/dos/dado
 | `PRANCHETA_CHAVES_ARQUIVO` | arquivo com o resumo SHA-256 da chave de cada aparelho, uma linha `<nome> <resumo>` por aparelho, relido quando muda; é o modo da VPS | nenhum |
 | `PRANCHETA_CHAVE` | chave única, com pelo menos 32 caracteres, para rodar localmente; sem ela nem o arquivo, o servidor não inicia | nenhum |
 | `PRANCHETA_DADOS` | pasta dos dados | `./dados` |
-| `PRANCHETA_PORTA` e `PRANCHETA_ENDERECO` | onde ouvir a sincronização; na VPS, atrás do Traefik | `8787` e `127.0.0.1` |
+| `PRANCHETA_PORTA` e `PRANCHETA_ENDERECO` | onde ouvir a sincronização; na VPS, atrás do Tailscale | `8787` e `127.0.0.1` |
 | `PRANCHETA_ORIGENS` | origens de navegador aceitas, separadas por vírgula | `https://appassets.androidplatform.net`, a da casca Android |
 | `PRANCHETA_WEB` e `PRANCHETA_PORTA_DA_PAGINA` | pasta da página e porta em que ela é entregue, sem a chave | nenhuma e `8788` |
 | `PRANCHETA_VERSAO` | atalho da versão publicada; quando ele muda, o servidor termina para recomeçar com a versão nova | nenhum |
@@ -105,4 +105,4 @@ A cópia fora da VPS é puxada pelo computador do autor, com uma chave própria:
 PRANCHETA_CHAVE=<chave da cópia> node servidor/copia-de-seguranca.cjs https://<endereço> <pasta>
 ```
 
-Cada execução grava os documentos e os dados dos arquivos numa pasta com a data e a hora, e guarda o conteúdo dos arquivos uma vez só, compartilhado entre as cópias. Para rodar todo dia, agende-a no computador, por exemplo com o launchd no Mac.
+O endereço é o da Prancheta na rede privada, terminado em `.ts.net`, e o computador precisa estar com o Tailscale ligado. Cada execução grava os documentos e os dados dos arquivos numa pasta com a data e a hora, e guarda o conteúdo dos arquivos uma vez só, compartilhado entre as cópias. Para rodar todo dia, agende-a no computador, por exemplo com o launchd no Mac.

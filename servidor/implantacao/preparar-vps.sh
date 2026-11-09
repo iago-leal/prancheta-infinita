@@ -1,7 +1,8 @@
 #!/bin/bash
 # Roteiro do administrador para a Prancheta na VPS, executado uma vez pelo
 # autor e seguro para repetir. Não mexe nos outros serviços: cria só o que é
-# da Prancheta e liga o Traefik a uma rede nova, sem reiniciá-lo.
+# da Prancheta. Com a rede privada, a Prancheta não responde mais pelo
+# endereço público, e o roteiro desliga o Traefik da rede dela, sem reiniciá-lo.
 #
 # Uso, a partir da raiz do repositório, no computador do autor; a pasta é
 # apagada antes da cópia porque, se já existe, o scp -r cria uma subpasta
@@ -9,10 +10,9 @@
 #
 #   ssh <vps> 'rm -rf /root/prancheta-implantacao'
 #   scp -r servidor/implantacao <vps>:/root/prancheta-implantacao
-#   ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh <endereço da Prancheta>'
+#   ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh'
 #
-# O endereço vai só para /etc/prancheta/ambiente, legível pelo administrador,
-# e nunca para o repositório. O roteiro:
+# O roteiro:
 #
 #  1. confere a conta prancheta, criada junto com o canal de publicação, que
 #     ela não está no grupo docker e que nenhum arquivo do administrador, em
@@ -22,11 +22,13 @@
 #  3. cria as pastas: o código publicado, em /home/prancheta/publicado; os
 #     dados, em /var/lib/prancheta; os resumos das chaves, em /etc/prancheta/acesso;
 #     e o login do Tailscale, em /var/lib/prancheta-tailscale;
-#  4. grava /etc/prancheta/ambiente, /opt/prancheta/compose.yml e
+#  4. grava /etc/prancheta/ambiente, com o número da conta prancheta,
+#     /opt/prancheta/compose.yml e
 #     /opt/prancheta/tailscale-serve.json, o que o Tailscale entrega pela rede privada;
-#  5. cria a rede prancheta_borda, sem saída para a internet, e liga o Traefik
-#     a ela sem reiniciá-lo; se o arquivo do Traefik ainda não a declara,
-#     mostra o trecho a acrescentar, para que ela continue lá quando ele for recriado;
+#  5. cria a rede prancheta_borda, sem saída para a internet, só da Prancheta
+#     e do Tailscale; se o Traefik ainda está ligado a ela, do tempo do
+#     endereço público, desliga-o sem reiniciá-lo e, se o arquivo dele ainda a
+#     declara, mostra o trecho a tirar;
 #  6. liga os contêineres: o da Prancheta, que espera a primeira publicação se
 #     o código ainda não chegou, e o do Tailscale;
 #  7. se o Tailscale ainda não tem login, faz o login num contêiner provisório,
@@ -41,7 +43,6 @@
 
 set -euo pipefail
 
-ANFITRIAO="${1:-}"
 AQUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TRAEFIK="${TRAEFIK:-root-traefik-1}"
 COMPOSE_DO_TRAEFIK="${COMPOSE_DO_TRAEFIK:-/root/docker-compose.yml}"
@@ -52,8 +53,7 @@ passo() { printf '\n== %s\n' "$1"; }
 falhar() { echo "ERRO: $1" >&2; exit 1; }
 
 (( EUID == 0 )) || falhar "rode como administrador (root)"
-[[ "$ANFITRIAO" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$ ]] \
-  || falhar "uso: preparar-vps.sh <endereço da Prancheta, como prancheta.exemplo.com>"
+(( $# == 0 )) || echo "AVISO: o endereço público não é mais usado; o argumento foi ignorado"
 for arquivo in prancheta-publicar prancheta-chave compose.yml tailscale-serve.json; do
   [[ -f "$AQUI/$arquivo" ]] || falhar "falta $arquivo ao lado do roteiro; copie a pasta servidor/implantacao inteira"
 done
@@ -96,7 +96,7 @@ echo "login do Tailscale em /var/lib/prancheta-tailscale"
 
 passo "4. Ambiente e contêiner"
 umask 077
-printf 'ANFITRIAO=%s\nPRANCHETA_UID=%s\nPRANCHETA_GID=%s\n' "$ANFITRIAO" "$PRANCHETA_UID" "$PRANCHETA_GID" > /etc/prancheta/ambiente.novo
+printf 'PRANCHETA_UID=%s\nPRANCHETA_GID=%s\n' "$PRANCHETA_UID" "$PRANCHETA_GID" > /etc/prancheta/ambiente.novo
 mv -f /etc/prancheta/ambiente.novo /etc/prancheta/ambiente
 umask 022
 install -o root -g root -m 0644 "$AQUI/compose.yml" /opt/prancheta/compose.yml
@@ -109,28 +109,29 @@ if ! docker network inspect "$REDE" > /dev/null 2>&1; then
   docker network create --internal "$REDE" > /dev/null
   echo "rede $REDE criada"
 fi
-if docker inspect -f '{{json .NetworkSettings.Networks}}' "$TRAEFIK" | grep -q "\"$REDE\""; then
-  echo "o Traefik já está na rede $REDE"
+# Até o plano 005, o Traefik entregava a Prancheta no endereço público, ligado
+# a esta rede; agora ela só responde pela rede privada.
+if docker inspect "$TRAEFIK" > /dev/null 2>&1 \
+  && docker inspect -f '{{json .NetworkSettings.Networks}}' "$TRAEFIK" | grep -q "\"$REDE\""; then
+  docker network disconnect "$REDE" "$TRAEFIK"
+  echo "Traefik desligado da rede $REDE, sem reiniciar: o endereço público não entrega mais a Prancheta"
 else
-  docker network connect "$REDE" "$TRAEFIK"
-  echo "Traefik ligado à rede $REDE, sem reiniciar"
+  echo "o Traefik não está na rede $REDE"
 fi
 if grep -qs "$REDE" "$COMPOSE_DO_TRAEFIK"; then
-  echo "o arquivo do Traefik já declara a rede $REDE"
-else
   cat <<AVISO
-PENDENTE: acrescente a rede $REDE ao arquivo $COMPOSE_DO_TRAEFIK, para que ela
-continue ligada quando o Traefik for recriado. São dois pontos, preservando as
-redes que já estão lá:
+PENDENTE: tire a rede $REDE do arquivo $COMPOSE_DO_TRAEFIK, para que o Traefik
+não volte a se ligar a ela quando for recriado. São dois pontos, preservando as
+outras redes:
 
-  na lista networks do serviço traefik:
+  na lista networks do serviço traefik, a linha:
       - $REDE
 
-  no bloco networks de topo:
+  no bloco networks de topo, o trecho:
     $REDE:
       external: true
 
-Não é preciso recriar o Traefik agora: ele já está ligado à rede.
+Não é preciso recriar o Traefik agora: ele já foi desligado da rede.
 AVISO
 fi
 
@@ -206,5 +207,5 @@ if [[ ! -L "$CASA/publicado/atual" ]]; then
   echo "- faça a primeira publicação: no GitHub, Actions, Publicar na VPS, Run workflow;"
   echo "  o contêiner começa a responder alguns segundos depois de o código chegar"
 fi
-echo "- para o GitHub conferir cada publicação, cadastre o segredo VPS_PRANCHETA_ANFITRIAO com o endereço"
-echo "- endereço público da Prancheta, enquanto estiver aberto: https://$ANFITRIAO"
+echo "- o segredo VPS_PRANCHETA_ANFITRIAO, com o endereço público antigo, faz o GitHub conferir, a cada"
+echo "  publicação, que ele não entrega mais a Prancheta"

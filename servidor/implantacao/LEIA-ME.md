@@ -1,13 +1,13 @@
 # Implantação na VPS
 
-A Prancheta roda na VPS num contêiner próprio, atrás do Traefik, que já emite os certificados e encaminha cada endereço. O mesmo endereço entrega a página, `web/app/`, e a sincronização, em `/sync/`, de modo que o navegador do computador não precisa de nada além dele. O endereço nunca entra no repositório: fica em `/etc/prancheta/ambiente`, legível só pelo administrador, e no segredo opcional do GitHub.
+A Prancheta roda na VPS num contêiner próprio e só responde pela rede privada do Tailscale, num endereço terminado em `.ts.net`, que entrega a página, `web/app/`, e a sincronização, em `/sync/`, de modo que o navegador do computador não precisa de nada além dele. Até o plano 005, ela respondia num endereço público, pelo Traefik da VPS; esse endereço foi fechado. Nenhum dos dois endereços entra no repositório: o antigo fica só no segredo opcional do GitHub, que confere que ele está fechado, e o da rede privada, só nos aparelhos.
 
 ## Arquivos
 
 | Arquivo | O que é | Onde fica na VPS |
 |---|---|---|
 | `preparar-vps.sh` | roteiro do administrador, executado uma vez e seguro para repetir | não fica instalado |
-| `compose.yml` | os contêineres da Prancheta, com os rótulos do Traefik, e do Tailscale | `/opt/prancheta/compose.yml` |
+| `compose.yml` | os contêineres da Prancheta e do Tailscale | `/opt/prancheta/compose.yml` |
 | `tailscale-serve.json` | o que o Tailscale entrega pela rede privada: a página em `/` e a sincronização em `/sync/` | `/opt/prancheta/tailscale-serve.json` |
 | `prancheta-publicar` | comando forçado da conta `prancheta`, a única coisa que a chave do GitHub executa | `/usr/local/bin/prancheta-publicar` |
 | `prancheta-chave` | cria, lista e revoga as chaves dos aparelhos | `/usr/local/sbin/prancheta-chave` |
@@ -19,12 +19,12 @@ No computador do autor, a partir da raiz do repositório:
 ```sh
 ssh <vps> 'rm -rf /root/prancheta-implantacao'
 scp -r servidor/implantacao <vps>:/root/prancheta-implantacao
-ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh <endereço da Prancheta>'
+ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh'
 ```
 
 A pasta é apagada antes da cópia porque, se ela já existe, o `scp -r` cria uma subpasta dentro dela, e o roteiro executado seria o antigo.
 
-O roteiro confere a conta `prancheta`, criada junto com o canal de publicação, e se recusa a seguir se ela estiver no grupo `docker`, o que equivaleria a dar a ela acesso de administrador, ou se algum arquivo do administrador, em `/root` e `/etc`, tiver o mesmo dono numérico que ela, porque o servidor da Prancheta roda com esse número. Em seguida, instala os dois comandos, cria as pastas, grava o ambiente e o `compose.yml`, cria a rede `prancheta_borda`, sem saída para a internet, liga o Traefik a ela sem reiniciá-lo e liga o contêiner. Ele não edita o arquivo do Traefik: se a rede ainda não estiver declarada nele, mostra o trecho a acrescentar, para que ela continue lá quando o Traefik for recriado.
+O roteiro confere a conta `prancheta`, criada junto com o canal de publicação, e se recusa a seguir se ela estiver no grupo `docker`, o que equivaleria a dar a ela acesso de administrador, ou se algum arquivo do administrador, em `/root` e `/etc`, tiver o mesmo dono numérico que ela, porque o servidor da Prancheta roda com esse número. Em seguida, instala os dois comandos, cria as pastas, grava o ambiente e o `compose.yml`, cria a rede `prancheta_borda`, sem saída para a internet, só da Prancheta e do Tailscale, e liga os contêineres. Se o Traefik ainda estiver ligado a essa rede, do tempo do endereço público, o roteiro o desliga sem reiniciá-lo. Ele não edita o arquivo do Traefik: se a rede ainda estiver declarada nele, mostra o trecho a tirar, para que o Traefik não volte a se ligar a ela quando for recriado.
 
 Depois, crie uma chave para cada aparelho. Cada chave aparece uma única vez, para ser digitada no botão "Sincronizar" da Prancheta daquele aparelho, junto com o endereço:
 
@@ -36,11 +36,11 @@ prancheta-chave nova copia
 
 O servidor guarda só o resumo SHA-256 de cada chave, em `/etc/prancheta/acesso/chaves`, e relê o arquivo quando ele muda. Para desligar um aparelho perdido, `prancheta-chave revogar boox` vale na hora, sem trocar a chave dos outros.
 
-Por fim, no GitHub, cadastre o segredo `VPS_PRANCHETA_ANFITRIAO` com o endereço, para que cada publicação confira que a versão nova entrou no ar, e faça a primeira publicação em Actions, "Publicar na VPS", "Run workflow".
+Por fim, faça a primeira publicação no GitHub, em Actions, "Publicar na VPS", "Run workflow". O segredo opcional `VPS_PRANCHETA_ANFITRIAO`, com o endereço público antigo, faz cada publicação conferir que ele não entrega mais a Prancheta.
 
 ## Rede privada
 
-Pelo plano 005, a Prancheta passa a responder pela rede privada do Tailscale, e o endereço público fecha depois que os aparelhos estiverem nela. O contêiner `tailscale`, ao lado do da Prancheta, entrega por https, com o certificado do próprio Tailscale, a página e a sincronização num nome terminado em `.ts.net`. Ele fica na rede da Prancheta e numa segunda rede, `prancheta_saida`, só para falar com o Tailscale; roda no modo sem interface de rede do sistema, sem nenhum privilégio, e guarda o login em `/var/lib/prancheta-tailscale`. O contêiner da Prancheta continua sem saída para a internet.
+Pelo plano 005, a Prancheta passou a responder pela rede privada do Tailscale, e o endereço público foi fechado depois que o Boox e o computador passaram para ela. Com isso, os aparelhos só sincronizam com o Tailscale ligado; no Boox, deixe o Tailscale rodar em segundo plano, sem congelamento, e ligue para ele a "VPN sempre ativa" do Android, porque o sistema da Boox o desliga quando a tela apaga. O contêiner `tailscale`, ao lado do da Prancheta, entrega por https, com o certificado do próprio Tailscale, a página e a sincronização num nome terminado em `.ts.net`. Ele fica na rede da Prancheta e numa segunda rede, `prancheta_saida`, só para falar com o Tailscale; roda no modo sem interface de rede do sistema, sem nenhum privilégio, e guarda o login em `/var/lib/prancheta-tailscale`. O contêiner da Prancheta continua sem saída para a internet.
 
 Antes de rodar o roteiro, no painel do Tailscale, em DNS, deixe ligados o MagicDNS e os certificados HTTPS. Na primeira vez, o roteiro mostra um endereço de login: abra-o logado na sua conta do Tailscale para aprovar a máquina `prancheta` e, no painel, desative a expiração da chave dela, em Machines. Rode o roteiro de novo para ver o endereço da Prancheta na rede privada. Nenhuma chave do Tailscale é guardada, e o nome da rede não entra no repositório.
 
