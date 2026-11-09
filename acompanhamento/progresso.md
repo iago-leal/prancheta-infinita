@@ -17,12 +17,12 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 ### Decidido
 
 - **Desfazer e refazer por dois toques seguidos.** Por sugestão do autor, que usa esses gestos, no lugar de desligá-los no Boox.
+- **Controle de sensibilidade à pressão adiado.** O SDK da Onyx não permite aplicá-lo ao traço provisório, e aplicá-lo só ao definitivo faria o traço mudar na troca; o autor decide depois de testar a 0.3.5 se ele ainda faz falta.
 
 ### Pendências
 
 - O autor atualizar para a 0.3.5 e confirmar no Boox que o traço forte não afina mais na troca, para fechar o critério 5 e verificar os critérios 1 e 2 da etapa 02; com ela, o plano 003 se encerra.
 - O autor confirmar que a mão apoiada não move mais o quadro e que a barra no alto ficou boa.
-- O autor decidir o que fazer com o controle de sensibilidade à pressão, que o SDK da Onyx não permite aplicar ao traço provisório.
 
 ## 2026-11-09 · Etapa 05 do plano 003 concluída: Boox e computador sincronizam pela VPS
 
