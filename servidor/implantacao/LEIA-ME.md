@@ -75,7 +75,7 @@ O servidor roda com a conta `prancheta`, sem privilégios, com o sistema de arqu
 Cada versão aceita de um documento fica por 30 dias em `/var/lib/prancheta/historico/`. Para consultar:
 
 ```sh
-docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec -T servidor \
   node atual/servidor/historico.cjs /dados listar canvas-shards/<id>
 ```
 
@@ -92,14 +92,14 @@ Pelo plano 005, os quadros chegam à VPS cifrados pelos aparelhos, e ela não te
 5. Na VPS, como administrador, conferir e tirar do histórico as versões legíveis:
 
 ```sh
-docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec -T servidor \
   node atual/servidor/cifra.cjs /dados conferir
-docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec -T servidor \
   node atual/servidor/cifra.cjs /dados apagar-legiveis
-docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec -T servidor \
   node atual/servidor/cifra.cjs /dados conferir
 ```
 
-A limpeza só apaga se todos os documentos e arquivos atuais estiverem cifrados com a chave do servidor; senão, mostra o que falta e não apaga nada. Ela pode rodar com o servidor no ar. Apagar um arquivo não sobrescreve o disco, e as cópias e os instantâneos da VPS feitos pela Hostinger antes da limpeza guardam os quadros legíveis até expirarem; eles podem ser apagados no painel da Hostinger.
+O `-T` deixa os comandos rodarem também por uma conexão sem terminal, como a de uma sessão que os executa por ssh. A limpeza só apaga se todos os documentos e arquivos atuais estiverem cifrados com a chave do servidor; senão, mostra o que falta e não apaga nada. Ela pode rodar com o servidor no ar. Apagar um arquivo não sobrescreve o disco, e as cópias e os instantâneos da VPS feitos pela Hostinger antes da limpeza guardam os quadros legíveis até expirarem; eles podem ser apagados no painel da Hostinger.
 
 A chave da cifra nunca passa pela VPS, pelo repositório ou por uma sessão do Claude: ela é criada num aparelho, guardada no Bitwarden e digitada ou colada pelo autor nos outros.

@@ -37,11 +37,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, concluída no mesmo dia; 02 cifra ponta a ponta dos quadros, implementada e com os testes passando, a publicar com a casca 0.5.0 e a aplicar nos aparelhos; 03 biblioteca do WebDAV entregue pela Prancheta; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
+Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, concluída no mesmo dia; 02 cifra ponta a ponta dos quadros, publicada com a casca 0.5.0 e aplicada nos aparelhos, com a VPS só com dados cifrados desde a limpeza de 2026-11-09, faltando a confirmação do autor nos aparelhos; 03 biblioteca do WebDAV entregue pela Prancheta; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
 
 ## Próximo passo
 
-Mesclar a etapa 02 do plano 005, que publica a página e o servidor com a cifra e a casca 0.5.0; o autor instala a casca no Boox, confere que tudo está sincronizado, cria a chave no computador, guarda-a no Bitwarden, informa-a no Boox e, pela sessão do Mac, roda na VPS a conferência e a limpeza descritas em `servidor/implantacao/LEIA-ME.md`; depois, verificar os critérios restantes. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Concluir a etapa 02 do plano 005 com a confirmação do autor: os quadros sincronizam nos dois aparelhos sem perda, o Boox pediu a chave antes de recebê-la e uma chave errada é recusada; depois, detalhar com ele a etapa 03, a biblioteca do WebDAV. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
