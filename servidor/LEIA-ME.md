@@ -33,6 +33,17 @@ A página, entregue por `servidor/pagina.cjs` na outra porta, responde sem a cha
 
 Em cada aparelho, a Prancheta recebe o endereço do servidor e a chave uma única vez, pelo botão "Sincronizar", ao lado do indicador "Salvo", e os guarda no banco local, fora do código. A partir daí, ela sincroniza sozinha sempre que há rede, pelo módulo `web/app/compat/sincronizacao.js`, e o botão mostra a situação: "Sincronizado", "Sincronizando…", "Sem rede" ou "Erro ao sincronizar". O endereço é a raiz do servidor, sem `/sync`.
 
+## Cifra ponta a ponta
+
+Desde a etapa 02 do plano 005, os quadros saem cifrados dos aparelhos, e o servidor guarda e entrega só dados que ele não consegue ler. A cifra é AES-GCM, numa chave aleatória de 256 bits, feita por `web/app/compat/cifra.js`:
+
+- No diálogo "Sincronizar", o primeiro aparelho cria a chave, mostrada uma única vez em 13 grupos de 4 letras e algarismos, para ser guardada no Bitwarden; depois de "Já guardei no Bitwarden", ele reenvia todos os documentos e arquivos, já cifrados. Nos outros aparelhos, a mesma chave é informada no mesmo diálogo. A chave nunca vai ao servidor: o banco local guarda só a chave derivada dela, que o navegador usa sem deixar ler de volta, e um identificador curto, que não permite reconstruí-la.
+- O documento vai com `dados` no formato `{"cifra": 1, "chave": "<identificador>", "iv": "...", "conteudo": "..."}`, com o caminho, a versão, o horário e o aparelho como dados associados da cifra; o arquivo vai como `PRCIFRA1`, o identificador da chave, o vetor inicial e o tipo e o conteúdo cifrados.
+- A primeira gravação cifrada liga a cifra no servidor, com o identificador da chave dela, anotado em `cifra.json`. A partir daí, ele recusa com 409 as gravações legíveis, `cifra_exigida`, e as de outra chave, `cifra_diferente`; um arquivo legível pode dar lugar ao mesmo arquivo cifrado, com o mesmo id, uma vez.
+- A lista de mudanças traz `"cifra": {"chave": "<identificador>", "desde": P}`, ou `null` antes da primeira gravação cifrada. Um aparelho sem a chave, ou com outra, para de sincronizar e pede a chave, sem aplicar nem enviar nada; um aparelho com a chave recusa um conteúdo alterado ou trocado de documento e o que chegar legível depois da posição `P`.
+- Continuam visíveis para o servidor o caminho de cada documento, com identificadores aleatórios, a versão, os horários, o aparelho e o tamanho de cada item. O banco local de cada aparelho continua legível.
+- Sem a chave, os dados do servidor e das cópias de segurança não podem ser lidos: a recuperação depende do Bitwarden ou de um aparelho que ainda tenha os quadros.
+
 A página da Prancheta precisa ter a origem aceita pelo servidor: a da casca Android já vem no padrão; no navegador do computador, a Prancheta servida pelo mesmo endereço do servidor não precisa de nada, e servida de outro endereço precisa entrar em `PRANCHETA_ORIGENS`.
 
 ## Rotas
@@ -69,20 +80,21 @@ Uma mudança cuja versão atual no servidor veio de uma mudança anterior do mes
 Lista o que mudou depois da posição `P`: a versão atual de cada documento e os dados de cada arquivo enviado, uma vez cada, na ordem da última mudança, no máximo `L` itens, até 500.
 
 ```json
-{ "posicao": 9, "mais": false, "documentos": [{ "pos": 7, "registro": {...} }], "arquivos": [{ "pos": 9, "id": "...", "tipo": "image/png", "bytes": 1234, "sha256": "...", "criadoEm": 1762600000000, "dispositivo": "..." }] }
+{ "posicao": 9, "mais": false, "documentos": [{ "pos": 7, "registro": {...} }], "arquivos": [{ "pos": 9, "id": "...", "tipo": "image/png", "bytes": 1234, "sha256": "...", "criadoEm": 1762600000000, "dispositivo": "..." }], "cifra": null }
 ```
 
 O aparelho guarda `posicao` e pede de novo a partir dela; com `mais`, há outra página.
 
 ### `PUT /sync/arquivos/<id>` e `GET /sync/arquivos/<id>`
 
-O corpo é o arquivo, com `Content-Type`, `X-Prancheta-Dispositivo` e, se houver, `X-Prancheta-Criado-Em`. O id é o do banco local, de 8 a 64 caracteres entre letras, números, `_` e `-`. O mesmo arquivo reenviado é `repetido`; outro conteúdo com um id já usado é recusado com 409. O limite é de 25 MB.
+O corpo é o arquivo, com `Content-Type`, `X-Prancheta-Dispositivo` e, se houver, `X-Prancheta-Criado-Em`. O id é o do banco local, de 8 a 64 caracteres entre letras, números, `_` e `-`. O mesmo arquivo reenviado é `repetido`; outro conteúdo com um id já usado é recusado com 409 e `conflito`, exceto o mesmo arquivo cifrado no lugar do legível. Com a cifra, o `Content-Type` é `application/octet-stream`, e o tipo vai dentro da cifra. O limite é de 25 MB.
 
 ## Dados em disco
 
 - `registro.jsonl`: uma linha por mudança aceita, com a posição, o caminho, o aparelho e o número da mudança.
 - `documentos/<sha256 do caminho>.json`: a versão atual de cada documento.
 - `arquivos/<id>.bin` e `arquivos/<id>.json`: cada arquivo e os dados dele.
+- `cifra.json`: o identificador da chave da cifra e a posição em que ela foi ligada.
 
 Cada gravação vai para um arquivo temporário e é renomeada, e só depois entra a linha do registro. Ao abrir, uma linha cortada no fim do registro é descartada, e um documento gravado sem a sua linha, por uma queda entre as duas gravações, ganha a linha que faltava.
 
@@ -99,10 +111,21 @@ node servidor/historico.cjs <pasta dos dados> listar canvas-shards/<id>
 node servidor/historico.cjs <pasta dos dados> mostrar canvas-shards/<id> <posição>
 ```
 
+Com a cifra, as versões guardadas estão cifradas, e `mostrar` imprime o envelope; para recriar a versão num aparelho, ela precisa ser decifrada lá, com a chave.
+
+Para conferir que nada legível ficou na pasta dos dados e, depois da troca para a cifra, tirar do histórico as versões legíveis:
+
+```sh
+node servidor/cifra.cjs <pasta dos dados> conferir
+node servidor/cifra.cjs <pasta dos dados> apagar-legiveis
+```
+
+`conferir` só lê e termina com erro se algum documento atual, arquivo ou versão do histórico não estiver cifrado com a chave do servidor. `apagar-legiveis` só apaga se a cifra estiver ligada e todos os documentos e arquivos atuais estiverem cifrados ou apagados; pode rodar com o servidor no ar.
+
 A cópia fora da VPS é puxada pelo computador do autor, com uma chave própria:
 
 ```sh
 PRANCHETA_CHAVE=<chave da cópia> node servidor/copia-de-seguranca.cjs https://<endereço> <pasta>
 ```
 
-O endereço é o da Prancheta na rede privada, terminado em `.ts.net`, e o computador precisa estar com o Tailscale ligado. Cada execução grava os documentos e os dados dos arquivos numa pasta com a data e a hora, e guarda o conteúdo dos arquivos uma vez só, compartilhado entre as cópias. Para rodar todo dia, agende-a no computador, por exemplo com o launchd no Mac.
+O endereço é o da Prancheta na rede privada, terminado em `.ts.net`, e o computador precisa estar com o Tailscale ligado. Cada execução grava os documentos e os dados dos arquivos numa pasta com a data e a hora, e guarda o conteúdo dos arquivos uma vez só, compartilhado entre as cópias. Com a cifra, a cópia também fica cifrada, e restaurá-la continua sendo devolvê-la ao servidor; as cópias feitas antes da cifra continuam legíveis, no computador. Para rodar todo dia, agende-a no computador, por exemplo com o launchd no Mac.

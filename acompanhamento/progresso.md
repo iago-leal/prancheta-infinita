@@ -6,6 +6,36 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Cifra ponta a ponta implementada
+
+### Feito
+
+- O autor aprovou os critérios da [etapa 02 do plano 005](planos/005-livros-e-pdfs/etapas/02-cifra-ponta-a-ponta.md), e a cifra foi implementada: os quadros e os arquivos saem dos aparelhos cifrados com AES-GCM, numa chave criada no primeiro aparelho e guardada no Bitwarden; o servidor guarda só o cifrado e, depois da primeira gravação cifrada, recusa o legível e outra chave; um comando na VPS confere tudo e só então tira do histórico as versões legíveis. A casca vai para a 0.5.0, porque a página do Boox vem dentro dela.
+- Critério 6 verificado por mutações; os outros dependem da publicação e da troca nos aparelhos.
+
+### Decidido
+
+- **Cifra ponta a ponta com chave no Bitwarden.** A decisão vigente dizia que a cifra seria ponta a ponta, com a senha só nos aparelhos; o autor escolheu uma chave aleatória, criada no primeiro aparelho e guardada só no Bitwarden, em vez de uma senha memorizada, e mandou apagar da VPS as versões legíveis depois da troca.
+
+### Pendências
+
+- Mesclar, publicar, instalar a casca 0.5.0 no Boox, fazer a troca nos aparelhos e rodar a limpeza na VPS, pela sessão do Mac.
+
+## 2026-11-09 · Rede privada concluída, endereço público fechado
+
+### Feito
+
+- A [etapa 01 do plano 005](planos/005-livros-e-pdfs/etapas/01-rede-privada.md) foi concluída. A sessão do Mac, com a aprovação do autor, implantou o Tailscale na VPS e depois fechou o endereço público; o computador e o Boox sincronizam pela rede privada, sem perda de quadros, e cada publicação é conferida na própria VPS e confere que o endereço público não entrega mais a Prancheta.
+- O roteiro passou a fazer o login do Tailscale num contêiner provisório, sem prazo, depois que o do serviço, com 60 segundos, fez a primeira aprovação do autor cair num endereço morto.
+
+### Decidido
+
+- **Só a rede privada.** A decisão vigente dizia que a página ficava aberta pela internet, porque é o código público; agora a página e a sincronização só respondem pela rede privada do Tailscale, como o autor escolheu no plano 005.
+
+### Pendências
+
+- Detalhar com o autor a etapa 02 do plano 005, cifra ponta a ponta dos quadros.
+
 ## 2026-11-09 · Rede privada, primeira fase, e controle de sensibilidade retirado
 
 ### Feito

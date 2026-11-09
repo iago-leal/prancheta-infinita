@@ -14,11 +14,12 @@ module.exports = [
     para: `<link rel="stylesheet" href="fontes/inter.css">`,
   },
   {
-    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; vêm junto a sincronização com o servidor e a combinação item a item que ela usa, o adaptador da casca Android, que não faz nada fora dela, e o desenho dos traços feitos no Boox.',
+    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; vêm junto a sincronização com o servidor, a combinação item a item e a cifra ponta a ponta que ela usa, o adaptador da casca Android, que não faz nada fora dela, e o desenho dos traços feitos no Boox.',
     de: `<title>Prancheta Infinita</title>`,
     para: `<title>Prancheta Infinita</title>
 <script src="compat/banco-local.js"></script>
 <script src="compat/combinar.js"></script>
+<script src="compat/cifra.js"></script>
 <script src="compat/sincronizacao.js"></script>
 <script src="compat/claude.js"></script>
 <script src="compat/casca.js"></script>

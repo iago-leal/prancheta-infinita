@@ -487,15 +487,24 @@
       await concluida(transacao);
     }
 
-    // Para um servidor novo: esquece as bases e a posição e marca todos os
-    // documentos e arquivos para envio.
+    // Para um servidor novo: esquece as bases, a posição e a cifra que o
+    // servidor anterior informou e marca todos os documentos e arquivos para envio.
     async _prepararParaOutroServidor() {
+      return this._marcarTudoParaEnvio({ esquecerOServidor: true });
+    }
+
+    // Marca todos os documentos e arquivos para envio, como quando a cifra é
+    // ligada no primeiro aparelho e tudo precisa subir de novo, cifrado.
+    async _marcarTudoParaEnvio({ esquecerOServidor = false } = {}) {
       const transacao = this._transacao(['documentos', 'arquivos', 'mudancas', 'meta'], 'readwrite');
       const fim = concluida(transacao);
       fim.catch(() => {});
-      const meta = transacao.objectStore('meta');
-      meta.delete(IDBKeyRange.bound('base:', 'base:\uffff'));
-      meta.delete('sinc:posicao');
+      if (esquecerOServidor) {
+        const meta = transacao.objectStore('meta');
+        meta.delete(IDBKeyRange.bound('base:', 'base:\uffff'));
+        meta.delete('sinc:posicao');
+        meta.delete('sinc:cifra-do-servidor');
+      }
       const mudancas = transacao.objectStore('mudancas');
       const agora = Date.now();
       for (const r of await aguardar(transacao.objectStore('documentos').getAll())) {
