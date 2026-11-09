@@ -11,7 +11,9 @@
 #
 # Segredos: VPS_PRANCHETA_ENDERECO, VPS_PRANCHETA_CHAVE e
 # VPS_PRANCHETA_HOSTS_CONHECIDOS, para a conexão; VPS_PRANCHETA_ANFITRIAO,
-# opcional, o endereço da Prancheta, para conferir que a versão entrou no ar.
+# opcional, o endereço público antigo da Prancheta, para conferir que ele está
+# fechado. A versão no ar é conferida na própria VPS, pelo comando de
+# publicação, porque a Prancheta só responde pela rede privada.
 name: Publicar na VPS
 
 on:
@@ -78,33 +80,20 @@ jobs:
             echo "::warning::o comando de publicação da VPS ainda é o antigo, sem a conferência no ar; rode de novo o roteiro preparar-vps.sh"
           fi
 
-      # Enquanto o endereço público estiver aberto, a versão também é conferida nele.
-      - name: Conferir a versão no endereço público
+      # Com a rede privada, o endereço público antigo não pode mais entregar a
+      # Prancheta: nem a versão publicada nem uma sincronização que pede a chave.
+      - name: Conferir que o endereço público está fechado
         env:
           ANFITRIAO: ${{ secrets.VPS_PRANCHETA_ANFITRIAO }}
         run: |
           if [ -z "$ANFITRIAO" ]; then
-            echo "::notice::cadastre o segredo VPS_PRANCHETA_ANFITRIAO para conferir cada publicação"
+            echo "::notice::cadastre o segredo VPS_PRANCHETA_ANFITRIAO, com o endereço público antigo, para conferir que ele está fechado"
             exit 0
           fi
-          no_ar=nao
-          for tentativa in $(seq 1 36); do
-            if [ "$(curl -fsS --max-time 10 "https://$ANFITRIAO/versao.txt" 2>/dev/null)" = "$GITHUB_SHA" ]; then
-              no_ar=sim
-              break
-            fi
-            sleep 5
-          done
-          if [ "$no_ar" != sim ]; then
-            echo "a versão publicada não respondeu no endereço em 3 minutos"
+          versao=$(curl -sS --max-time 10 "https://$ANFITRIAO/versao.txt" 2>/dev/null || true)
+          sincronizacao=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "https://$ANFITRIAO/sync/estado" 2>/dev/null || true)
+          if [ "$versao" = "$GITHUB_SHA" ] || [ "$sincronizacao" = 401 ]; then
+            echo "o endereço público ainda entrega a Prancheta (sincronização: $sincronizacao); rode o roteiro preparar-vps.sh na VPS"
             exit 1
           fi
-          echo "a versão $GITHUB_SHA responde no endereço da Prancheta"
-          # A sincronização recusa quem não tem uma chave válida, no endereço real.
-          sem_chave=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' "https://$ANFITRIAO/sync/estado")
-          chave_errada=$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' -H "Authorization: Bearer chave-errada-$GITHUB_RUN_ID-com-mais-de-32-caracteres" "https://$ANFITRIAO/sync/estado")
-          if [ "$sem_chave" != 401 ] || [ "$chave_errada" != 401 ]; then
-            echo "a sincronização respondeu $sem_chave sem a chave e $chave_errada com uma chave errada, e não 401"
-            exit 1
-          fi
-          echo "a sincronização recusa pedidos sem a chave e com uma chave errada"
+          echo "o endereço público não entrega mais a Prancheta (sincronização: ${sincronizacao:-sem resposta})"

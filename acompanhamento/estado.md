@@ -40,15 +40,13 @@ Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a 
 
 ## Próximo passo
 
-O Boox e os outros aparelhos já estão no Tailscale, e a casca escreve igual com ele ligado. O autor ativa o MagicDNS e os certificados https no painel do Tailscale, roda o roteiro `servidor/implantacao/preparar-vps.sh` na sessão do Mac, aprova a máquina `prancheta` e desativa a expiração da chave dela; depois, sincroniza tudo e passa o Boox e o computador para o endereço da rede privada. Em seguida vem a segunda fase: fechar o endereço público e fazer o GitHub conferir que ele não responde mais. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O computador e o Boox já sincronizam pela rede privada; no Boox, o Tailscale precisa ficar sempre ligado, com a "VPN sempre ativa". Com a confirmação do autor de que nenhum quadro se perdeu, a segunda fase, pronta no PR #33, fecha o endereço público: a sessão do Mac roda o roteiro a partir do ramo do PR, e depois o PR é mesclado, para a publicação conferir que o endereço público está fechado. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
-1. 001: experimento da casca Android, concluído.
-2. 002: Prancheta independente do claude.ai, concluído.
-3. 003: Prancheta no Boox e sincronização com a VPS, concluído.
-4. 004: modo e-ink e ferramentas de reorganização, concluído.
-5. 005: livros e PDFs, com a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra ponta a ponta, ativo.
+1. 001 a 004, concluídos: experimento da casca Android, Prancheta independente do claude.ai, Prancheta no Boox e sincronização com a VPS, e modo e-ink.
+2. 005: livros e PDFs, com a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra ponta a ponta, ativo.
+3. Publicação no catálogo de aplicativos de código aberto da Hostinger, com o botão "Implantar no Hostinger" no LEIA-ME e comissão sobre as hospedagens compradas por ele, pedida pelo autor para depois do 005; exige uma licença de código aberto e uma implantação genérica, sem o Tailscale e sem nada da VPS do autor.
 
 ## Ambiente de nuvem
 

@@ -17,6 +17,10 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 
 - **Controle de sensibilidade retirado.** A decisão vigente dizia que a sensibilidade ia de 0 a 100%, com 90% igual ao traço anterior. O autor achou o controle ruim e viu, mesmo a 90%, o traço variar da prévia ao traço final; a página e a casca voltaram ao código da 0.3.9 nesse ponto.
 
+### Ideias guardadas
+
+- Publicar a Prancheta no catálogo de aplicativos de código aberto da Hostinger, que põe no LEIA-ME um botão "Implantar no Hostinger" com o código de indicação do autor e paga 20% de comissão sobre os aplicativos web ou a hospedagem VPS comprados por ele; o autor quer fazer isso depois do plano 005. Antes, será preciso escolher uma licença de código aberto, que o repositório ainda não tem, e montar uma implantação genérica, só com o servidor e a página, sem o Tailscale, sem o Traefik e sem nada que identifique a VPS do autor.
+
 ### Pendências
 
 - O autor rodar o roteiro da VPS, aprovar a máquina `prancheta` no Tailscale e passar o Boox e o computador para o endereço da rede privada.

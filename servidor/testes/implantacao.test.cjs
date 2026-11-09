@@ -270,27 +270,31 @@ test('pela rede privada, o Tailscale entrega a página e a sincronização por h
   assert.match(fs.readFileSync(path.join(PASTA, 'preparar-vps.sh'), 'utf8'), /tailscale-serve\.json" \/opt\/prancheta\/tailscale-serve\.json/);
 });
 
-test('o roteiro tem sintaxe válida, e o contêiner só monta com o endereço vindo do ambiente', (t) => {
+test('o roteiro tem sintaxe válida, e a Prancheta não é entregue pelo endereço público', (t) => {
   for (const script of ['preparar-vps.sh', 'prancheta-publicar', 'prancheta-chave']) {
     const r = spawnSync('bash', ['-n', path.join(PASTA, script)], { encoding: 'utf8' });
     assert.equal(r.status, 0, `${script}: ${r.stderr}`);
     assert.ok(fs.statSync(path.join(PASTA, script)).mode & 0o111, `${script} sem permissão de execução`);
   }
+  // O roteiro desliga o Traefik da rede da Prancheta e nunca o liga a ela.
+  const roteiro = fs.readFileSync(path.join(PASTA, 'preparar-vps.sh'), 'utf8');
+  assert.match(roteiro, /docker network disconnect "\$REDE" "\$TRAEFIK"/);
+  assert.doesNotMatch(roteiro, /docker network connect/);
   const versao = spawnSync('docker', ['compose', 'version'], { encoding: 'utf8' });
   if (versao.status !== 0) {
     t.skip('docker compose indisponível; o arquivo do contêiner não foi conferido');
     return;
   }
   const pasta = temporaria('compose');
-  fs.writeFileSync(path.join(pasta, 'ambiente'), 'ANFITRIAO=prancheta.exemplo.invalid\nPRANCHETA_UID=1001\nPRANCHETA_GID=1002\n');
+  fs.writeFileSync(path.join(pasta, 'ambiente'), 'PRANCHETA_UID=1001\nPRANCHETA_GID=1002\n');
   const config = spawnSync('docker', ['compose', '--env-file', path.join(pasta, 'ambiente'), '-f', path.join(PASTA, 'compose.yml'), 'config', '--format', 'json'], { encoding: 'utf8' });
   assert.equal(config.status, 0, config.stderr);
   const servico = JSON.parse(config.stdout).services.servidor;
   assert.equal(servico.user, '1001:1002');
   assert.equal(servico.read_only, true);
   assert.deepEqual(servico.cap_drop, ['ALL']);
-  assert.equal(servico.labels['traefik.http.routers.prancheta-pagina.rule'], 'Host(`prancheta.exemplo.invalid`)');
-  assert.equal(servico.labels['traefik.http.routers.prancheta-sincronizacao.rule'], 'Host(`prancheta.exemplo.invalid`) && PathPrefix(`/sync/`)');
+  // Sem rótulos do Traefik: a Prancheta só responde pela rede privada.
+  assert.ok(!Object.keys(servico.labels || {}).some((k) => k.startsWith('traefik.')), 'nenhum rótulo do Traefik');
   assert.ok(servico.volumes.every((v) => v.target === '/dados' || v.read_only), 'só os dados podem ser gravados');
   assert.ok(!Object.keys(servico.environment).some((k) => /CHAVE$/.test(k)), 'nenhuma chave no ambiente do contêiner');
   // A Prancheta continua sem saída para a internet: só a rede dela.
@@ -310,8 +314,4 @@ test('o roteiro tem sintaxe válida, e o contêiner só monta com o endereço vi
   assert.equal(serve.source, '/opt/prancheta/tailscale-serve.json');
   assert.equal(serve.read_only, true);
   assert.ok(!JSON.parse(config.stdout).networks.saida.internal, 'a rede do Tailscale tem saída');
-  fs.writeFileSync(path.join(pasta, 'sem'), 'PRANCHETA_UID=1001\nPRANCHETA_GID=1002\n');
-  const sem = spawnSync('docker', ['compose', '--env-file', path.join(pasta, 'sem'), '-f', path.join(PASTA, 'compose.yml'), 'config'], { encoding: 'utf8' });
-  assert.notEqual(sem.status, 0);
-  assert.match(sem.stderr, /ANFITRIAO/);
 });
