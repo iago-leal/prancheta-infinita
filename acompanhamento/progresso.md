@@ -6,6 +6,26 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Etapa 04 do plano 004: sensibilidade à pressão e pontos do fundo
+
+### Feito
+
+- O repositório privado das gravações foi arrumado pela sessão do computador do autor, com a aprovação dele: o ramo principal passou a ser `entire/checkpoints/v1`, e os dois ramos de teste foram apagados.
+- Aberta a [etapa 04](planos/004-modo-e-ink/etapas/04-sensibilidade-e-pontos.md), com os critérios aprovados pelo autor. Na casca 0.4.0, as opções da caneta ganham o controle "Sensibilidade à pressão", de 0 a 100%, que começa em 90%, o traço de antes, e os pontos do fundo ficam 15% mais espaçados, no Boox e no computador. Ao ligar o diagnóstico, a casca mostra os parâmetros de traço do sistema da Onyx.
+
+### Decidido
+
+- **Ferramentas de reorganização dispensadas.** O contorno durante o arrasto e o mover por toque deixam de ser feitos: segundo o autor, o arrasto atual não deixa rastro no Boox. A decisão vigente "Reorganização pensada para e-ink já na primeira versão: contorno durante o arrasto, mover por toque e modo e-ink sem sombras, animações ou transparências" passou a dizer só do modo e-ink; a parte do critério do plano 004 que pedia as duas ferramentas foi dispensada pelo autor, o que ficou registrado em Mudança de escopo, no plano. Na mesma data, o autor confirmou no Boox que a tela continua legível e que nada atrapalha a escrita.
+- **Sensibilidade à pressão.** O autor avalia o traço de antes como uns 90% de sensibilidade; o controle parte dali, e a pressão ajustada é a que o traço guarda.
+
+### Ideias guardadas
+
+- Contorno durante o arrasto e mover por toque, caso o arrasto volte a deixar rastro ou falte um jeito de levar itens a uma área distante do quadro.
+
+### Pendências
+
+- Testar a 0.4.0 no Boox: numa sensibilidade fora de 90%, o traço provisório da Onyx pode diferir do definitivo; se diferir, investigar `setStrokeParameters` com os parâmetros que o diagnóstico mostra.
+
 ## 2026-11-09 · Entire para gravar as sessões com os agentes
 
 ### Feito

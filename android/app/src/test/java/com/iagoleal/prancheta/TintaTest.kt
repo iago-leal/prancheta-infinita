@@ -76,4 +76,62 @@ class TintaTest {
         assertEquals(Tinta.LARGURA_MINIMA, fina.larguraNaTela(0.05, 1f), 0.001f)
         assertEquals(Tinta.LARGURA_MAXIMA, grossa.larguraNaTela(4.0, 2f), 0.001f)
     }
+
+    private fun caneta(sensibilidade: Int) =
+        Tinta(marcaTexto = false, cor = Tinta.PRETO, larguraCss = 3f, sensibilidade = sensibilidade)
+
+    // A pressão na escala da Prancheta, a mesma de receberTraco em casca.js.
+    private fun naPrancheta(bruta: Float) = Math.pow(bruta.toDouble(), Tinta.EXPOENTE_DA_PRESSAO).coerceIn(0.04, 1.0)
+
+    @Test
+    fun `em 90 por cento de sensibilidade a pressão segue sem mudança`() {
+        val padrao = caneta(Tinta.SENSIBILIDADE_PADRAO)
+        assertEquals(Tinta.SENSIBILIDADE_PADRAO, Tinta.PADRAO.sensibilidade)
+        for (bruta in listOf(0.01f, 0.2f, 0.3437f, 0.5f, 0.8f, 1f)) assertEquals(bruta, padrao.ajustarPressao(bruta), 0f)
+    }
+
+    @Test
+    fun `a zero por cento toda pressão vale a do meio`() {
+        val constante = caneta(0)
+        for (bruta in listOf(0.01f, 0.2f, 0.5f, 0.8f, 1f)) {
+            assertEquals(0.5, naPrancheta(constante.ajustarPressao(bruta)), 0.0001)
+        }
+    }
+
+    @Test
+    fun `abaixo de 90 a diferença entre a pressão leve e a forte diminui, e acima aumenta`() {
+        fun amplitude(sensibilidade: Int): Double {
+            val t = caneta(sensibilidade)
+            return naPrancheta(t.ajustarPressao(0.9f)) - naPrancheta(t.ajustarPressao(0.1f))
+        }
+        val hoje = amplitude(90)
+        assertEquals(hoje / 2, amplitude(45), 0.0001)
+        assertTrue(amplitude(70) < hoje)
+        assertTrue(amplitude(100) > hoje)
+        // Na escala da Prancheta, a pressão ajustada se aproxima do meio na proporção da sensibilidade.
+        val metade = caneta(45)
+        assertEquals(0.5 + (naPrancheta(0.9f) - 0.5) / 2, naPrancheta(metade.ajustarPressao(0.9f)), 0.0001)
+        assertEquals(0.5 + (naPrancheta(0.1f) - 0.5) / 2, naPrancheta(metade.ajustarPressao(0.1f)), 0.0001)
+    }
+
+    @Test
+    fun `o ajuste mantém a ordem das pressões e os limites da escala`() {
+        for (sensibilidade in listOf(0, 30, 60, 100)) {
+            val t = caneta(sensibilidade)
+            var anterior = -1f
+            for (i in 1..100) {
+                val ajustada = t.ajustarPressao(i / 100f)
+                assertTrue("a pressão ajustada saiu da escala em $sensibilidade%", ajustada in 0f..1f)
+                assertTrue("a ordem mudou em $sensibilidade%, pressão ${i / 100f}", ajustada >= anterior)
+                anterior = ajustada
+            }
+        }
+    }
+
+    @Test
+    fun `o marca-texto e a pressão nula não mudam`() {
+        val marca = Tinta(marcaTexto = true, cor = Tinta.PRETO, larguraCss = 20f, sensibilidade = 30)
+        assertEquals(0.8f, marca.ajustarPressao(0.8f), 0f)
+        assertEquals(0f, caneta(30).ajustarPressao(0f), 0f)
+    }
 }

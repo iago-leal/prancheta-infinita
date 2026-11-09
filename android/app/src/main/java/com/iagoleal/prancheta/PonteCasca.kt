@@ -2,6 +2,8 @@ package com.iagoleal.prancheta
 
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import com.onyx.android.sdk.api.device.epd.EpdController
+import com.onyx.android.sdk.device.Device
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -83,7 +85,8 @@ class PonteCasca(private val webView: WebView) {
 
     /**
      * Recebe a tinta ativa na Prancheta: `ferramenta`, "pen" ou "hl", `cor`,
-     * como no CSS, e `largura`, a espessura escolhida, em pixels CSS do quadro.
+     * como no CSS, `largura`, a espessura escolhida, em pixels CSS do quadro,
+     * e `sensibilidade`, a sensibilidade da caneta à pressão, de 0 a 100.
      */
     @JavascriptInterface
     fun tinta(json: String) {
@@ -92,8 +95,27 @@ class PonteCasca(private val webView: WebView) {
             marcaTexto = o.optString("ferramenta") == "hl",
             cor = Tinta.lerCor(o.optString("cor")) ?: Tinta.PRETO,
             larguraCss = o.optDouble("largura", Tinta.PADRAO.larguraCss.toDouble()).toFloat(),
+            sensibilidade = o.optInt("sensibilidade", Tinta.SENSIBILIDADE_PADRAO).coerceIn(0, 100),
         )
         webView.post { ouvinte?.aoMudarTinta(tinta) }
+    }
+
+    /**
+     * Devolve, para o diagnóstico da página, os parâmetros de traço que o
+     * sistema da Onyx guarda para cada estilo e a pressão máxima da caneta. A
+     * chamada que os lê não é documentada; o objetivo é descobrir se algum
+     * deles regula a resposta à pressão do traço provisório.
+     */
+    @JavascriptInterface
+    fun parametrosDoTraco(): String {
+        if (!CamadaOnyx.ehAparelhoOnyx()) return "fora de um aparelho Onyx"
+        return runCatching {
+            val aparelho = Device.currentDevice()
+            val estilos = (0..ULTIMO_ESTILO).joinToString("; ") { estilo ->
+                "$estilo: " + aparelho.getStrokeParameters(estilo).joinToString(", ", "[", "]")
+            }
+            "pressão máxima ${EpdController.getMaxTouchPressure()}; $estilos"
+        }.getOrElse { "falhou: ${it.javaClass.simpleName}" }
     }
 
     /** A página pede que a tela inteira seja redesenhada, por exemplo depois de apagar traços. */
@@ -141,6 +163,11 @@ class PonteCasca(private val webView: WebView) {
 
     private fun aplicarModoTinta(modo: String) {
         webView.evaluateJavascript("prancheta.definirTinta(${JSONObject.quote(modo)})", null)
+    }
+
+    private companion object {
+        /** Último estilo de traço da Onyx consultado no diagnóstico; o SDK define estilos de 0 a 7. */
+        const val ULTIMO_ESTILO = 7
     }
 }
 

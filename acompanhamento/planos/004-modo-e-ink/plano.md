@@ -28,8 +28,13 @@ O plano 003 deixou a escrita no Boox rápida e igual antes e depois da troca do 
 | [01](etapas/01-faixa-unica-no-boox.md) | Controles numa faixa só no alto da tela do Boox | concluida |
 | [02](etapas/02-modo-e-ink.md) | Modo e-ink na casca e refazer com três dedos | concluida |
 | [03](etapas/03-formas-e-laco.md) | Formas num botão só e seleção por laço | concluida |
+| [04](etapas/04-sensibilidade-e-pontos.md) | Sensibilidade à pressão e pontos do fundo mais espaçados | em_andamento |
 
-A etapa 03, pedida pelo autor em 2026-11-09, junta num só botão da barra as formas, a linha e os símbolos elétricos e acrescenta a seleção por laço. As etapas seguintes, como as ferramentas de reorganização, serão detalhadas com o autor antes de começar.
+A etapa 03, pedida pelo autor em 2026-11-09, junta num só botão da barra as formas, a linha e os símbolos elétricos e acrescenta a seleção por laço. A etapa 04, pedida pelo autor no mesmo dia, traz o controle da sensibilidade à pressão e afasta os pontos do fundo.
+
+## Mudança de escopo
+
+Em 2026-11-09, ao detalhar a etapa seguinte à 03, o autor dispensou as duas ferramentas de reorganização previstas, o contorno durante o arrasto e o mover por toque: no Boox, o arrasto atual já está bom e não deixa rastro. Com isso, fica dispensada a parte "e reorganiza um quadro com contorno durante o arrasto e mover por toque" do critério do plano, cujo texto completo é: "No Boox, o autor usa a Prancheta com os controles numa faixa só no alto da tela, sem sombras, animações ou transparências, e reorganiza um quadro com contorno durante o arrasto e mover por toque, confirmando que a tela continua legível e que nada atrapalha a escrita." Na mesma data, o autor confirmou no Boox, com a casca 0.3.9, que a tela continua legível e que nada atrapalha a escrita. As duas ferramentas ficam guardadas como ideia para depois. No lugar delas, o autor pediu a etapa 04.
 
 ## Riscos
 

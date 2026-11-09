@@ -41,8 +41,8 @@ android {
         applicationId = "com.iagoleal.prancheta"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "0.3.9"
+        versionCode = 14
+        versionName = "0.4.0"
     }
 
     compileOptions {
