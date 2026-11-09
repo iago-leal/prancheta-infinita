@@ -13,8 +13,16 @@
 # primeira publicação, o contêiner só espera o código chegar.
 #
 # O contêiner não tem privilégios, só lê o próprio sistema de arquivos, fica
-# numa rede só com o Traefik, sem saída para a internet, e não vê nenhum
-# segredo: as chaves dos aparelhos ficam como resumos em /etc/prancheta/acesso.
+# numa rede só com o Traefik e o Tailscale, sem saída para a internet, e não vê
+# nenhum segredo: as chaves dos aparelhos ficam como resumos em /etc/prancheta/acesso.
+#
+# Pela rede privada, o contêiner tailscale entrega a Prancheta por https, com
+# o certificado do próprio Tailscale, no nome TAILSCALE_NOME, por padrão
+# prancheta, seguido do nome da rede do autor, que não fica no repositório. Ele
+# fica na rede da Prancheta e numa segunda rede, só para falar com o Tailscale;
+# roda no modo sem interface de rede do sistema, que dispensa privilégios, e
+# guarda o login em /var/lib/prancheta-tailscale. O autor faz o login uma vez,
+# pelo endereço que o contêiner mostra; nenhuma chave do Tailscale é guardada.
 name: prancheta
 
 services:
@@ -63,6 +71,30 @@ services:
       - "traefik.http.routers.prancheta-pagina.service=prancheta-pagina"
       - "traefik.http.services.prancheta-pagina.loadbalancer.server.port=8788"
 
+  tailscale:
+    image: ${TAILSCALE_IMAGEM:-tailscale/tailscale:stable}
+    restart: unless-stopped
+    init: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 128
+    environment:
+      TS_HOSTNAME: ${TAILSCALE_NOME:-prancheta}
+      TS_USERSPACE: "true"
+      TS_ACCEPT_DNS: "false"
+      TS_AUTH_ONCE: "true"
+      TS_STATE_DIR: /var/lib/tailscale
+      # A página em / e a sincronização em /sync/, como o Traefik faz no endereço público.
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - /var/lib/prancheta-tailscale:/var/lib/tailscale
+      - /opt/prancheta/tailscale-serve.json:/config/serve.json:ro
+    networks: [prancheta_borda, saida]
+    depends_on: [servidor]
+
 networks:
   prancheta_borda:
     external: true
+  # Só o contêiner do Tailscale usa esta rede, para falar com o Tailscale.
+  saida: {}

@@ -58,18 +58,28 @@ jobs:
           chmod 600 ~/.ssh/chave
           printf '%s\n' "$HOSTS_CONHECIDOS" > ~/.ssh/known_hosts
 
+      # O comando da VPS troca a versão e espera o servidor anotar que ela está
+      # no ar e que a sincronização recusa pedidos sem a chave; a conferência é
+      # feita lá porque, com a rede privada, a Prancheta não responde pela internet.
       - name: Publicar
         env:
           ENDERECO: ${{ secrets.VPS_PRANCHETA_ENDERECO }}
         run: |
-          ssh -i ~/.ssh/chave \
+          saida=$(ssh -i ~/.ssh/chave \
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes \
             -o ConnectTimeout=20 \
-            "prancheta@$ENDERECO" "publicar $GITHUB_SHA" < "$RUNNER_TEMP/pacote.tgz"
+            "prancheta@$ENDERECO" "publicar $GITHUB_SHA" < "$RUNNER_TEMP/pacote.tgz")
+          echo "$saida"
+          if grep -qx "no ar $GITHUB_SHA" <<< "$saida"; then
+            echo "conferido na VPS: a versão $GITHUB_SHA está no ar, e a sincronização recusa pedidos sem a chave"
+          else
+            echo "::warning::o comando de publicação da VPS ainda é o antigo, sem a conferência no ar; rode de novo o roteiro preparar-vps.sh"
+          fi
 
-      - name: Conferir a versão no ar
+      # Enquanto o endereço público estiver aberto, a versão também é conferida nele.
+      - name: Conferir a versão no endereço público
         env:
           ANFITRIAO: ${{ secrets.VPS_PRANCHETA_ANFITRIAO }}
         run: |

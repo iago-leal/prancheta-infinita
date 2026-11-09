@@ -25,6 +25,11 @@
 //   com o código novo;
 // - PRANCHETA_HISTORICO_DIAS: por quantos dias as versões antigas dos
 //   documentos ficam guardadas, por padrão 30.
+//
+// Com PRANCHETA_VERSAO, depois de começar, o servidor anota em no-ar.json, na
+// pasta dos dados, a versão que entrega e se a sincronização recusa um pedido
+// sem a chave; o comando de publicação, na VPS, espera essa anotação para
+// confirmar que a versão nova entrou no ar.
 
 'use strict';
 
@@ -171,7 +176,7 @@ function criarServidor({ armazem, chave, verificar, origens = [] }) {
     if (!autorizado(req)) return responder(res, 401, { erro: 'nao_autorizado' }, origem);
 
     const url = new URL(req.url, 'http://local');
-    const rota = url.pathname;
+    const rota = rotaDaSincronizacao(url.pathname);
 
     if (req.method === 'GET' && rota === '/sync/estado') {
       return responder(res, 200, { posicao: armazem.posicao }, origem);
@@ -249,6 +254,13 @@ function criarServidor({ armazem, chave, verificar, origens = [] }) {
   });
 }
 
+// Pela rede privada, o Tailscale entrega a sincronização montada em /sync/ e
+// pode tirar esse começo do caminho; as rotas valem com ele ou sem ele.
+function rotaDaSincronizacao(caminho) {
+  if (caminho.startsWith('/sync/')) return caminho;
+  return `/sync/${caminho.replace(/^\/+/, '')}`;
+}
+
 function verificadorDoAmbiente(ambiente) {
   if (ambiente.PRANCHETA_CHAVES_ARQUIVO) return criarVerificador({ arquivo: ambiente.PRANCHETA_CHAVES_ARQUIVO });
   const chave = ambiente.PRANCHETA_CHAVE;
@@ -285,6 +297,32 @@ const ouvir = (servidor, porta, endereco) => new Promise((pronto, falha) => {
   servidor.listen(porta, endereco, pronto);
 });
 
+// Pede o estado à própria sincronização, sem a chave, e devolve o código da resposta.
+function codigoSemChave(porta, endereco) {
+  const anfitriao = endereco === '0.0.0.0' || endereco === '::' ? '127.0.0.1' : endereco;
+  return new Promise((pronto) => {
+    const pedido = http.get({ host: anfitriao, port: porta, path: '/sync/estado', timeout: 5000 }, (res) => {
+      res.resume();
+      pronto(res.statusCode);
+    });
+    pedido.on('timeout', () => pedido.destroy(new Error('tempo esgotado')));
+    pedido.on('error', () => pronto(0));
+  });
+}
+
+/**
+ * Anota em `pasta`/no-ar.json, de uma vez, a versão em uso e se a
+ * sincronização, já ouvindo, recusa um pedido sem a chave.
+ */
+async function anotarNoAr({ pasta, versao, porta, endereco }) {
+  const codigo = await codigoSemChave(porta, endereco);
+  const anotacao = { versao, recusaSemChave: codigo === 401, codigo, em: new Date().toISOString() };
+  const provisorio = path.join(pasta, `.no-ar.${process.pid}`);
+  await fs.promises.writeFile(provisorio, `${JSON.stringify(anotacao)}\n`, { mode: 0o644 });
+  await fs.promises.rename(provisorio, path.join(pasta, 'no-ar.json'));
+  return anotacao;
+}
+
 async function iniciar(ambiente = process.env) {
   const verificar = verificadorDoAmbiente(ambiente);
   const pasta = path.resolve(ambiente.PRANCHETA_DADOS || 'dados');
@@ -309,6 +347,9 @@ async function iniciar(ambiente = process.env) {
     s.closeIdleConnections();
   })));
   if (ambiente.PRANCHETA_VERSAO) {
+    const versao = path.basename(fs.realpathSync(ambiente.PRANCHETA_VERSAO));
+    const anotacao = await anotarNoAr({ pasta, versao, porta: servidor.address().port, endereco });
+    console.log(`versão ${versao} no ar; sem a chave, a sincronização responde ${anotacao.codigo}`);
     vigiarVersao(ambiente.PRANCHETA_VERSAO, (nova) => {
       console.log(`versão nova publicada em ${nova}; o servidor termina para recomeçar com ela`);
       const limite = setTimeout(() => process.exit(0), 5000);
@@ -328,4 +369,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { criarServidor, iniciar, tipoSeguro, cabecalhosDeArquivo, vigiarVersao };
+module.exports = { criarServidor, iniciar, tipoSeguro, cabecalhosDeArquivo, vigiarVersao, anotarNoAr, rotaDaSincronizacao };

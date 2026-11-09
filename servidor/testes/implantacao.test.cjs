@@ -10,7 +10,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { criarVerificador } = require('../chaves.cjs');
 const { criarServidorDaPagina } = require('../pagina.cjs');
 
@@ -59,9 +59,17 @@ with tarfile.open(sys.argv[1], 'w:gz') as t:
   return destino;
 }
 
+// Simula o servidor da VPS, que, ao recomeçar com a versão nova, anota em
+// no-ar.json que ela está no ar e que a sincronização recusa pedidos sem a
+// chave; cada chamada usa uma pasta de dados própria.
 function publicar(publicado, comando, pacote = null, extra = {}) {
+  const dados = temporaria('dados');
+  const [acao, versao] = comando.split(' ');
+  if (acao === 'publicar' && versao) {
+    fs.writeFileSync(path.join(dados, 'no-ar.json'), `${JSON.stringify({ versao, recusaSemChave: true, codigo: 401 })}\n`);
+  }
   return spawnSync('bash', [PUBLICAR], {
-    env: { PATH: process.env.PATH, PRANCHETA_PUBLICADO: publicado, SSH_ORIGINAL_COMMAND: comando, ...extra },
+    env: { PATH: process.env.PATH, PRANCHETA_PUBLICADO: publicado, PRANCHETA_DADOS_DA_VPS: dados, PRANCHETA_ESPERA_S: '4', SSH_ORIGINAL_COMMAND: comando, ...extra },
     input: pacote ? fs.readFileSync(pacote) : '',
     encoding: 'utf8',
   });
@@ -77,11 +85,11 @@ test('a publicação recebe a versão, troca o atalho, guarda as cinco mais rece
 
   const r = publicar(publicado, `publicar ${commit(1)}`, pacote);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.stdout.trim(), `publicado ${commit(1)}`);
+  assert.equal(r.stdout.trim(), `publicado ${commit(1)}\nno ar ${commit(1)}`);
   assert.equal(fs.readlinkSync(path.join(publicado, 'atual')), `versoes/${commit(1)}`);
   assert.ok(fs.existsSync(path.join(publicado, 'atual', 'servidor', 'servidor.cjs')));
   assert.equal(fs.readFileSync(path.join(publicado, 'atual', 'web', 'app', 'versao.txt'), 'utf8').trim(), commit(1));
-  assert.equal(publicar(publicado, `publicar ${commit(1)}`, pacote).stdout.trim(), `ja publicado ${commit(1)}`);
+  assert.equal(publicar(publicado, `publicar ${commit(1)}`, pacote).stdout.trim(), `ja publicado ${commit(1)}\nno ar ${commit(1)}`);
   // Datas distintas e crescentes, na ordem das publicações, para que a ordem
   // das versões não dependa de publicações feitas no mesmo instante.
   const datar = (n) => {
@@ -157,6 +165,69 @@ test('a publicação recusa ações fora da lista e pacotes que levariam para fo
   assert.ok(!fs.existsSync('/tmp/fora.txt') || fs.statSync('/tmp/fora.txt').mtimeMs < Date.now() - 60000);
 });
 
+const dormir = (ms) => new Promise((pronto) => setTimeout(pronto, ms));
+
+// Roda o comando de publicação sem bloquear, para o servidor de verdade
+// recomeçar enquanto ele espera.
+function publicarAoFundo(publicado, dados, comando, pacote, espera = '20') {
+  return new Promise((pronto) => {
+    const filho = spawn('bash', [PUBLICAR], {
+      env: { PATH: process.env.PATH, PRANCHETA_PUBLICADO: publicado, PRANCHETA_DADOS_DA_VPS: dados, PRANCHETA_ESPERA_S: espera, SSH_ORIGINAL_COMMAND: comando },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    filho.stdout.on('data', (d) => { stdout += d; });
+    filho.stderr.on('data', (d) => { stderr += d; });
+    filho.on('exit', (status) => pronto({ status, stdout, stderr }));
+    filho.stdin.end(fs.readFileSync(pacote));
+  });
+}
+
+test('a publicação só termina quando o servidor recomeça com a versão nova e recusa pedidos sem a chave', async () => {
+  const publicado = temporaria('publicado');
+  const dados = temporaria('dados');
+  const pacote = pacoteDoGit(path.join(temporaria('pacote'), 'pacote.tgz'));
+  const chaves = path.join(temporaria('chaves'), 'chaves');
+  fs.writeFileSync(chaves, `boox ${'a'.repeat(64)}\n`);
+
+  // O comando troca a versão e espera; o servidor de verdade, ao começar com
+  // ela, anota que está no ar, e o comando termina com "no ar".
+  const publicacao = publicarAoFundo(publicado, dados, `publicar ${commit(1)}`, pacote);
+  for (let i = 0; i < 100 && !fs.existsSync(path.join(publicado, 'atual')); i++) await dormir(50);
+  const servidor = spawn(process.execPath, [path.join(publicado, 'atual', 'servidor', 'servidor.cjs')], {
+    env: {
+      PATH: process.env.PATH, PRANCHETA_DADOS: dados, PRANCHETA_CHAVES_ARQUIVO: chaves, PRANCHETA_PORTA: '0',
+      PRANCHETA_VERSAO: path.join(publicado, 'atual'), PRANCHETA_VIGIA_MS: '50',
+    },
+    stdio: 'ignore',
+  });
+  const terminou = new Promise((pronto) => servidor.on('exit', pronto));
+  try {
+    const r = await publicacao;
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(r.stdout.trim(), `publicado ${commit(1)}\nno ar ${commit(1)}`);
+    const anotacao = JSON.parse(fs.readFileSync(path.join(dados, 'no-ar.json'), 'utf8'));
+    assert.equal(anotacao.versao, commit(1));
+    assert.equal(anotacao.recusaSemChave, true);
+    assert.equal(anotacao.codigo, 401);
+
+    // Se o servidor não recomeça com a versão nova, a publicação falha.
+    const sem = await publicarAoFundo(publicado, dados, `publicar ${commit(2)}`, pacote, '2');
+    assert.equal(sem.status, 1);
+    assert.match(sem.stderr, new RegExp(`versao ${commit(2)} nao entrou no ar`));
+    await Promise.race([terminou, dormir(5000)]);
+  } finally {
+    servidor.kill();
+  }
+
+  // E falha também se a sincronização da versão nova não recusa pedidos sem a chave.
+  fs.writeFileSync(path.join(dados, 'no-ar.json'), `${JSON.stringify({ versao: commit(3), recusaSemChave: false, codigo: 200 })}\n`);
+  const aberta = await publicarAoFundo(publicado, dados, `publicar ${commit(3)}`, pacote, '2');
+  assert.equal(aberta.status, 1);
+  assert.match(aberta.stderr, /nao recusou um pedido sem a chave/);
+});
+
 test('a ferramenta de chaves cria uma chave por aparelho, que o servidor aceita, e a revoga', () => {
   const arquivo = path.join(temporaria('chaves'), 'chaves');
   fs.writeFileSync(arquivo, '');
@@ -179,6 +250,24 @@ test('a ferramenta de chaves cria uma chave por aparelho, que o servidor aceita,
   assert.equal(verificar(chaveDoBoox), null);
   assert.equal(verificar(computador), 'computador');
   assert.notEqual(chave('revogar', 'boox').status, 0);
+});
+
+test('pela rede privada, o Tailscale entrega a página e a sincronização por https, sem abrir para a internet', () => {
+  const serve = JSON.parse(fs.readFileSync(path.join(PASTA, 'tailscale-serve.json'), 'utf8'));
+  assert.deepEqual(serve.TCP, { 443: { HTTPS: true } });
+  assert.deepEqual(Object.keys(serve.Web), ['${TS_CERT_DOMAIN}:443']);
+  assert.deepEqual(serve.Web['${TS_CERT_DOMAIN}:443'].Handlers, {
+    '/': { Proxy: 'http://servidor:8788' },
+    '/sync/': { Proxy: 'http://servidor:8787' },
+  });
+  // O Funnel, que abriria o endereço para a internet, fica de fora.
+  assert.ok(!serve.AllowFunnel || Object.values(serve.AllowFunnel).every((v) => v === false));
+  // As portas são as do contêiner da Prancheta: página sem chave, sincronização com chave.
+  const compose = fs.readFileSync(path.join(PASTA, 'compose.yml'), 'utf8');
+  assert.match(compose, /PRANCHETA_PORTA: "8787"/);
+  assert.match(compose, /PRANCHETA_PORTA_DA_PAGINA: "8788"/);
+  // O roteiro instala o arquivo junto com o contêiner.
+  assert.match(fs.readFileSync(path.join(PASTA, 'preparar-vps.sh'), 'utf8'), /tailscale-serve\.json" \/opt\/prancheta\/tailscale-serve\.json/);
 });
 
 test('o roteiro tem sintaxe válida, e o contêiner só monta com o endereço vindo do ambiente', (t) => {
@@ -204,6 +293,23 @@ test('o roteiro tem sintaxe válida, e o contêiner só monta com o endereço vi
   assert.equal(servico.labels['traefik.http.routers.prancheta-sincronizacao.rule'], 'Host(`prancheta.exemplo.invalid`) && PathPrefix(`/sync/`)');
   assert.ok(servico.volumes.every((v) => v.target === '/dados' || v.read_only), 'só os dados podem ser gravados');
   assert.ok(!Object.keys(servico.environment).some((k) => /CHAVE$/.test(k)), 'nenhuma chave no ambiente do contêiner');
+  // A Prancheta continua sem saída para a internet: só a rede dela.
+  assert.deepEqual(Object.keys(servico.networks), ['prancheta_borda']);
+
+  // O Tailscale, sem privilégios, no modo sem interface de rede do sistema,
+  // sem chave guardada e com o que entrega montado só para leitura.
+  const tailscale = JSON.parse(config.stdout).services.tailscale;
+  assert.deepEqual(tailscale.cap_drop, ['ALL']);
+  assert.deepEqual(tailscale.security_opt, ['no-new-privileges:true']);
+  assert.ok(!tailscale.privileged && !tailscale.cap_add && !tailscale.devices, 'sem privilégios nem dispositivos');
+  assert.equal(tailscale.environment.TS_USERSPACE, 'true');
+  assert.equal(tailscale.environment.TS_HOSTNAME, 'prancheta');
+  assert.ok(!Object.keys(tailscale.environment).some((k) => /AUTHKEY|AUTH_KEY|CLIENT_SECRET/.test(k)), 'nenhuma chave do Tailscale no repositório');
+  assert.deepEqual(Object.keys(tailscale.networks).sort(), ['prancheta_borda', 'saida']);
+  const serve = tailscale.volumes.find((v) => v.target === tailscale.environment.TS_SERVE_CONFIG);
+  assert.equal(serve.source, '/opt/prancheta/tailscale-serve.json');
+  assert.equal(serve.read_only, true);
+  assert.ok(!JSON.parse(config.stdout).networks.saida.internal, 'a rede do Tailscale tem saída');
   fs.writeFileSync(path.join(pasta, 'sem'), 'PRANCHETA_UID=1001\nPRANCHETA_GID=1002\n');
   const sem = spawnSync('docker', ['compose', '--env-file', path.join(pasta, 'sem'), '-f', path.join(PASTA, 'compose.yml'), 'config'], { encoding: 'utf8' });
   assert.notEqual(sem.status, 0);

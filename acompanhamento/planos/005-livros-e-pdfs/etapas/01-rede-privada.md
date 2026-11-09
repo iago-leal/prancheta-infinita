@@ -17,7 +17,7 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
 
 ## Critérios de conclusão
 
-- [ ] No Boox, o Tailscale fica ligado junto com a casca, e a escrita com a tinta da Onyx continua como antes.
+- [x] No Boox, o Tailscale fica ligado junto com a casca, e a escrita com a tinta da Onyx continua como antes.
 - [ ] A VPS entra na rede privada, e a página e a sincronização da Prancheta respondem por https num nome da rede privada, com certificado válido, no Boox e no computador.
 - [ ] O endereço público da Prancheta deixa de responder à página e à sincronização.
 - [ ] A publicação pelo GitHub continua funcionando e confere, na própria VPS, que a versão nova está no ar e que a sincronização recusa pedidos sem a chave.
@@ -32,5 +32,14 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
 - Desenho proposto para a VPS, a confirmar ao implementar: um contêiner do Tailscale ao lado do da Prancheta, na mesma rede interna dela e numa segunda rede só para a conexão com o Tailscale, entrega por https, com o certificado do próprio Tailscale, a página e, em `/sync/`, a sincronização, como o Traefik faz hoje. O login do contêiner na rede privada é feito pelo autor, por um endereço de login, sem chave guardada. Fechar o endereço público é tirar do contêiner da Prancheta as etiquetas do Traefik e desligar o Traefik da rede dela, sem tocar nos outros serviços.
 - Conferência da publicação na própria VPS: ao começar, o servidor anota na pasta de dados a versão que entrega e o resultado de um pedido sem a chave à própria sincronização, e o comando de publicação espera essa anotação mostrar a versão nova. O fluxo do GitHub passa a conferir também que o endereço público não responde mais à Prancheta.
 - Primeiro passo, do autor: criar a rede no Tailscale, ligar nela o Boox e o computador, ativar os nomes da rede, MagicDNS, e os certificados https no painel do Tailscale, e conferir no Boox que a casca continua escrevendo com o Tailscale ligado, critério 1. Se o Tailscale não conviver com a casca, o desenho muda antes de qualquer ação na VPS.
+
+- O autor criou a rede no Tailscale e ligou nela o Boox e os outros aparelhos; no Boox, com o Tailscale ligado, abriu a Prancheta pela casca e escreveu, e a tinta continuou rápida e igual. Critério 1 verificado pela confirmação dele.
+- Primeira fase, com o endereço público ainda aberto, para os aparelhos passarem para a rede privada sem perder nada:
+  - `compose.yml` ganha o contêiner `tailscale`: imagem `tailscale/tailscale:stable`, trocável por `TAILSCALE_IMAGEM` no ambiente da VPS; nome `prancheta` na rede privada; modo sem interface de rede do sistema, `TS_USERSPACE`, sem nenhuma capacidade nem privilégio; login guardado em `/var/lib/prancheta-tailscale`; na rede da Prancheta e numa rede nova, `prancheta_saida`, só dele. Nenhuma chave do Tailscale fica no repositório nem na VPS: o login é feito pelo autor, pelo endereço que o contêiner mostra.
+  - `tailscale-serve.json` entrega por https, no nome da rede privada, a página em `/`, pela porta 8788, e a sincronização em `/sync/`, pela 8787, como o Traefik faz hoje, sem o Funnel, que abriria o endereço para a internet. Como o Tailscale pode tirar o começo `/sync/` do caminho, a sincronização passou a aceitar as rotas com ele ou sem ele.
+  - O servidor, ao começar, anota em `no-ar.json`, na pasta dos dados, a versão em uso e o código que a própria sincronização devolve a um pedido sem a chave; `prancheta-publicar` espera, por até 90 segundos, a anotação da versão nova com a recusa e termina com `no ar <commit>`. O fluxo do GitHub mostra essa conferência e avisa se o comando da VPS ainda for o antigo; enquanto o endereço público estiver aberto, a versão também é conferida nele.
+  - O roteiro cria a pasta do login do Tailscale, instala `tailscale-serve.json`, liga os dois contêineres e mostra o endereço de login ou, já aprovado, o endereço da Prancheta na rede privada, sem gravá-lo em lugar nenhum.
+- Testes: 4 novos no servidor, 23 ao todo, com o arquivo do contêiner conferido pelo Docker Compose, que agora existe no ambiente da nuvem. Acusam as sete mutações introduzidas: o servidor sem a anotação, a rota sem aceitar a falta de `/sync/`, a publicação sem esperar a anotação, a recusa sem a chave ignorada, o Tailscale com uma capacidade, a porta trocada no que ele entrega e o contêiner da Prancheta com saída para a internet. Um teste deixava o servidor de teste rodando quando falhava, o que travava a suíte; passou a encerrá-lo.
+- Segunda fase, depois que o Boox e o computador sincronizarem pela rede privada: tirar os rótulos do Traefik, desligá-lo da rede da Prancheta e fazer o fluxo do GitHub conferir que o endereço público não responde mais.
 
 ## Resultado
