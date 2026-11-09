@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-09
 fase: Modo e-ink e ferramentas de reorganização
 plano_ativo: acompanhamento/planos/004-modo-e-ink/plano.md
-etapa_atual: acompanhamento/planos/004-modo-e-ink/etapas/03-formas-e-laco.md
+etapa_atual:
 bloqueios: []
 ---
 
@@ -36,11 +36,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 004, modo e-ink e ferramentas de reorganização, aberto em 2026-11-09: a etapa 01, concluída no mesmo dia, reuniu os controles da casca numa faixa só no alto da tela, desenhada com a skill Impeccable; a 02, também concluída, tirou da casca sombras, transições, animações e fundos translúcidos e consertou o refazer com três dedos; a 03, na casca 0.3.9, traz um botão só para as formas e os símbolos elétricos e a seleção por laço. Os planos 001, casca Android, 002, Prancheta independente em `web/app/`, e 003, Prancheta no Boox e sincronização com a VPS, estão concluídos; o 003 terminou em 2026-11-09, com o Boox e o computador sincronizando pela VPS e o traço igual antes e depois da troca.
+Plano 004, modo e-ink e ferramentas de reorganização, aberto em 2026-11-09: a etapa 01, concluída no mesmo dia, reuniu os controles da casca numa faixa só no alto da tela, desenhada com a skill Impeccable; a 02, também concluída, tirou da casca sombras, transições, animações e fundos translúcidos e consertou o refazer com três dedos; a 03, também concluída, na casca 0.3.9, trouxe um botão só para as formas e os símbolos elétricos e a seleção por laço. Os planos 001, casca Android, 002, Prancheta independente em `web/app/`, e 003, Prancheta no Boox e sincronização com a VPS, estão concluídos; o 003 terminou em 2026-11-09, com o Boox e o computador sincronizando pela VPS e o traço igual antes e depois da troca.
 
 ## Próximo passo
 
-O autor confirmar no Boox, com a casca 0.3.9, que a caneta desenha o laço e seleciona o que ele circula e que o botão de formas deixa a barra mais fácil de usar, para fechar a etapa 03; depois, detalhar com ele as etapas seguintes do plano 004, como as ferramentas de reorganização. O controle de sensibilidade à pressão, que o SDK da Onyx não permite aplicar ao traço provisório, foi adiado pelo autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Detalhar com o autor a etapa seguinte do plano 004, com os critérios dela, como as ferramentas de reorganização previstas para o e-ink, contorno durante o arrasto e mover por toque, ou encerrar o plano e seguir para os livros, plano 005. O controle de sensibilidade à pressão, que o SDK da Onyx não permite aplicar ao traço provisório, foi adiado pelo autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
