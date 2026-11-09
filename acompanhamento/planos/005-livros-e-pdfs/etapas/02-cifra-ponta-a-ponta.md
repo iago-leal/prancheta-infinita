@@ -3,10 +3,10 @@ tipo: etapa
 plano: "005"
 etapa: "02"
 titulo: Cifra ponta a ponta dos quadros
-status: em_andamento
+status: concluida
 depende_de: ["01"]
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 02: cifra ponta a ponta dos quadros
@@ -17,13 +17,13 @@ Fazer os quadros e os arquivos enviados saírem cifrados do aparelho, com uma ch
 
 ## Critérios de conclusão
 
-- [ ] No diálogo "Sincronizar", o primeiro aparelho cria uma chave aleatória de 256 bits, mostrada uma única vez, em grupos fáceis de copiar, para o autor guardar no Bitwarden; nos outros aparelhos, a mesma chave é informada no mesmo diálogo, e uma chave diferente é recusada com um aviso, sem aplicar nem enviar nenhum quadro.
-- [ ] Com a chave, cada documento e cada arquivo sai do aparelho cifrado com AES-GCM, e o servidor guarda e entrega só o conteúdo cifrado; um conteúdo alterado ou trocado de documento no servidor é recusado pelo aparelho; a chave nunca é enviada ao servidor nem entra no repositório.
-- [ ] A sincronização e a combinação de mudanças nos dois aparelhos continuam funcionando com os dados cifrados, inclusive depois de um período sem rede.
-- [ ] Depois da primeira gravação cifrada, o servidor recusa gravações legíveis e gravações cifradas com outra chave; um aparelho sem a chave não aplica o que chega cifrado, não envia nada e pede a chave.
-- [ ] Um comando executado pelo autor na VPS confere que todos os documentos e arquivos atuais estão cifrados e só então apaga do histórico as versões legíveis e os arquivos legíveis; sem essa conferência, ele não apaga nada.
+- [x] No diálogo "Sincronizar", o primeiro aparelho cria uma chave aleatória de 256 bits, mostrada uma única vez, em grupos fáceis de copiar, para o autor guardar no Bitwarden; nos outros aparelhos, a mesma chave é informada no mesmo diálogo, e uma chave diferente é recusada com um aviso, sem aplicar nem enviar nenhum quadro.
+- [x] Com a chave, cada documento e cada arquivo sai do aparelho cifrado com AES-GCM, e o servidor guarda e entrega só o conteúdo cifrado; um conteúdo alterado ou trocado de documento no servidor é recusado pelo aparelho; a chave nunca é enviada ao servidor nem entra no repositório.
+- [x] A sincronização e a combinação de mudanças nos dois aparelhos continuam funcionando com os dados cifrados, inclusive depois de um período sem rede.
+- [x] Depois da primeira gravação cifrada, o servidor recusa gravações legíveis e gravações cifradas com outra chave; um aparelho sem a chave não aplica o que chega cifrado, não envia nada e pede a chave.
+- [x] Um comando executado pelo autor na VPS confere que todos os documentos e arquivos atuais estão cifrados e só então apaga do histórico as versões legíveis e os arquivos legíveis; sem essa conferência, ele não apaga nada.
 - [x] Os testes automáticos cobrem a criação e a recusa da chave, a cifra dos documentos e dos arquivos, o conteúdo adulterado, a recusa do servidor, a migração e a limpeza, e acusam mutações introduzidas no código da cifra.
-- [ ] O autor confirma, no Boox e no computador, que os quadros sincronizam com a cifra ligada, sem perder nenhum, e a conferência na VPS mostra que nenhum quadro legível ficou guardado nela.
+- [x] O autor confirma, no Boox e no computador, que os quadros sincronizam com a cifra ligada, sem perder nenhum, e a conferência na VPS mostra que nenhum quadro legível ficou guardado nela.
 
 ## Registro
 
@@ -65,4 +65,29 @@ Fazer os quadros e os arquivos enviados saírem cifrados do aparelho, com uma ch
 - O detector da skill `impeccable` não apontou nada no diálogo.
 - No PR #34, a suíte do servidor travou no Node 18, que o fluxo do GitHub também testa: o Node 18 só tem a WebCrypto em `node:crypto`, e os testes criavam a chave depois de subir o servidor de teste, que ficava aberto quando a criação falhava. Os testes passaram a usar a WebCrypto de `node:crypto` quando falta a global e a criar as chaves antes do servidor; reproduzido sem a WebCrypto global, o travamento sumiu, e os 29 testes passam com ela e sem ela. O servidor em si não usa a WebCrypto.
 
+- Mesclado o PR #34. A publicação pelo GitHub pôs no ar a versão f878a55, e a casca 0.5.0 saiu como `casca-17`.
+- O autor instalou a casca 0.5.0 no Boox e fez a troca nos aparelhos: criou a chave, guardou-a no Bitwarden e a informou no outro aparelho. A cifra foi ligada no servidor às 21:43:50 UTC, depois da posição 924.
+- A pedido do autor, a sessão do Mac rodou na VPS, com a aprovação dada por ele diretamente nela, a conferência, a limpeza e uma nova conferência, sem parar nem reiniciar contêineres. Precisou de `exec -T`, porque a conexão não tem terminal; o guia e o cabeçalho de `servidor/cifra.cjs` passaram a trazer o `-T`.
+  - Primeira conferência, saída 1: 22 documentos atuais cifrados e nenhum legível; 3 arquivos cifrados e nenhum legível; no histórico, 66 versões cifradas e 921 legíveis.
+  - Limpeza, saída 0: 921 versões legíveis apagadas do histórico, nenhum temporário antigo; as 66 versões cifradas ficaram.
+  - Segunda conferência, saída 0: 22 documentos, 3 arquivos e 66 versões, todos cifrados com a chave do servidor, e "nada legível na pasta dos dados".
+- Critério 2 verificado: na VPS, todos os documentos atuais e todos os arquivos estão cifrados com a chave do servidor, sem nenhum legível ou de outra chave. A recusa de conteúdo alterado ou trocado de documento e a ausência da chave nos pedidos ao servidor foram verificadas pelos testes no Chromium. A chave foi criada pelo autor num aparelho e não passou por nenhuma sessão do Claude, de modo que não tinha como entrar no repositório.
+- Critério 5 verificado: o comando conferiu os documentos e os arquivos atuais antes de apagar e só então tirou do histórico as 921 versões legíveis. Os arquivos legíveis não precisaram ser apagados, porque o reenvio cifrado os substituiu no mesmo lugar, e a conferência confirmou nenhum arquivo legível. Que ele não apaga nada sem a conferência foi verificado pelos testes do servidor.
+- A segunda metade do critério 7, a conferência na VPS sem nenhum quadro legível, está verificada; falta a confirmação do autor de que os quadros sincronizam nos dois aparelhos sem perda. Os critérios 1, 3 e 4 aguardam a confirmação dele sobre o pedido da chave no Boox, a recusa de uma chave errada e a sincronização entre os aparelhos.
+- As cópias de segurança e os instantâneos da VPS feitos pela Hostinger antes da limpeza ainda guardam os quadros legíveis até expirarem; o autor pode apagá-los no painel dela.
+
+- O autor confirmou que os quadros estão todos sincronizados no Boox e no computador. O Boox não chegou a pedir a chave, porque o autor a informou nele por conta própria, antes que o Boox sincronizasse depois da troca no computador. A recusa de uma chave errada não foi testada pelo autor nos aparelhos.
+
 ## Resultado
+
+Os quadros e os arquivos saem dos aparelhos cifrados com AES-GCM, numa chave aleatória de 256 bits criada no computador e guardada no Bitwarden, e a VPS guarda só dados que não consegue ler: 22 documentos, 3 arquivos e 66 versões do histórico, todos cifrados, depois que a limpeza tirou dela as 921 versões legíveis. O servidor recusa o legível e outra chave desde a primeira gravação cifrada, e a casca 0.5.0 leva a cifra ao Boox.
+
+Como cada critério foi verificado:
+
+1. Criação e informação da chave: o autor criou a chave no diálogo "Sincronizar" do computador, guardou-a no Bitwarden e a informou no Boox. A recusa de uma chave diferente, com o aviso e sem aplicar nem enviar nada, foi verificada pelo teste no Chromium, que usa o mesmo diálogo da casca; o autor não a testou nos aparelhos.
+2. Só cifrado no servidor: verificado pela conferência na VPS, com todos os documentos e arquivos cifrados com a chave do servidor, e pelos testes no Chromium para o conteúdo alterado ou trocado de documento e para a chave fora dos pedidos ao servidor; a chave não passou por nenhuma sessão do Claude.
+3. Sincronização e combinação com a cifra: o autor confirmou os quadros sincronizados nos dois aparelhos; a combinação de edições feitas sem rede, com a cifra, foi verificada pelo teste com dois perfis no Chromium.
+4. Recusa do legível e de outra chave, e parada do aparelho sem a chave: verificada pelos testes do servidor e pelo teste de migração no Chromium, em que o segundo perfil para, pede a chave e não envia nada. No Boox, essa parada não chegou a acontecer, porque o autor informou a chave antes.
+5. Conferência e limpeza: verificadas na VPS, com a conferência antes da limpeza e "nada legível na pasta dos dados" depois dela, e pelos testes do servidor, em que a limpeza recusada não apaga nada.
+6. Testes e mutações: 11 das 12 mutações acusadas; a não acusada não muda o comportamento, por haver barreiras sobrepostas.
+7. Confirmação do autor e conferência na VPS: o autor confirmou os quadros nos dois aparelhos, sem perda, e a conferência final na VPS não encontrou nada legível.

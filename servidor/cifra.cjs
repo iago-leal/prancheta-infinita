@@ -3,9 +3,9 @@
 // reconhece o formato dos envelopes, como servidor/armazem.cjs.
 //
 // Uso, como administrador, com o servidor rodando:
-//   docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+//   docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec -T servidor \
 //     node atual/servidor/cifra.cjs /dados conferir
-//   docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+//   docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec -T servidor \
 //     node atual/servidor/cifra.cjs /dados apagar-legiveis
 //
 // "conferir" só lê: mostra quantos documentos e arquivos atuais e quantas

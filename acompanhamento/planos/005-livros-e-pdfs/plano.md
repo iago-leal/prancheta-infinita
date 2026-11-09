@@ -26,7 +26,7 @@ Os planos 003 e 004 deixaram a escrita no Boox e a sincronização com o computa
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-rede-privada.md) | Rede privada com o Tailscale e endereço público fechado | concluida |
-| [02](etapas/02-cifra-ponta-a-ponta.md) | Cifra ponta a ponta dos quadros | em_andamento |
+| [02](etapas/02-cifra-ponta-a-ponta.md) | Cifra ponta a ponta dos quadros | concluida |
 | 03 | Biblioteca do WebDAV entregue pela Prancheta | pendente |
 | 04 | Leitor de PDF e EPUB com marcações ligadas a quadros | pendente |
 

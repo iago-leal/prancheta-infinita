@@ -6,6 +6,27 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Cifra ponta a ponta concluída
+
+### Feito
+
+- A [etapa 02 do plano 005](planos/005-livros-e-pdfs/etapas/02-cifra-ponta-a-ponta.md) foi concluída: o autor confirmou os quadros sincronizados no Boox e no computador com a cifra ligada, e a VPS guarda só dados cifrados. A recusa de uma chave errada e a parada do aparelho sem a chave foram verificadas pelos testes no Chromium; nos aparelhos, o autor informou a chave no Boox antes que ele a pedisse.
+
+### Pendências
+
+- Detalhar com o autor a etapa 03, a biblioteca do WebDAV.
+
+## 2026-11-09 · Cifra aplicada nos aparelhos e na VPS
+
+### Feito
+
+- Mesclado o PR #34; a VPS recebeu a página e o servidor com a cifra, e a casca 0.5.0 foi publicada. O autor fez a troca nos aparelhos, e a sessão do Mac, com a aprovação dele, rodou na VPS a conferência e a limpeza da [etapa 02 do plano 005](planos/005-livros-e-pdfs/etapas/02-cifra-ponta-a-ponta.md): 921 versões legíveis saíram do histórico, e a VPS guarda só dados cifrados, com 22 documentos, 3 arquivos e 66 versões.
+- Critérios 2 e 5 verificados; os comandos da VPS passaram a usar `exec -T`, para rodar por uma conexão sem terminal.
+
+### Pendências
+
+- Confirmação do autor nos aparelhos, para os critérios 1, 3, 4 e 7.
+
 ## 2026-11-09 · Cifra ponta a ponta implementada
 
 ### Feito
