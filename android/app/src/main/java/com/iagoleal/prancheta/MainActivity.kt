@@ -42,6 +42,8 @@ class MainActivity : Activity() {
         private set
     private var camada: CamadaOnyx? = null
     private val roteador = RoteadorDeToques { suspensa -> camada?.suspender(suspensa) }
+    // Cópia do último evento de dedos entregue à WebView, para cancelar o gesto.
+    private var ultimoToqueDosDedos: MotionEvent? = null
     private var escolhaDeArquivos: ValueCallback<Array<Uri>>? = null
     private lateinit var atualizador: Atualizador
 
@@ -57,6 +59,9 @@ class MainActivity : Activity() {
             .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
             .build()
         prepararServiceWorker(carregador)
+
+        roteador.aoCancelarDedos = ::cancelarDedosNaWebView
+        roteador.pixelsPorMm = resources.displayMetrics.xdpi / 25.4f
 
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -141,15 +146,36 @@ class MainActivity : Activity() {
 
     override fun dispatchTouchEvent(evento: MotionEvent): Boolean {
         val camadaAtiva = camada ?: return super.dispatchTouchEvent(evento)
-        if (ehCaneta(evento)) camadaAtiva.sinalDaCaneta(evento.eventTime)
+        val caneta = ehCaneta(evento)
+        if (caneta) camadaAtiva.sinalDaCaneta(evento.eventTime)
         return when (roteador.rotear(evento)) {
             Destino.CAMADA_ONYX -> {
                 camadaAtiva.onTouchEvent(evento)
                 true
             }
             Destino.DESCARTAR -> true
-            Destino.WEBVIEW -> super.dispatchTouchEvent(evento)
+            Destino.WEBVIEW -> {
+                if (!caneta) guardarToqueDosDedos(evento)
+                super.dispatchTouchEvent(evento)
+            }
         }
+    }
+
+    private fun guardarToqueDosDedos(evento: MotionEvent) {
+        ultimoToqueDosDedos?.recycle()
+        val acao = evento.actionMasked
+        val terminou = acao == MotionEvent.ACTION_UP || acao == MotionEvent.ACTION_CANCEL
+        ultimoToqueDosDedos = if (terminou) null else MotionEvent.obtainNoHistory(evento)
+    }
+
+    // A caneta chegou durante um gesto de dedos, que costuma ser a mão apoiada:
+    // a WebView recebe o cancelamento do gesto, e a página desfaz o efeito dele.
+    private fun cancelarDedosNaWebView() {
+        val ultimo = ultimoToqueDosDedos ?: return
+        ultimoToqueDosDedos = null
+        ultimo.action = MotionEvent.ACTION_CANCEL
+        super.dispatchTouchEvent(ultimo)
+        ultimo.recycle()
     }
 
     // A caneta pairando chega como evento genérico. O roteador usa esse sinal

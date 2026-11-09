@@ -82,6 +82,9 @@ function traco(x0, y0, x1, y1, n, pressao, t0 = 1000) {
 test('fora da casca, o adaptador não faz nada', async () => {
   const { contexto, pagina, erros } = await abrirNaCasca({ casca: false });
   assert.equal(await pagina.evaluate(() => typeof window.prancheta), 'undefined');
+  assert.equal(await pagina.evaluate(() => document.documentElement.classList.contains('casca')), false);
+  const barra = await pagina.locator('#tools').boundingBox();
+  assert.ok(barra.y > TELA.height - 100, `no navegador, a barra continua embaixo: ${JSON.stringify(barra)}`);
   assert.deepEqual(erros, []);
   await contexto.close();
 });
@@ -283,6 +286,153 @@ test('com a tinta nativa, um dedo move o quadro mesmo com a caneta ativa', async
   // O artefato descarta o começo do movimento, até reconhecer o arrasto.
   assert.ok(depois.x - antes.x > 90 && depois.y - antes.y > 40, `vista de ${JSON.stringify(antes)} para ${JSON.stringify(depois)}`);
   assert.equal(await pagina.evaluate(() => [...S.items.values()].filter((it) => it.type === 'stroke').length), 0, 'o dedo não desenha');
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('na casca, a barra de ferramentas e o zoom ficam no alto', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  assert.equal(await pagina.evaluate(() => document.documentElement.classList.contains('casca')), true);
+  const barra = await pagina.locator('#tools').boundingBox();
+  assert.ok(barra.y < 40, `a barra fica no alto: ${JSON.stringify(barra)}`);
+  const embaixo = barra.y + barra.height;
+  assert.equal(await pagina.evaluate(() => document.getElementById('zoom').parentElement.id), 'top', 'o zoom entra no grupo da direita');
+  for (const seletor of ['#top', '#zoom', '#bTitle']) {
+    const caixa = await pagina.locator(seletor).boundingBox();
+    assert.ok(caixa.y >= embaixo, `${seletor} fica abaixo da barra: ${JSON.stringify(caixa)}`);
+  }
+  // As opções da caneta, no segundo toque no botão, abrem abaixo da barra.
+  await pagina.locator('#tools [data-t="pen"]').click();
+  await pagina.locator('#tools [data-t="pen"]').click();
+  await pagina.locator('#inkbar').waitFor();
+  const opcoes = await pagina.locator('#inkbar').boundingBox();
+  assert.ok(opcoes.y >= embaixo, `as opções da caneta abrem abaixo da barra: ${JSON.stringify(opcoes)}`);
+  // O menu do zoom, que abria para cima, abre para baixo, dentro da tela.
+  await pagina.keyboard.press('Escape');
+  await pagina.locator('#zoomPct').click();
+  await pagina.locator('#menu').waitFor();
+  const menu = await pagina.locator('#menu').boundingBox();
+  const zoom = await pagina.locator('#zoomPct').boundingBox();
+  assert.ok(menu.y > zoom.y + zoom.height, `o menu do zoom abre para baixo: ${JSON.stringify(menu)}`);
+  await esperar(pagina, () => {
+    const areas = window.__chamadas.filter((c) => c[0] === 'areasReservadas').at(-1)[1];
+    const r = document.getElementById('zIn').getBoundingClientRect();
+    return areas.some((a) => r.left + 1 >= a.x && r.right - 1 <= a.x + a.largura && r.top + 1 >= a.y && r.bottom - 1 <= a.y + a.altura);
+  });
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+// Toques simultâneos com vários dedos, pelo protocolo do Chromium.
+async function tocarComDedos(cdp, n, fim = 'touchEnd') {
+  const pontos = Array.from({ length: n }, (_, i) => ({ x: 500 + i * 60, y: 500, id: i + 1 }));
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pontos });
+  await cdp.send('Input.dispatchTouchEvent', { type: fim, touchPoints: [] });
+}
+
+const contarTracos = (pagina) => pagina.evaluate(() => [...S.items.values()].filter((it) => it.type === 'stroke').length);
+
+test('desfazer e refazer pelos dedos pedem dois toques seguidos', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate((pontos) => { prancheta.definirTinta('nativa'); prancheta.receberTraco(pontos); }, traco(300, 300, 700, 360, 20, 0.5));
+  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
+  const cdp = await contexto.newCDPSession(pagina);
+
+  // Um toque só, com dois dedos, como a mão apoiada, não desfaz.
+  await tocarComDedos(cdp, 2);
+  await pausa(600);
+  assert.equal(await contarTracos(pagina), 1, 'um toque de dois dedos não desfaz');
+  // Dois toques separados por mais de 400 ms também não.
+  await tocarComDedos(cdp, 2);
+  await pausa(600);
+  assert.equal(await contarTracos(pagina), 1, 'toques afastados não desfazem');
+
+  await tocarComDedos(cdp, 2);
+  await pausa(80);
+  await tocarComDedos(cdp, 2);
+  await esperar(pagina, () => ![...S.items.values()].some((it) => it.type === 'stroke'));
+  await pausa(600);
+
+  // Toques seguidos com números de dedos diferentes não agem.
+  await tocarComDedos(cdp, 2);
+  await pausa(80);
+  await tocarComDedos(cdp, 3);
+  await pausa(600);
+  assert.equal(await contarTracos(pagina), 0, 'dois dedos e depois três não refazem');
+
+  await tocarComDedos(cdp, 3);
+  await pausa(80);
+  await tocarComDedos(cdp, 3);
+  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('um gesto de dedos cancelado devolve a vista e não desfaz nada', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate((pontos) => { prancheta.definirTinta('nativa'); prancheta.receberTraco(pontos); }, traco(300, 300, 700, 360, 20, 0.5));
+  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
+  await pagina.keyboard.press('p');
+  const antes = await pagina.evaluate(() => ({ ...S.view }));
+  const cdp = await contexto.newCDPSession(pagina);
+
+  // Um dedo arrasta o quadro, e a casca cancela o gesto quando a caneta chega.
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 600, y: 400, id: 1 }] });
+  for (let i = 1; i <= 12; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 600 + i * 10, y: 400 + i * 5, id: 1 }] });
+  await pausa(100);
+  const durante = await pagina.evaluate(() => ({ ...S.view }));
+  assert.ok(durante.x - antes.x > 50, `o dedo moveu o quadro: ${JSON.stringify(durante)}`);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await pausa(100);
+  assert.deepEqual(await pagina.evaluate(() => ({ ...S.view })), antes, 'a vista volta à do início do gesto');
+
+  // Dois dedos que ampliam o quadro também voltam.
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 500, y: 400, id: 1 }, { x: 600, y: 400, id: 2 }] });
+  for (let i = 1; i <= 8; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 500 - i * 10, y: 400, id: 1 }, { x: 600 + i * 10, y: 400, id: 2 }] });
+  await pausa(100);
+  assert.ok(await pagina.evaluate((k) => S.view.k > k * 1.2, antes.k), 'os dois dedos ampliaram o quadro');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await pausa(100);
+  assert.deepEqual(await pagina.evaluate(() => ({ ...S.view })), antes, 'o zoom volta ao do início do gesto');
+
+  // Um toque duplo de dois dedos cujo segundo toque é cancelado não desfaz.
+  await tocarComDedos(cdp, 2);
+  await pausa(80);
+  await tocarComDedos(cdp, 2, 'touchCancel');
+  await pausa(600);
+  assert.equal(await contarTracos(pagina), 1, 'o toque cancelado não desfaz');
+  // Nem conta como o primeiro de dois toques seguidos.
+  await tocarComDedos(cdp, 2, 'touchCancel');
+  await pausa(80);
+  await tocarComDedos(cdp, 2);
+  await pausa(600);
+  assert.equal(await contarTracos(pagina), 1, 'o toque cancelado não é o primeiro do toque duplo');
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('um item arrastado por um dedo volta ao lugar quando o gesto é cancelado', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate(() => prancheta.definirTinta('nativa'));
+  await pagina.mouse.dblclick(600, 500);
+  await pagina.keyboard.type('arrastado');
+  await pagina.keyboard.press('Escape');
+  await pagina.locator('.card', { hasText: 'arrastado' }).waitFor();
+  await pagina.mouse.click(900, 700);
+  const posicao = () => pagina.evaluate(() => { const it = [...S.items.values()].find((x) => x.type === 'card'); return [it.x, it.y]; });
+  const antes = await posicao();
+  const historico = await pagina.evaluate(() => S.undo.length);
+  const [x, y] = await centro(pagina, '.card');
+  const cdp = await contexto.newCDPSession(pagina);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
+  for (let i = 1; i <= 12; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x + i * 10, y: y + i * 6, id: 1 }] });
+  await pausa(100);
+  assert.notDeepEqual(await posicao(), antes, 'o dedo arrastou o cartão');
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+  await pausa(200);
+  assert.deepEqual(await posicao(), antes, 'o cartão volta ao lugar');
+  assert.equal(await pagina.evaluate(() => S.undo.length), historico, 'o arrasto cancelado não fica no histórico');
+  assert.equal(await pagina.evaluate(() => S.redo.length), 0, 'nem entre o que se pode refazer');
   assert.deepEqual(erros, []);
   await contexto.close();
 });

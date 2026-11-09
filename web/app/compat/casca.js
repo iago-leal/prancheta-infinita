@@ -22,12 +22,33 @@
 // Usa o estado e as funções globais do artefato, como S, toWorld e flushInk,
 // sem mudá-los; deve ser carregado antes do código do artefato e só começa
 // depois que ele roda.
+//
+// Na casca, a barra de ferramentas, com as opções da caneta, e o zoom ficam no
+// alto da tela, porque a mão que escreve se apoia na parte de baixo e tocava
+// os botões sem querer: a barra ocupa a primeira faixa, ao centro, e o título,
+// os botões de desfazer e o zoom descem para a faixa seguinte.
 
 (function () {
   'use strict';
 
   const casca = window.Casca;
   if (!casca) return;
+
+  const ESTILO_DA_CASCA = `
+html.casca #bottom{top:calc(env(safe-area-inset-top,0px) + 12px);bottom:auto;flex-direction:column-reverse;z-index:7}
+html.casca #top{top:var(--casca-faixa,72px)}
+html.casca #sideBtn,html.casca #head{top:calc(var(--casca-faixa,72px) + 4px)}
+html.casca #head{width:min(460px,calc(100vw - 300px))}
+html.casca body.side #head{width:min(460px,calc(100vw - 284px - 350px))}
+html.casca #zoom{position:static}
+html.casca #keys{top:calc(var(--casca-faixa,72px) + 48px)}
+html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,72px) + 56px)}`;
+
+  document.documentElement.classList.add('casca');
+  const estilo = document.createElement('style');
+  estilo.id = 'estilo-da-casca';
+  estilo.textContent = ESTILO_DA_CASCA;
+  document.head.appendChild(estilo);
 
   // Com a ferramenta de seleção, a caneta escreve e um dedo seleciona e
   // arrasta; com as demais ferramentas que não são de tinta, a caneta age
@@ -93,6 +114,7 @@
 
   function avisarAgora() {
     quadroAgendado = false;
+    arrumarNoAlto();
     const v = S.view;
     const vista = JSON.stringify({ x: v.x, y: v.y, k: v.k });
     if (vista !== ultimaVista) {
@@ -202,6 +224,17 @@
     } catch (e) {
       return false;
     }
+  }
+
+  // O zoom entra no grupo de botões da direita, e a segunda faixa começa logo
+  // abaixo da barra de ferramentas, qualquer que seja a altura dela.
+  function arrumarNoAlto() {
+    const zoom = document.getElementById('zoom');
+    const topo = document.getElementById('top');
+    if (zoom && topo && zoom.parentNode !== topo) topo.appendChild(zoom);
+    const ferramentas = document.getElementById('tools');
+    const r = ferramentas && ferramentas.getBoundingClientRect();
+    if (r && r.height) document.documentElement.style.setProperty('--casca-faixa', `${Math.ceil(r.bottom + 12)}px`);
   }
 
   function iniciar() {
