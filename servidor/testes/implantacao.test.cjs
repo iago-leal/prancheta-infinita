@@ -318,12 +318,25 @@ test('o roteiro tem sintaxe válida, e a Prancheta não é entregue pelo endere�
 
 test('a biblioteca é montada só para leitura, e o roteiro só dá à Prancheta o direito de ler', (t) => {
   const roteiro = fs.readFileSync(path.join(PASTA, 'preparar-vps.sh'), 'utf8');
-  // Toda permissão extra posta pelo roteiro é só de leitura e de entrada nas pastas.
-  const concessoes = roteiro.match(/setfacl[^\n]* -m "[^"]*"/g) || [];
+  const permissao = fs.readFileSync(path.join(PASTA, 'prancheta-biblioteca'), 'utf8');
+  for (const script of ['prancheta-biblioteca']) {
+    const r = spawnSync('bash', ['-n', path.join(PASTA, script)], { encoding: 'utf8' });
+    assert.equal(r.status, 0, `${script}: ${r.stderr}`);
+    assert.ok(fs.statSync(path.join(PASTA, script)).mode & 0o111, `${script} sem permissão de execução`);
+  }
+  // Toda permissão extra é só de leitura e de entrada nas pastas, e só o comando prancheta-biblioteca a põe.
+  const concessoes = permissao.match(/setfacl[^\n]* -m "[^"]*"/g) || [];
   assert.equal(concessoes.length, 2);
-  for (const c of concessoes) assert.match(c, /-m "(d:)?u:\$PRANCHETA_UID:rX"$/);
+  for (const c of concessoes) assert.match(c, /-m "(d:)?u:\$NUMERO:rX"$/);
+  assert.equal((roteiro.match(/setfacl[^\n]* -m /g) || []).length, 0);
   // O dono e as permissões normais da subpasta nunca mudam.
-  assert.doesNotMatch(roteiro, /(chown|chmod|chgrp)[^\n]*BIBLIOTECA/);
+  for (const texto of [roteiro, permissao]) assert.doesNotMatch(texto, /(chown|chmod|chgrp)[^\n]*BIBLIOTECA/);
+  // O temporizador reaplica a permissão a cada 5 minutos e sai com --sem-biblioteca.
+  const temporizador = fs.readFileSync(path.join(PASTA, 'prancheta-biblioteca.timer'), 'utf8');
+  assert.match(temporizador, /^OnUnitActiveSec=5min$/m);
+  assert.match(fs.readFileSync(path.join(PASTA, 'prancheta-biblioteca.service'), 'utf8'), /^ExecStart=\/usr\/local\/sbin\/prancheta-biblioteca$/m);
+  assert.match(roteiro, /systemctl enable --now prancheta-biblioteca\.timer/);
+  assert.match(roteiro, /systemctl disable --now prancheta-biblioteca\.timer/);
   // O caminho fica só no ambiente da VPS e é preservado nas execuções seguintes.
   assert.match(roteiro, /PRANCHETA_BIBLIOTECA_DA_VPS=%s/);
   assert.match(roteiro, /BIBLIOTECA="\$ANTERIOR"/);

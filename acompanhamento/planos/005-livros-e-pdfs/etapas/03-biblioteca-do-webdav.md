@@ -17,11 +17,11 @@ Mostrar na Prancheta, no Boox e no computador, os PDFs e EPUBs da subpasta de li
 
 ## Critérios de conclusão
 
-- [ ] Na VPS, a subpasta de livros do WebDAV fica montada só para leitura no contêiner da Prancheta, por um roteiro executado pelo autor, sem que a Prancheta possa gravar nada nela; o caminho fica só na VPS e nunca entra no repositório.
+- [x] Na VPS, a subpasta de livros do WebDAV fica montada só para leitura no contêiner da Prancheta, por um roteiro executado pelo autor, sem que a Prancheta possa gravar nada nela; o caminho fica só na VPS e nunca entra no repositório.
 - [ ] O servidor lista os PDFs e EPUBs da subpasta, com nome, pasta, tamanho e um identificador do conteúdo igual ao que o KOReader usa, e entrega cada um só com a chave de um aparelho; nada fora da subpasta, nem por atalhos, é listado ou entregue.
 - [ ] No painel lateral, a seção "Biblioteca" mostra os livros; tocar num livro o baixa e o guarda no aparelho, que passa a mostrá-lo como guardado; sem rede, a lista e os livros guardados continuam disponíveis.
 - [ ] Os livros guardados ficam fora da sincronização dos quadros: não sobem ao servidor nem passam pela cifra.
-- [ ] Os testes automáticos cobrem a lista, a entrega com e sem a chave, os atalhos e os caminhos para fora da subpasta, o identificador, o download e o uso sem rede, e acusam mutações introduzidas.
+- [x] Os testes automáticos cobrem a lista, a entrega com e sem a chave, os atalhos e os caminhos para fora da subpasta, o identificador, o download e o uso sem rede, e acusam mutações introduzidas.
 - [ ] O autor confirma, no Boox e no computador, que vê a biblioteca, baixa um livro e o encontra guardado com o aparelho sem rede.
 
 ## Registro
@@ -53,5 +53,12 @@ Mostrar na Prancheta, no Boox e no computador, os PDFs e EPUBs da subpasta de li
   - Casca 0.6.0, `versionCode` 18, porque a página do Boox vem dentro dela; guias do servidor e da VPS com a biblioteca.
 - Testes: 6 da biblioteca no servidor, entre eles o resumo do KOReader com arquivos de vários tamanhos, os atalhos e as pastas ocultas, o livro renomeado, a entrega com e sem a chave e o livro ou a pasta trocados por atalho depois de listados; 1 da montagem e do roteiro; 2 no Chromium, com a página e o servidor no mesmo endereço, cobrindo a lista, o download, o livro fora dos quadros e do servidor, a página reaberta sem rede com a lista e o livro guardado, o livro não guardado sem rede e a chave recusada. Das 10 mutações introduzidas, 8 foram acusadas; as outras duas não mudam o comportamento: tirar o descarte explícito de atalhos, que a leitura do tipo de cada arquivo também descarta, e aceitar um identificador fora da lista, que o formato exigido do identificador impede de chegar a um caminho. Duas mutações escaparam na primeira rodada e levaram a testes novos: a conferência ao abrir, que o teste não exercitava porque refazia a lista a cada pedido, e a guarda contra baixar de novo um livro guardado, que a interface já evitava.
 - O detector da skill `impeccable` não apontou nada na seção.
+
+- Mesclado o PR #36; a publicação pôs no ar a versão 58afb38, e a casca 0.6.0 saiu como `casca-18`. O autor instalou a casca no Boox.
+- A sessão do Mac, com a aprovação do autor dada nela, copiou a pasta de implantação do commit 58afb38 e rodou o roteiro com `--biblioteca`: ele instalou o pacote `acl`, pôs a permissão extra de leitura e terminou sem erro; de dentro do contêiner, a Prancheta consegue ler os 13 PDFs e EPUBs, sem nenhum item de fora. `/biblioteca` ficou montada só para leitura, o dono dos 39 arquivos não mudou, e o contêiner do servidor foi recriado pelo roteiro.
+- Critério 1 verificado: a subpasta está montada só para leitura no contêiner da Prancheta, pelo roteiro executado com a aprovação do autor, e o caminho ficou só na VPS.
+- Critério 5 verificado pelos testes e pelas mutações descritos acima.
+- Livros novos: a sessão do Mac verificou que o WebDAV é um nginx com o módulo dav, sem `dav_access` na configuração, o que vale o padrão `user:rw`, um modo 600 fixo, que torna o umask irrelevante. Ela deduziu, sem poder testar, que um livro novo não herdaria a permissão extra. O teste aqui confirmou: um arquivo gravado num temporário fora da pasta, com modo 600, e renomeado para dentro dela, como o nginx faz, ficou fora do alcance da conta de leitura. O autor escolheu reaplicar a permissão a cada 5 minutos, em vez de deixá-la para quando o roteiro rodar ou de testar antes.
+- Implementado: o comando `prancheta-biblioteca`, que põe e reaplica a permissão extra, só de leitura, lendo a subpasta do ambiente da VPS, e um temporizador do systemd que o chama a cada 5 minutos; o roteiro os instala com a biblioteca e os tira com `--sem-biblioteca`. Testado aqui no mesmo arranjo do nginx: depois da reaplicação, a conta de leitura passou a ler o livro novo e continuou sem conseguir gravar nele; sem subpasta no ambiente, o comando não faz nada.
 
 ## Resultado

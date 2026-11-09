@@ -6,6 +6,21 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Biblioteca aplicada na VPS e livros novos
+
+### Feito
+
+- Mesclado o PR #36; a sessão do Mac, com a aprovação do autor, rodou o roteiro com a biblioteca: a Prancheta lê os 13 livros, montados só para leitura. O autor instalou a casca 0.6.0 no Boox. Critérios 1 e 5 da [etapa 03](planos/005-livros-e-pdfs/etapas/03-biblioteca-do-webdav.md) verificados.
+- O nginx do WebDAV grava cada livro novo com o modo 600 fixo, que não herda a permissão extra; o teste aqui confirmou. Acrescentados o comando que reaplica a permissão e um temporizador que o chama a cada 5 minutos.
+
+### Decidido
+
+- **Livros novos em até 5 minutos.** O autor escolheu reaplicar a permissão de leitura a cada 5 minutos, em vez de esperar o roteiro rodar de novo.
+
+### Pendências
+
+- Mesclar, rodar o roteiro de novo pela sessão do Mac e confirmar a biblioteca nos dois aparelhos.
+
 ## 2026-11-09 · Biblioteca do WebDAV implementada
 
 ### Feito
