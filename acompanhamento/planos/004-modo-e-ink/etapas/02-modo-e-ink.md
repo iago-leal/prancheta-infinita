@@ -3,10 +3,10 @@ tipo: etapa
 plano: "004"
 etapa: "02"
 titulo: Modo e-ink na casca e refazer com três dedos
-status: em_andamento
+status: concluida
 depende_de: ["01"]
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 02: modo e-ink na casca e refazer com três dedos
@@ -20,9 +20,9 @@ Adaptar a aparência da Prancheta na casca ao e-ink do Boox, sem sombras, transi
 - [x] Na casca, nenhum elemento da interface tem sombra, transição ou animação.
 - [x] Na casca, a ferramenta ativa e os botões ligados aparecem invertidos, com fundo escuro e ícone claro, e os itens selecionados ganham contorno escuro e contínuo.
 - [x] Na casca, menus, barra de seleção e diálogos têm fundo opaco e borda fina, sem escurecer a tela atrás deles.
-- [ ] Dois toques seguidos com três dedos refazem no Boox; sem nada a desfazer ou refazer, a Prancheta avisa com "Nada a desfazer" ou "Nada a refazer".
+- [x] Dois toques seguidos com três dedos refazem no Boox; sem nada a desfazer ou refazer, a Prancheta avisa com "Nada a desfazer" ou "Nada a refazer".
 - [x] No navegador do computador, a aparência não muda.
-- [ ] O autor confirma no Boox que a tela fica legível, sem manchas cinzas, e que a ferramenta ativa se destaca.
+- [x] O autor confirma no Boox que a tela fica legível, sem manchas cinzas, e que a ferramenta ativa se destaca.
 
 ## Registro
 
@@ -38,3 +38,13 @@ Adaptar a aparência da Prancheta na casca ao e-ink do Boox, sem sombras, transi
 - Os critérios 1, 2, 3 e 5 foram verificados pelos testes "na casca, a página fica sem sombras, transições, animações e fundos translúcidos" e "no navegador, a aparência continua com as sombras e o destaque de antes". Faltam o critério 4, o refazer com três dedos no Boox, e a confirmação do autor; se o refazer ainda falhar, o diagnóstico mostra o motivo, e desligar a captura de tela com três dedos, em Configurações, Mais configurações, Capturas de tela, é o teste seguinte.
 
 ## Resultado
+
+Etapa concluída em 2026-11-09, com a casca 0.3.8. Cada critério foi verificado assim:
+
+1. Sem sombra, transição ou animação na casca: o teste "na casca, a página fica sem sombras, transições, animações e fundos translúcidos", que percorre todos os elementos da página, inclusive os pseudoelementos.
+2. Ferramenta ativa e botões ligados invertidos, itens selecionados com contorno escuro e contínuo: o mesmo teste, que compara as cores com as do texto e do fundo.
+3. Menus, barra de seleção e diálogos opacos com borda fina, sem escurecer a tela: o mesmo teste.
+4. Refazer com dois toques de três dedos no Boox, e os avisos sem nada a desfazer ou refazer: o autor confirmou no Boox que o refazer com três dedos funcionou; os avisos são conferidos pelo teste "desfazer e refazer pelos dedos pedem dois toques seguidos".
+5. A aparência do navegador sem mudança: o teste "no navegador, a aparência continua com as sombras e o destaque de antes".
+6. Confirmação do autor: no Boox, com a 0.3.8, a tela está legível, e a ferramenta ativa se destaca.
+

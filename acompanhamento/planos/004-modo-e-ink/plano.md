@@ -26,10 +26,10 @@ O plano 003 deixou a escrita no Boox rápida e igual antes e depois da troca do 
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-faixa-unica-no-boox.md) | Controles numa faixa só no alto da tela do Boox | concluida |
-| [02](etapas/02-modo-e-ink.md) | Modo e-ink na casca e refazer com três dedos | em_andamento |
-| 03 | Formas num botão só e seleção por laço | pendente |
+| [02](etapas/02-modo-e-ink.md) | Modo e-ink na casca e refazer com três dedos | concluida |
+| [03](etapas/03-formas-e-laco.md) | Formas num botão só e seleção por laço | em_andamento |
 
-A etapa 03, pedida pelo autor em 2026-11-09, junta numa só ferramenta da barra as formas, a linha e os símbolos elétricos e acrescenta a seleção por laço; os critérios dela e as etapas seguintes, como as ferramentas de reorganização, serão detalhados com o autor antes de começar.
+A etapa 03, pedida pelo autor em 2026-11-09, junta num só botão da barra as formas, a linha e os símbolos elétricos e acrescenta a seleção por laço. As etapas seguintes, como as ferramentas de reorganização, serão detalhadas com o autor antes de começar.
 
 ## Riscos
 

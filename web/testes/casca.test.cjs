@@ -637,3 +637,153 @@ test('no navegador, a aparência continua com as sombras e o destaque de antes',
   assert.deepEqual(erros, []);
   await contexto.close();
 });
+
+test('o botão de formas abre um painel com as quatro formas e os sete símbolos elétricos', async () => {
+  for (const naCasca of [true, false]) {
+    const { contexto, pagina, erros } = await abrirNaCasca({ casca: naCasca });
+    for (const antigo of ['rect', 'ellipse', 'diamond', 'line', 'symbol']) {
+      assert.equal(await pagina.locator(`#t-${antigo}`).count(), 0, `o botão ${antigo} sai da barra`);
+    }
+    await pagina.locator('#t-shapes').click();
+    await pagina.locator('#menu').waitFor();
+    assert.equal(await pagina.locator('#menu [data-forma]').count(), 4, 'as quatro formas à vista');
+    assert.equal(await pagina.locator('#menu [data-sym]').count(), 7, 'os sete símbolos à vista');
+    // O painel abre para baixo com a barra no alto, na casca, e para cima com ela embaixo.
+    const painel = await pagina.locator('#menu').boundingBox();
+    const botao = await pagina.locator('#t-shapes').boundingBox();
+    if (naCasca) assert.ok(painel.y > botao.y + botao.height, `abre para baixo: ${JSON.stringify(painel)}`);
+    else assert.ok(painel.y + painel.height < botao.y, `abre para cima: ${JSON.stringify(painel)}`);
+    // A forma escolhida fica ativa e aparece no ícone do botão.
+    await pagina.locator('#menu [data-forma="ellipse"]').click();
+    const estado = () => pagina.evaluate(() => ({ ferramenta: S.tool, ligado: document.getElementById('t-shapes').getAttribute('aria-pressed'), icone: document.getElementById('t-shapes').innerHTML }));
+    let visto = await estado();
+    assert.equal(visto.ferramenta, 'ellipse');
+    assert.equal(visto.ligado, 'true');
+    assert.match(visto.icone, /<ellipse/);
+    // Os atalhos de teclado continuam valendo.
+    for (const [tecla, forma, marca] of [['r', 'rect', /<rect/], ['d', 'diamond', /M12 3l9 9/], ['l', 'line', /M5 19L19 5/], ['o', 'ellipse', /<ellipse/]]) {
+      await pagina.mouse.click(700, 760);
+      await pagina.keyboard.press('Escape');
+      await pagina.keyboard.press(tecla);
+      visto = await estado();
+      assert.equal(visto.ferramenta, forma, `a tecla ${tecla}`);
+      assert.match(visto.icone, marca, `o ícone da forma ${forma}`);
+    }
+    // A tecla A escolhe o laço.
+    await pagina.keyboard.press('Escape');
+    await pagina.keyboard.press('a');
+    assert.equal(await pagina.evaluate(() => S.tool), 'lasso', 'a tecla a');
+    await pagina.keyboard.press('Escape');
+    await pagina.keyboard.press('s');
+    await pagina.locator('#menu [data-sym]').first().waitFor();
+    // Um símbolo entra no centro da tela, selecionado.
+    await pagina.locator('#menu [data-sym="resistor"]').click();
+    await esperar(pagina, () => [...S.items.values()].some((it) => it.sym === 'resistor'));
+    assert.equal(await pagina.evaluate(() => S.tool), 'select');
+    assert.equal(await pagina.evaluate(() => S.items.get([...S.sel][0]).sym), 'resistor');
+    assert.deepEqual(erros, []);
+    await contexto.close();
+  }
+});
+
+// Cria, em coordenadas de tela, os itens que o laço vai circular: dois traços e dois cartões.
+async function montarCenaDoLaco(pagina) {
+  await pagina.evaluate(() => prancheta.definirTinta('nativa'));
+  const ids = await pagina.evaluate(() => {
+    const tracar = (x0, y0, x1, y1) => prancheta.receberTraco(Array.from({ length: 21 }, (_, i) => ({ x: x0 + ((x1 - x0) * i) / 20, y: y0 + ((y1 - y0) * i) / 20, p: 0.5, t: 1000 + i * 10 })));
+    const antes = new Set(S.items.keys());
+    tracar(550, 300, 650, 320); // inteiro dentro do laço
+    const a = [...S.items.keys()].find((id) => !antes.has(id));
+    tracar(850, 400, 1100, 420); // só a ponta dentro
+    const b = [...S.items.keys()].find((id) => !antes.has(id) && id !== a);
+    const cartao = (cx, cy, texto) => { const w = toWorld(cx, cy); begin(); const it = add({ type: 'card', x: Math.round(w.x - 80), y: Math.round(w.y - 25), w: 160, h: 50, blocks: [{ h: texto }], c: 'none' }); commit(); return it.id; };
+    const c = cartao(600, 450, 'dentro'); // centro dentro do laço
+    const d = cartao(950, 300, 'fora'); // encosta no laço, com o centro fora
+    return { a, b, c, d };
+  });
+  return ids;
+}
+
+// Um laço retangular, por padrão de (500, 250) a (900, 550), em pixels de tela, com pontos intermediários.
+function contornoDoLaco(x0 = 500, y0 = 250, x1 = 900, y1 = 550) {
+  const pts = [];
+  for (let x = x0; x <= x1; x += 20) pts.push([x, y0]);
+  for (let y = y0; y <= y1; y += 20) pts.push([x1, y]);
+  for (let x = x1; x >= x0; x -= 20) pts.push([x, y1]);
+  for (let y = y1; y >= y0; y -= 20) pts.push([x0, y]);
+  return pts;
+}
+
+test('o laço seleciona os traços pela maioria dos pontos e os demais itens pelo centro', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  const ids = await montarCenaDoLaco(pagina);
+  await pagina.locator('#t-lasso').click();
+  // Com o laço, a caneta age sobre a página em vez de escrever.
+  await esperar(pagina, () => window.__chamadas.filter((c) => c[0] === 'canetaEscreve').at(-1)[1] === false);
+  // A caneta desenha o laço.
+  const cdp = await contexto.newCDPSession(pagina);
+  const pts = contornoDoLaco();
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: pts[0][0], y: pts[0][1], button: 'left', buttons: 1, clickCount: 1, pointerType: 'pen' });
+  for (const [x, y] of pts.slice(1)) await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, button: 'left', buttons: 1, pointerType: 'pen' });
+  assert.equal(await pagina.locator('#over .laco path').count(), 1, 'o laço aparece enquanto é desenhado');
+  await cdp.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: pts.at(-1)[0], y: pts.at(-1)[1], button: 'left', buttons: 0, clickCount: 1, pointerType: 'pen' });
+  await esperar(pagina, () => S.sel.size > 0);
+  assert.deepEqual((await pagina.evaluate(() => [...S.sel])).sort(), [ids.a, ids.c].sort(), 'só o traço de dentro e o cartão com o centro dentro');
+  assert.equal(await pagina.locator('#over .laco').count(), 0, 'o laço some ao soltar');
+  assert.equal(await pagina.evaluate(() => S.tool), 'lasso', 'a ferramenta continua o laço');
+  // Um dedo também desenha o laço, e Shift soma à seleção com o mouse.
+  await pagina.keyboard.press('Escape');
+  await pagina.locator('#t-lasso').click();
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: pts[0][0], y: pts[0][1], id: 1 }] });
+  for (const [x, y] of pts.slice(1)) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y, id: 1 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await esperar(pagina, () => S.sel.size === 2);
+  assert.deepEqual((await pagina.evaluate(() => [...S.sel])).sort(), [ids.a, ids.c].sort(), 'o dedo seleciona o mesmo');
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('o que o laço seleciona pode ser movido, copiado e apagado como numa seleção comum', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  const ids = await montarCenaDoLaco(pagina);
+  await pagina.locator('#t-lasso').click();
+  const pts = contornoDoLaco();
+  await pagina.mouse.move(pts[0][0], pts[0][1]);
+  await pagina.mouse.down();
+  for (const [x, y] of pts.slice(1)) await pagina.mouse.move(x, y);
+  await pagina.mouse.up();
+  await esperar(pagina, () => S.sel.size === 2);
+  const posicoes = () => pagina.evaluate((ids) => { const a = S.items.get(ids.a), c = S.items.get(ids.c); return { a: [a.ox, a.oy], c: [c.x, c.y], k: S.view.k }; }, ids);
+  const antes = await posicoes();
+  // Arrastar de dentro da seleção, com o laço ativo, move os itens em vez de começar outro laço.
+  await pagina.mouse.move(600, 450);
+  await pagina.mouse.down();
+  for (let i = 1; i <= 10; i++) await pagina.mouse.move(600 + i * 10, 450 + i * 5);
+  await pagina.mouse.up();
+  const depois = await posicoes();
+  const dx = 100 / antes.k, dy = 50 / antes.k;
+  assert.ok(Math.abs(depois.c[0] - antes.c[0] - dx) < 2 && Math.abs(depois.c[1] - antes.c[1] - dy) < 2, `o cartão se moveu: ${JSON.stringify([antes, depois])}`);
+  assert.ok(Math.abs(depois.a[0] - antes.a[0] - dx) < 2 && Math.abs(depois.a[1] - antes.a[1] - dy) < 2, `o traço se moveu: ${JSON.stringify([antes, depois])}`);
+  assert.deepEqual((await pagina.evaluate(() => [...S.sel])).sort(), [ids.a, ids.c].sort(), 'a seleção continua');
+  // Copiar e apagar.
+  const total = () => pagina.evaluate(() => S.items.size);
+  const n = await total();
+  await pagina.keyboard.press('Control+d');
+  await esperar(pagina, (n) => S.items.size === n + 2, n);
+  await pagina.keyboard.press('Delete');
+  await esperar(pagina, (n) => S.items.size === n, n);
+  await pagina.evaluate(() => select([]));
+  await pagina.locator('#t-lasso').click();
+  // Um laço só em volta dos itens movidos, longe dos que ficaram fora.
+  const outro = contornoDoLaco(620, 330, 820, 560);
+  await pagina.mouse.move(outro[0][0], outro[0][1]);
+  await pagina.mouse.down();
+  for (const [x, y] of outro.slice(1)) await pagina.mouse.move(x, y);
+  await pagina.mouse.up();
+  await esperar(pagina, () => S.sel.size === 2);
+  await pagina.keyboard.press('Delete');
+  await esperar(pagina, (ids) => !S.items.has(ids.a) && !S.items.has(ids.c), ids);
+  assert.ok(await pagina.evaluate((ids) => S.items.has(ids.b) && S.items.has(ids.d), ids), 'os itens de fora continuam');
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});

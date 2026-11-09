@@ -6,6 +6,17 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Etapa 03 do plano 004: formas num botão só e seleção por laço
+
+### Feito
+
+- O autor confirmou no Boox, com a 0.3.8, que o refazer com três dedos funciona, que a tela está legível e que a ferramenta ativa se destaca; a [etapa 02](planos/004-modo-e-ink/etapas/02-modo-e-ink.md) foi concluída.
+- Aberta a [etapa 03](planos/004-modo-e-ink/etapas/03-formas-e-laco.md), com os critérios aprovados pelo autor. Na casca 0.3.9, um botão de formas abre um painel com as quatro formas e os sete símbolos elétricos, e a nova ferramenta de laço seleciona os traços pela maioria dos pontos e os demais itens pelo centro; a barra passou de 14 para 11 botões.
+
+### Pendências
+
+- O autor confirmar no Boox, com a 0.3.9, que a caneta desenha o laço e seleciona o que ele circula e que o botão de formas deixa a barra mais fácil de usar.
+
 ## 2026-11-09 · Etapa 02 do plano 004: modo e-ink na casca e refazer com três dedos
 
 ### Feito
