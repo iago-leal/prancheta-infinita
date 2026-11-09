@@ -6,6 +6,16 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Destaques, cartões e links de volta
+
+### Feito
+
+- Mesclado o PR #39, com o leitor. Segunda parte da [etapa 04](planos/005-livros-e-pdfs/etapas/04-leitor-com-marcacoes.md) pronta: o trecho selecionado vira destaque, sincronizado e cifrado como os quadros, e vai ao quadro como cartão, assim como a posição atual sem destaque; o link "abrir no livro" do cartão reabre o livro na posição, também no outro aparelho. Casca 0.8.0. Critério 5 verificado.
+
+### Pendências
+
+- Mesclar, testar no Boox a seleção e a caneta ao lado do livro e confirmar o critério do plano.
+
 ## 2026-11-09 · Leitor de EPUB e PDF
 
 ### Feito
