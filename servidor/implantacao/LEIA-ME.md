@@ -11,6 +11,8 @@ A Prancheta roda na VPS num contêiner próprio e só responde pela rede privada
 | `tailscale-serve.json` | o que o Tailscale entrega pela rede privada: a página em `/` e a sincronização em `/sync/` | `/opt/prancheta/tailscale-serve.json` |
 | `prancheta-publicar` | comando forçado da conta `prancheta`, a única coisa que a chave do GitHub executa | `/usr/local/bin/prancheta-publicar` |
 | `prancheta-chave` | cria, lista e revoga as chaves dos aparelhos | `/usr/local/sbin/prancheta-chave` |
+| `prancheta-biblioteca` | põe e reaplica a permissão extra de leitura da Prancheta na subpasta de livros | `/usr/local/sbin/prancheta-biblioteca` |
+| `prancheta-biblioteca.service` e `.timer` | chamam o comando acima a cada 5 minutos, para os livros novos | `/etc/systemd/system/` |
 
 ## Uma vez, como administrador
 
@@ -58,9 +60,9 @@ ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh --biblioteca <subpas
 
 O caminho fica em `/etc/prancheta/ambiente` e vale nas execuções seguintes do roteiro, sem repeti-lo; ele nunca entra no repositório. Sem ele, uma pasta vazia ocupa o lugar, e a biblioteca aparece vazia.
 
-Os livros do WebDAV só são legíveis pelo usuário dele. Por decisão do autor, o roteiro instala o pacote `acl` e põe na subpasta uma permissão extra, só de leitura, para a conta `prancheta`, com uma regra padrão nas pastas que a estende aos livros novos. O dono e as permissões normais dos arquivos não mudam, e o WebDAV continua funcionando como antes. Se o WebDAV criar um livro novo pedindo explicitamente só a leitura do dono, a regra padrão não vale para ele, que fica fora da biblioteca até o roteiro rodar de novo. Depois de ligar os contêineres, o roteiro confere, de dentro do contêiner da Prancheta, quantos PDFs e EPUBs ela consegue ler.
+Os livros do WebDAV só são legíveis pelo usuário dele. Por decisão do autor, o roteiro instala o pacote `acl` e, pelo comando `prancheta-biblioteca`, põe na subpasta uma permissão extra, só de leitura, para a conta `prancheta`. O dono e as permissões normais dos arquivos não mudam, e o WebDAV continua funcionando como antes. O nginx do WebDAV grava cada livro novo com o modo 600 fixo, que não herda a regra das pastas; por isso, o temporizador `prancheta-biblioteca.timer` reaplica a permissão a cada 5 minutos, e um livro novo entra na biblioteca em até 5 minutos. Depois de ligar os contêineres, o roteiro confere, de dentro do contêiner da Prancheta, quantos PDFs e EPUBs ela consegue ler.
 
-Para tirar a permissão extra e desmontar a biblioteca:
+Para tirar a permissão extra, o temporizador e a montagem da biblioteca:
 
 ```sh
 ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh --sem-biblioteca'

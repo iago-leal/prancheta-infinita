@@ -1,0 +1,11 @@
+# Chama prancheta-biblioteca.service a cada 5 minutos, para que um livro novo
+# do WebDAV entre na biblioteca da Prancheta em até 5 minutos.
+[Unit]
+Description=Permissão de leitura da Prancheta nos livros novos, a cada 5 minutos
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

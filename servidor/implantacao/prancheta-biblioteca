@@ -1,0 +1,27 @@
+#!/bin/bash
+# Põe, e reaplica, a permissão extra, só de leitura e de entrada nas pastas, da
+# conta prancheta na subpasta de livros do WebDAV, informada ao roteiro
+# preparar-vps.sh e guardada em /etc/prancheta/ambiente. O dono e as
+# permissões normais dos arquivos não mudam, e nada dá à Prancheta o direito
+# de gravar.
+#
+# O roteiro o instala em /usr/local/sbin/prancheta-biblioteca e o chama uma
+# vez; o prancheta-biblioteca.timer o chama de novo a cada 5 minutos, porque o
+# nginx do WebDAV grava cada livro novo com o modo 600 fixo, que não herda a
+# regra padrão das pastas. Sem subpasta configurada, não faz nada.
+#
+# Variáveis, só para testes: PRANCHETA_AMBIENTE, o arquivo de ambiente, e
+# PRANCHETA_CONTA, a conta que recebe a leitura.
+
+set -euo pipefail
+
+AMBIENTE="${PRANCHETA_AMBIENTE:-/etc/prancheta/ambiente}"
+CONTA="${PRANCHETA_CONTA:-prancheta}"
+
+[[ -f "$AMBIENTE" ]] || exit 0
+BIBLIOTECA="$(grep -m 1 '^PRANCHETA_BIBLIOTECA_DA_VPS=' "$AMBIENTE" | cut -d= -f2- || true)"
+[[ -n "$BIBLIOTECA" && -d "$BIBLIOTECA" ]] || exit 0
+NUMERO="$(id -u "$CONTA")"
+
+setfacl -R -m "u:$NUMERO:rX" "$BIBLIOTECA"
+find "$BIBLIOTECA" -type d -exec setfacl -m "d:u:$NUMERO:rX" {} +

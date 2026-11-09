@@ -21,9 +21,11 @@
 #
 # Os livros do WebDAV só são legíveis pelo usuário dele. O roteiro instala o
 # pacote acl e põe na subpasta uma permissão extra, só de leitura, para a conta
-# prancheta, que vale também para os livros novos; o dono e as permissões
-# normais dos arquivos não mudam. Para tirar a permissão extra e desmontar a
-# biblioteca:
+# prancheta, pelo comando prancheta-biblioteca; o dono e as permissões normais
+# dos arquivos não mudam. Como o nginx do WebDAV grava cada livro novo com o
+# modo 600 fixo, que não herda a regra, o temporizador prancheta-biblioteca
+# reaplica a permissão a cada 5 minutos. Para tirar a permissão extra, o
+# temporizador e a montagem da biblioteca:
 #
 #   ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh --sem-biblioteca'
 #
@@ -91,7 +93,7 @@ while (( $# > 0 )); do
       ;;
   esac
 done
-for arquivo in prancheta-publicar prancheta-chave compose.yml tailscale-serve.json; do
+for arquivo in prancheta-publicar prancheta-chave prancheta-biblioteca prancheta-biblioteca.service prancheta-biblioteca.timer compose.yml tailscale-serve.json; do
   [[ -f "$AQUI/$arquivo" ]] || falhar "falta $arquivo ao lado do roteiro; copie a pasta servidor/implantacao inteira"
 done
 command -v docker > /dev/null || falhar "docker não encontrado"
@@ -116,7 +118,8 @@ fi
 passo "2. Comandos"
 install -o root -g root -m 0755 "$AQUI/prancheta-publicar" /usr/local/bin/prancheta-publicar
 install -o root -g root -m 0700 "$AQUI/prancheta-chave" /usr/local/sbin/prancheta-chave
-echo "instalados /usr/local/bin/prancheta-publicar e /usr/local/sbin/prancheta-chave"
+install -o root -g root -m 0700 "$AQUI/prancheta-biblioteca" /usr/local/sbin/prancheta-biblioteca
+echo "instalados /usr/local/bin/prancheta-publicar, /usr/local/sbin/prancheta-chave e /usr/local/sbin/prancheta-biblioteca"
 if ! grep -qs 'command="/usr/local/bin/prancheta-publicar"' "$CASA/.ssh/authorized_keys"; then
   echo "AVISO: a chave do GitHub em $CASA/.ssh/authorized_keys não usa o comando /usr/local/bin/prancheta-publicar"
 fi
@@ -135,8 +138,15 @@ echo "login do Tailscale em /var/lib/prancheta-tailscale"
 passo "4. Ambiente e contêiner"
 ANTERIOR=""
 [[ -f /etc/prancheta/ambiente ]] && ANTERIOR="$(grep -m 1 '^PRANCHETA_BIBLIOTECA_DA_VPS=' /etc/prancheta/ambiente | cut -d= -f2- || true)"
-# A permissão extra só sai da subpasta que o roteiro mesmo configurou.
+# A permissão extra só sai da subpasta que o roteiro mesmo configurou, e o
+# temporizador que a reaplica sai junto.
 tirar_permissao() {
+  if [[ -f /etc/systemd/system/prancheta-biblioteca.timer ]]; then
+    systemctl disable --now prancheta-biblioteca.timer > /dev/null 2>&1 || true
+    rm -f /etc/systemd/system/prancheta-biblioteca.timer /etc/systemd/system/prancheta-biblioteca.service
+    systemctl daemon-reload
+    echo "o temporizador prancheta-biblioteca saiu"
+  fi
   [[ -n "$1" && -d "$1" ]] && command -v setfacl > /dev/null || return 0
   setfacl -R -x "u:$PRANCHETA_UID" "$1" 2> /dev/null || true
   find "$1" -type d -exec setfacl -x "d:u:$PRANCHETA_UID" {} + 2> /dev/null || true
@@ -166,12 +176,6 @@ if [[ -n "$BIBLIOTECA" ]]; then
       || falhar "não foi possível instalar o pacote acl"
     echo "pacote acl instalado"
   fi
-  # Permissão extra só de leitura, e de entrada nas pastas, para a conta
-  # prancheta; a regra padrão nas pastas a estende aos livros novos. O dono e as
-  # permissões normais não mudam, e nada dá à Prancheta o direito de gravar.
-  setfacl -R -m "u:$PRANCHETA_UID:rX" "$BIBLIOTECA"
-  find "$BIBLIOTECA" -type d -exec setfacl -m "d:u:$PRANCHETA_UID:rX" {} +
-  echo "permissão extra de leitura da conta prancheta na subpasta de livros, também para os livros novos"
 fi
 umask 077
 {
@@ -179,6 +183,22 @@ umask 077
   [[ -z "$BIBLIOTECA" ]] || printf 'PRANCHETA_BIBLIOTECA_DA_VPS=%s\n' "$BIBLIOTECA"
 } > /etc/prancheta/ambiente.novo
 mv -f /etc/prancheta/ambiente.novo /etc/prancheta/ambiente
+if [[ -n "$BIBLIOTECA" ]]; then
+  # Permissão extra só de leitura, e de entrada nas pastas, para a conta
+  # prancheta, posta agora e reaplicada a cada 5 minutos pelo temporizador,
+  # porque o nginx do WebDAV grava os livros novos com o modo 600 fixo.
+  /usr/local/sbin/prancheta-biblioteca
+  echo "permissão extra de leitura da conta prancheta na subpasta de livros"
+  if command -v systemctl > /dev/null; then
+    install -o root -g root -m 0644 "$AQUI/prancheta-biblioteca.service" /etc/systemd/system/prancheta-biblioteca.service
+    install -o root -g root -m 0644 "$AQUI/prancheta-biblioteca.timer" /etc/systemd/system/prancheta-biblioteca.timer
+    systemctl daemon-reload
+    systemctl enable --now prancheta-biblioteca.timer > /dev/null 2>&1
+    echo "temporizador prancheta-biblioteca ligado: os livros novos entram na biblioteca em até 5 minutos"
+  else
+    echo "AVISO: sem systemd, os livros novos só entram na biblioteca quando o roteiro rodar de novo"
+  fi
+fi
 umask 022
 install -o root -g root -m 0644 "$AQUI/compose.yml" /opt/prancheta/compose.yml
 install -o root -g root -m 0644 "$AQUI/tailscale-serve.json" /opt/prancheta/tailscale-serve.json

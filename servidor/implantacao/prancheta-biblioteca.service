@@ -1,0 +1,8 @@
+# Reaplica a permissão extra de leitura da Prancheta nos livros do WebDAV,
+# instalado pelo roteiro preparar-vps.sh em /etc/systemd/system.
+[Unit]
+Description=Permissão de leitura da Prancheta nos livros novos do WebDAV
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/prancheta-biblioteca
