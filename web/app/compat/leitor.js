@@ -1,7 +1,7 @@
 // Leitor de livros, etapa 04 do plano 005: abre os EPUBs e PDFs da
 // biblioteca num painel à direita do quadro, com um botão para a tela inteira
-// e de volta, e mostra o trecho selecionado, que a segunda parte da etapa
-// transforma em destaque e em cartão no quadro.
+// e de volta. O trecho selecionado pode ser destacado e levado ao quadro como
+// cartão, e a posição atual também, sem destaque, por compat/marcacoes.js.
 //
 // - EPUB: pela epub.js, com a JSZip de que ela depende, entregues junto com a
 //   página, em vendor/, e carregadas só quando o primeiro EPUB é aberto. O
@@ -75,6 +75,9 @@
       this.aoMudar = aoMudar;
       this.cfi = null;
       this.rotulo = '';
+      this.capitulo = '';
+      this.percentual = '';
+      this._marcados = new Set();
     }
 
     async abrir(blob, posicao) {
@@ -96,8 +99,10 @@
       this.vista.on('relocated', (local) => {
         this.cfi = local.start.cfi;
         const { page, total } = local.start.displayed || {};
-        const percentual = this.livro.locations.length() ? `${Math.round(local.start.percentage * 100)}%` : '';
-        this.rotulo = [page && total ? `${page}/${total}` : '', percentual].filter(Boolean).join(' · ');
+        this.percentual = this.livro.locations.length() ? `${Math.round(local.start.percentage * 100)}%` : '';
+        this.rotulo = [page && total ? `${page}/${total}` : '', this.percentual].filter(Boolean).join(' · ');
+        const item = this.livro.navigation && local.start.href ? this.livro.navigation.get(local.start.href) : null;
+        this.capitulo = item && item.label ? item.label.trim() : '';
         this.aoMudar({ tipo: 'posicao' });
       });
       this.vista.on('selected', (cfiRange, conteudo) => {
@@ -113,6 +118,28 @@
 
     posicao() {
       return this.cfi ? { cfi: this.cfi } : null;
+    }
+
+    // O que vai no cartão para dizer onde está o trecho ou a posição.
+    rotuloParaCartao() {
+      return [this.capitulo, this.percentual].filter(Boolean).join(', ');
+    }
+
+    /** Mostra os destaques do livro, tirando os que saíram. */
+    marcar(destaques) {
+      if (!this.vista) return;
+      const novos = new Set(destaques.filter((d) => d.posicao && d.posicao.cfi).map((d) => d.posicao.cfi));
+      for (const cfi of this._marcados) if (!novos.has(cfi)) this.vista.annotations.remove(cfi, 'highlight');
+      for (const cfi of novos) {
+        if (!this._marcados.has(cfi)) this.vista.annotations.highlight(cfi, {}, null, 'lt-destaque', { fill: '#000', 'fill-opacity': '0.18' });
+      }
+      this._marcados = novos;
+    }
+
+    limparSelecao() {
+      for (const conteudo of this.vista ? this.vista.getContents() : []) {
+        if (conteudo.window) conteudo.window.getSelection().removeAllRanges();
+      }
     }
 
     proxima() {
@@ -145,6 +172,7 @@
       this.pagina = 1;
       this.total = 0;
       this.rotulo = '';
+      this._destaques = [];
       this._aoSelecionar = () => this._selecionou();
     }
 
@@ -185,6 +213,7 @@
       if (numero !== this.pagina) return;
       this.conteudo.replaceChildren(folha);
       this.conteudo.scrollTop = 0;
+      this._aplicarMarcas();
       this.rotulo = `p. ${this.pagina} de ${this.total}`;
       this.aoMudar({ tipo: 'posicao' });
       this.aoMudar({ tipo: 'selecao', selecao: null });
@@ -192,11 +221,50 @@
 
     _selecionou() {
       const selecao = document.getSelection();
-      if (!selecao || selecao.isCollapsed || !selecao.anchorNode) return;
+      if (!selecao || selecao.isCollapsed || !selecao.anchorNode || !selecao.rangeCount) return;
       const no = selecao.anchorNode.nodeType === 1 ? selecao.anchorNode : selecao.anchorNode.parentElement;
-      if (!no || !this.conteudo.contains(no)) return;
-      const texto = selecao.toString().trim();
-      this.aoMudar({ tipo: 'selecao', selecao: texto ? { texto, posicao: { pagina: this.pagina } } : null });
+      const camada = this.conteudo.querySelector('.textLayer');
+      if (!no || !camada || !camada.contains(no)) return;
+      const intervalo = selecao.getRangeAt(0);
+      const bruto = intervalo.toString();
+      const texto = bruto.trim();
+      // O lugar do trecho no texto da página: quantos caracteres vêm antes dele.
+      const antes = document.createRange();
+      antes.setStart(camada, 0);
+      antes.setEnd(intervalo.startContainer, intervalo.startOffset);
+      const inicio = antes.toString().length;
+      const posicao = { pagina: this.pagina, inicio, fim: inicio + bruto.length };
+      this.aoMudar({ tipo: 'selecao', selecao: texto ? { texto, posicao } : null });
+    }
+
+    rotuloParaCartao() {
+      return `p. ${this.pagina}`;
+    }
+
+    /** Mostra os destaques da página aberta, sombreando os pedaços de texto que eles cobrem. */
+    marcar(destaques) {
+      this._destaques = destaques;
+      this._aplicarMarcas();
+    }
+
+    _aplicarMarcas() {
+      const camada = this.conteudo.querySelector('.textLayer');
+      if (!camada) return;
+      const intervalos = this._destaques
+        .filter((d) => d.posicao && d.posicao.pagina === this.pagina && Number.isSafeInteger(d.posicao.inicio))
+        .map((d) => [d.posicao.inicio, d.posicao.fim]);
+      let posicao = 0;
+      for (const pedaco of camada.querySelectorAll('span')) {
+        if (pedaco.childElementCount) continue;
+        const tamanho = pedaco.textContent.length;
+        const marcado = intervalos.some(([inicio, fim]) => posicao < fim && posicao + tamanho > inicio);
+        pedaco.classList.toggle('lt-destacado', marcado);
+        posicao += tamanho;
+      }
+    }
+
+    limparSelecao() {
+      document.getSelection().removeAllRanges();
     }
 
     posicao() {
@@ -250,6 +318,10 @@ body.leitor-tela #leitor{width:100vw;border-left:0}
 #leitor .textLayer :is(span,br){color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%}
 #leitor .textLayer span.markedContent{top:0;height:0}
 #leitor .textLayer ::selection{background:rgba(0,0,0,.25)}
+#leitor .textLayer span.lt-destacado{background:rgba(0,0,0,.18)}
+#leitor .lt-selecao{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#leitor .lt-selecao .lt-trecho{flex:1 1 200px;min-width:0}
+#leitor .lt-selecao button,#leitor .lt-aviso button{font:inherit;font-size:13px;height:34px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 #leitor .lt-selecao{flex:none;padding:8px 10px;border-top:1px solid var(--line,#E3E1DD);font-size:13px}
 #leitor .lt-aviso{flex:none;margin:0;padding:6px 10px;font-size:12.5px;color:var(--muted,#7F7C76)}
 #leitor .lt-aviso:empty{display:none}
@@ -263,6 +335,9 @@ body.leitor-tela #leitor{width:100vw;border-left:0}
       this.vista = null;
       this.selecao = null;
       this.modo = 'lado';
+      // compat/marcacoes.js se liga aqui, com os destaques e os cartões.
+      this.marcacoes = null;
+      this.destaques = [];
       this._ouvintes = new Set();
     }
 
@@ -312,8 +387,45 @@ body.leitor-tela #leitor{width:100vw;border-left:0}
         if (this.vista === vista) this.fechar();
         throw e;
       }
+      if (this.marcacoes && this.vista === vista) {
+        this._pararMarcas = this.marcacoes.acompanhar(id, (itens) => {
+          if (this.vista !== vista) return;
+          this.destaques = itens;
+          vista.marcar(itens);
+          this._avisar();
+        });
+      }
       this._avisar();
       return this.posicaoAtual();
+    }
+
+    // O livro aberto, como as marcações o identificam.
+    _livroDasMarcacoes() {
+      return { livro: this.livro.id, nome: this.livro.nome, tipo: this.livro.tipo };
+    }
+
+    /** Destaca o trecho selecionado e, com `levar`, cria no quadro o cartão com ele. */
+    async destacarSelecao({ levar = false } = {}) {
+      if (!this.selecao || !this.livro || !this.marcacoes) return null;
+      const { texto, posicao } = this.selecao;
+      const destaque = await this.marcacoes.destacar(this._livroDasMarcacoes(), { texto, posicao, rotulo: this.vista.rotuloParaCartao() });
+      this.vista.marcar([...this.destaques, destaque]);
+      if (levar) this.marcacoes.levarAoQuadro(this._livroDasMarcacoes(), destaque);
+      this.vista.limparSelecao();
+      this.selecao = null;
+      if (this.aviso) this.aviso(levar ? 'Trecho destacado e levado ao quadro.' : 'Trecho destacado.');
+      this._avisar();
+      return destaque;
+    }
+
+    /** Cria no quadro um cartão com a posição atual do livro, sem destaque. */
+    levarPosicaoAoQuadro() {
+      if (!this.livro || !this.vista || !this.marcacoes) return null;
+      const posicao = this.vista.posicao();
+      if (!posicao) return null;
+      const cartao = this.marcacoes.levarAoQuadro(this._livroDasMarcacoes(), { posicao, rotulo: this.vista.rotuloParaCartao() });
+      if (this.aviso) this.aviso('Posição levada ao quadro.');
+      return cartao;
     }
 
     _mudou(vista, mudanca) {
@@ -367,6 +479,9 @@ body.leitor-tela #leitor{width:100vw;border-left:0}
     }
 
     fechar() {
+      if (this._pararMarcas) this._pararMarcas();
+      this._pararMarcas = null;
+      this.destaques = [];
       if (this.vista) this.vista.destruir();
       this.vista = null;
       this.livro = null;
@@ -395,10 +510,11 @@ body.leitor-tela #leitor{width:100vw;border-left:0}
   <span class="lt-posicao"></span>
   <button type="button" data-acao="anterior" title="Página anterior" aria-label="Página anterior">‹</button>
   <button type="button" data-acao="proxima" title="Próxima página" aria-label="Próxima página">›</button>
+  <button type="button" data-acao="ao-quadro" title="Levar esta posição ao quadro, sem destacar">Ao quadro</button>
   <button type="button" data-acao="modo"></button>
 </div>
 <div class="lt-conteudo"></div>
-<div class="lt-selecao" hidden><span class="lt-trecho"></span></div>
+<div class="lt-selecao" hidden><span class="lt-trecho"></span><button type="button" data-acao="destacar">Destacar</button><button type="button" data-acao="levar">Levar ao quadro</button></div>
 <p class="lt-aviso" role="status"></p>`;
       document.body.appendChild(painel);
       this._painel = painel;
@@ -431,6 +547,12 @@ body.leitor-tela #leitor{width:100vw;border-left:0}
         if (acao === 'proxima') Promise.resolve(this.proxima()).catch(() => {});
         if (acao === 'anterior') Promise.resolve(this.anterior()).catch(() => {});
         if (acao === 'modo') this.alternarModo();
+        if (acao === 'ao-quadro') this.levarPosicaoAoQuadro();
+        if (acao === 'destacar' || acao === 'levar') {
+          this.destacarSelecao({ levar: acao === 'levar' }).catch((erroAoDestacar) => {
+            this.aviso(`Não foi possível destacar: ${erroAoDestacar.message}.`);
+          });
+        }
       });
       // As setas viram as páginas quando o foco está no leitor.
       painel.addEventListener('keydown', (e) => {

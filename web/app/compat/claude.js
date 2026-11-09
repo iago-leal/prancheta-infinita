@@ -120,6 +120,10 @@
         if (window.LeitorPrancheta && window.bibliotecaDaPrancheta && !window.leitorDaPrancheta) {
           window.leitorDaPrancheta = window.LeitorPrancheta.ligar(window.bibliotecaDaPrancheta);
         }
+        // Os destaques ficam no banco dos quadros e sobem cifrados como eles.
+        if (window.MarcacoesPrancheta && window.leitorDaPrancheta && !window.marcacoesDaPrancheta) {
+          window.marcacoesDaPrancheta = window.MarcacoesPrancheta.ligar(window.leitorDaPrancheta, b);
+        }
       }, () => { banco = null; });
     }
     return banco;
