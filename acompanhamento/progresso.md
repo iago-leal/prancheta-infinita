@@ -6,6 +6,16 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Biblioteca do WebDAV concluída
+
+### Feito
+
+- Mesclado o PR #37. A [etapa 03 do plano 005](planos/005-livros-e-pdfs/etapas/03-biblioteca-do-webdav.md) foi concluída: o autor confirmou a biblioteca no Boox e no computador, inclusive sem rede. A sessão do Mac, com a aprovação do autor, instalou na VPS o temporizador que reaplica a permissão de leitura aos livros novos a cada 5 minutos.
+
+### Pendências
+
+- Detalhar com o autor a etapa 04, o leitor com marcações ligadas a quadros.
+
 ## 2026-11-09 · Biblioteca aplicada na VPS e livros novos
 
 ### Feito
