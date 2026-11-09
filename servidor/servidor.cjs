@@ -6,7 +6,8 @@
 // Rotas, todas sob /sync e todas com a chave:
 // - GET  /sync/estado                      → { posicao }
 // - POST /sync/mudancas                    → aplica mudanças de um aparelho
-// - GET  /sync/mudancas?desde=P&limite=L   → o que mudou depois da posição P
+// - GET  /sync/mudancas?desde=P&limite=L   → o que mudou depois da posição P,
+//   com a cifra ligada no servidor, se houver
 // - PUT  /sync/arquivos/<id>               → guarda um arquivo enviado
 // - GET  /sync/arquivos/<id>               → devolve um arquivo enviado
 //
@@ -30,6 +31,11 @@
 // pasta dos dados, a versão que entrega e se a sincronização recusa um pedido
 // sem a chave; o comando de publicação, na VPS, espera essa anotação para
 // confirmar que a versão nova entrou no ar.
+//
+// Cifra ponta a ponta: os aparelhos cifram os quadros antes de enviá-los, e o
+// servidor só os guarda; depois da primeira gravação cifrada, ele responde 409
+// com cifra_exigida a uma gravação legível e com cifra_diferente a uma de
+// outra chave, como descrito em servidor/armazem.cjs.
 
 'use strict';
 
@@ -41,6 +47,8 @@ const { criarVerificador } = require('./chaves.cjs');
 const { criarServidorDaPagina } = require('./pagina.cjs');
 
 const LIMITE_DO_JSON = 25 * 1024 * 1024;
+// Com a cifra ligada, o servidor recusa gravações legíveis e as de outra chave.
+const ERROS_DA_CIFRA = new Set(['cifra_exigida', 'cifra_diferente']);
 const LIMITE_DO_ARQUIVO = 25 * 1024 * 1024;
 const LIMITE_DA_LISTA = 500;
 const DISPOSITIVO = /^[0-9a-f]{8,64}$/;
@@ -195,7 +203,12 @@ function criarServidor({ armazem, chave, verificar, origens = [] }) {
         const problema = validarMudanca(m);
         if (problema) return responder(res, 400, { erro: 'mudanca_invalida', detalhe: problema, seq: m && m.seq }, origem);
       }
-      return responder(res, 200, await armazem.aplicar(pedido.dispositivo, pedido.mudancas), origem);
+      try {
+        return responder(res, 200, await armazem.aplicar(pedido.dispositivo, pedido.mudancas), origem);
+      } catch (e) {
+        if (ERROS_DA_CIFRA.has(e.codigo)) return responder(res, 409, { erro: e.codigo }, origem);
+        throw e;
+      }
     }
 
     if (rota === '/sync/mudancas' && req.method === 'GET') {
@@ -226,7 +239,7 @@ function criarServidor({ armazem, chave, verificar, origens = [] }) {
           const r = await armazem.guardarArquivo(id, conteudo, { tipo, dispositivo, criadoEm });
           return responder(res, r.estado === 'aplicado' ? 201 : 200, r, origem);
         } catch (e) {
-          if (e.codigo === 'conflito') return responder(res, 409, { erro: 'conflito' }, origem);
+          if (e.codigo === 'conflito' || ERROS_DA_CIFRA.has(e.codigo)) return responder(res, 409, { erro: e.codigo }, origem);
           throw e;
         }
       }

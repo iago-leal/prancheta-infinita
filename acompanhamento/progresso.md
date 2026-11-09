@@ -6,6 +6,21 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Cifra ponta a ponta implementada
+
+### Feito
+
+- O autor aprovou os critérios da [etapa 02 do plano 005](planos/005-livros-e-pdfs/etapas/02-cifra-ponta-a-ponta.md), e a cifra foi implementada: os quadros e os arquivos saem dos aparelhos cifrados com AES-GCM, numa chave criada no primeiro aparelho e guardada no Bitwarden; o servidor guarda só o cifrado e, depois da primeira gravação cifrada, recusa o legível e outra chave; um comando na VPS confere tudo e só então tira do histórico as versões legíveis. A casca vai para a 0.5.0, porque a página do Boox vem dentro dela.
+- Critério 6 verificado por mutações; os outros dependem da publicação e da troca nos aparelhos.
+
+### Decidido
+
+- **Cifra ponta a ponta com chave no Bitwarden.** A decisão vigente dizia que a cifra seria ponta a ponta, com a senha só nos aparelhos; o autor escolheu uma chave aleatória, criada no primeiro aparelho e guardada só no Bitwarden, em vez de uma senha memorizada, e mandou apagar da VPS as versões legíveis depois da troca.
+
+### Pendências
+
+- Mesclar, publicar, instalar a casca 0.5.0 no Boox, fazer a troca nos aparelhos e rodar a limpeza na VPS, pela sessão do Mac.
+
 ## 2026-11-09 · Rede privada concluída, endereço público fechado
 
 ### Feito

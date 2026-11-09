@@ -37,6 +37,7 @@ async function subirServidor() {
   await new Promise((pronto) => servidor.listen(0, '127.0.0.1', pronto));
   sinc = {
     base: `http://127.0.0.1:${servidor.address().port}`,
+    pasta,
     armazem,
     fechar: () => new Promise((pronto) => {
       servidor.close(() => pronto());
@@ -384,6 +385,311 @@ test('a sincronização retoma assim que a rede volta, sem esperar a próxima te
       pos = pagina.posicao;
     }
     assert.ok(fragmentos.some((d) => JSON.stringify(d.registro.dados).includes('Escrito sem rede')));
+    assert.deepEqual(a.erros, []);
+  } finally {
+    await fecharPerfis(perfis);
+  }
+});
+
+// ---- Cifra ponta a ponta, etapa 02 do plano 005 ----
+
+require('../app/compat/cifra.js');
+const { chaveDoDocumento, chaveDoArquivo } = require('../../servidor/armazem.cjs');
+const { apagarLegiveis } = require('../../servidor/cifra.cjs');
+
+const CifraNoNode = globalThis.CifraPrancheta;
+
+// Todo o conteúdo da pasta de dados do servidor, como texto, para procurar o que estiver legível.
+function textoDaPasta(pasta) {
+  const partes = [];
+  const percorrer = (dir) => {
+    for (const nome of fs.readdirSync(dir)) {
+      const caminho = path.join(dir, nome);
+      if (fs.statSync(caminho).isDirectory()) percorrer(caminho);
+      else partes.push(fs.readFileSync(caminho).toString('latin1'));
+    }
+  };
+  percorrer(pasta);
+  return partes.join('\n');
+}
+
+// Confere que todos os documentos atuais e arquivos do servidor estão cifrados com a chave dada.
+async function conferirServidorCifrado(id) {
+  const lista = await sinc.armazem.listar(0, 100000);
+  assert.ok(lista.documentos.length > 0);
+  for (const d of lista.documentos) {
+    if (d.registro.apagado) continue;
+    assert.equal(chaveDoDocumento(d.registro.dados), id, `documento ${d.registro.caminho} cifrado`);
+  }
+  for (const nome of fs.readdirSync(path.join(sinc.pasta, 'arquivos')).filter((n) => n.endsWith('.bin'))) {
+    assert.equal(chaveDoArquivo(fs.readFileSync(path.join(sinc.pasta, 'arquivos', nome))), id, `arquivo ${nome} cifrado`);
+  }
+}
+
+async function abrirDialogo(pagina) {
+  await pagina.click('#sinc');
+  await pagina.waitForFunction(() => !document.getElementById('sincDialogo').hidden && document.querySelector('[data-cifra-estado]').textContent !== '');
+}
+
+const textoDoDialogo = (pagina, seletor) => pagina.textContent(`#sincDialogo ${seletor}`);
+
+async function usarChavePeloDialogo(pagina, texto) {
+  await pagina.fill('#sincDialogo input[name=cifra]', texto);
+  await pagina.click('#sincDialogo [data-acao="cifra-usar"]');
+  await pagina.waitForFunction(() => document.querySelector('[data-cifra-aviso]').textContent !== '');
+  return textoDoDialogo(pagina, '[data-cifra-aviso]');
+}
+
+test('a chave criada no primeiro perfil cifra tudo no servidor, e os outros só sincronizam depois de recebê-la', async () => {
+  const perfis = await abrirPerfis(3);
+  const corpos = [];
+  for (const p of perfis) {
+    p.contexto.on('request', (pedido) => {
+      if (pedido.url().startsWith(sinc.base)) corpos.push(pedido.postDataBuffer() ? pedido.postDataBuffer().toString('latin1') : '');
+    });
+  }
+  try {
+    // Antes da cifra: o computador, A, e o Boox, B, sincronizados, com um cartão, um quadro e um arquivo.
+    const a = await abrirApp(perfis[0].contexto);
+    const b = await abrirApp(perfis[1].contexto);
+    await configurarPelaInterface(a.pagina);
+    await criarCartao(a.pagina, 420, 320, 'Segredo do computador');
+    const arquivo = await a.pagina.evaluate(async () => {
+      const assets = await claude.use('assets');
+      const bytes = new Uint8Array(3000).map((_, i) => i % 251);
+      return (await assets.upload(new Blob([bytes], { type: 'image/png' }), { type: 'image/png' })).id;
+    });
+    const quadro = await a.pagina.evaluate(() => newBoard(null, 'Leituras reservadas').then((x) => x.id));
+    await criarCartao(a.pagina, 520, 420, 'Segredo no quadro novo');
+    await aguardarSincronizado(a.pagina);
+    await configurarPelaInterface(b.pagina);
+    await aguardarTextos(b.pagina, ['Segredo do computador']);
+    await aguardarSincronizado(b.pagina);
+    assert.ok(textoDaPasta(sinc.pasta).includes('Segredo do computador'));
+
+    // No A, a cifra começa desligada, com a opção de criar a chave.
+    await abrirDialogo(a.pagina);
+    assert.match(await textoDoDialogo(a.pagina, '[data-cifra-estado]'), /Desligada neste aparelho/);
+    assert.equal(await a.pagina.isVisible('#sincDialogo [data-acao="cifra-criar"]'), true);
+    await a.pagina.click('#sincDialogo [data-acao="cifra-criar"]');
+    const chave = (await textoDoDialogo(a.pagina, '[data-cifra-chave]')).trim();
+    assert.match(chave, /^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){12}$/);
+    // Descartar não guarda nada; a chave mostrada some.
+    await a.pagina.click('#sincDialogo [data-acao="cifra-descartar"]');
+    assert.equal(await textoDoDialogo(a.pagina, '[data-cifra-chave]'), '');
+    assert.equal((await a.pagina.evaluate(() => window.sincronizacaoDaPrancheta.estadoDaCifra())).ligada, false);
+    await a.pagina.click('#sincDialogo [data-acao="cifra-criar"]');
+    const criada = (await textoDoDialogo(a.pagina, '[data-cifra-chave]')).trim();
+    assert.notEqual(criada, chave);
+    await a.pagina.click('#sincDialogo [data-acao="cifra-guardei"]');
+    await a.pagina.waitForFunction(() => /Ligada neste aparelho/.test(document.querySelector('[data-cifra-estado]').textContent));
+    assert.equal(await textoDoDialogo(a.pagina, '[data-cifra-chave]'), '');
+    assert.equal(await a.pagina.isVisible('#sincDialogo input[name=cifra]'), false);
+    await a.pagina.click('#sincDialogo [data-acao="fechar"]');
+
+    // O A reenvia tudo cifrado: documentos atuais e arquivos só cifrados, com a chave dele.
+    await aguardarSincronizado(a.pagina);
+    const { id } = await CifraNoNode.prepararChave(criada);
+    await conferirServidorCifrado(id);
+    assert.deepEqual((await sinc.armazem.listar(0, 1)).cifra, { chave: id, desde: sinc.armazem.cifra.desde });
+    // A chave fica no banco do A sem poder ser lida de volta, e nunca vai ao servidor nem ao localStorage.
+    const guardada = await a.pagina.evaluate(async () => {
+      const meta = await (await claude.use('db'))._lerMeta('sinc:cifra');
+      return { tipo: meta.chaveDaCifra.constructor.name, exportavel: meta.chaveDaCifra.extractable, id: meta.id, local: JSON.stringify(localStorage) };
+    });
+    assert.deepEqual({ ...guardada, local: undefined }, { tipo: 'CryptoKey', exportavel: false, id, local: undefined });
+    const semHifens = criada.replace(/-/g, '');
+    for (const texto of [guardada.local, ...corpos]) {
+      assert.ok(!texto.includes(semHifens.slice(0, 12)) && !texto.includes(criada.slice(0, 14)), 'a chave não sai do aparelho');
+    }
+
+    // O B, sem a chave, para e pede a chave, sem aplicar nem enviar nada.
+    // O A continua gravando em segundo plano; do B, nada novo chega ao servidor.
+    const posicao = sinc.armazem.posicao;
+    const aparelhoB = await b.pagina.evaluate(async () => (await claude.use('db')).dispositivo);
+    await criarCartao(b.pagina, 420, 520, 'Escrito no Boox sem a chave');
+    await b.pagina.waitForFunction(() => window.sincronizacaoDaPrancheta.estado.situacao === 'erro', null, { timeout: 15000 });
+    assert.match(await b.pagina.evaluate(() => window.sincronizacaoDaPrancheta.estado.mensagem), /informe a chave da cifra/);
+    await dormir(1500);
+    assert.deepEqual([...sinc.armazem.ultimas.values()].filter((u) => u.dispositivo === aparelhoB && u.pos > posicao), []);
+    const doB = await b.pagina.evaluate(async () => {
+      const db = await claude.use('db');
+      return (await db.collection('canvas-shards').get()).docs.map((d) => d.data()).every((dados) => !('cifra' in dados));
+    });
+    assert.equal(doB, true);
+
+    // No B, não há como criar outra chave; uma chave mal digitada ou de outro aparelho é recusada.
+    await abrirDialogo(b.pagina);
+    assert.match(await textoDoDialogo(b.pagina, '[data-cifra-estado]'), /estão cifrados/);
+    assert.equal(await b.pagina.isVisible('#sincDialogo [data-acao="cifra-criar"]'), false);
+    assert.match(await usarChavePeloDialogo(b.pagina, criada.slice(0, -5)), /52 letras e algarismos/);
+    assert.match(await usarChavePeloDialogo(b.pagina, CifraNoNode.gerarChave()), /não é a dos quadros do servidor/);
+    assert.equal((await b.pagina.evaluate(() => window.sincronizacaoDaPrancheta.estadoDaCifra())).ligada, false);
+    // A chave certa, colada em minúsculas e com espaços, liga a cifra.
+    assert.match(await usarChavePeloDialogo(b.pagina, criada.toLowerCase().replace(/-/g, ' ')), /Cifra ligada/);
+    await b.pagina.click('#sincDialogo [data-acao="fechar"]');
+    await aguardarSincronizado(b.pagina);
+    await aguardarTextos(a.pagina, ['Escrito no Boox sem a chave', 'Segredo do computador']);
+    // De volta ao primeiro quadro, o dos fragmentos em canvas-shards.
+    await a.pagina.locator('#tree', { hasText: 'Sem título' }).getByText('Sem título').click();
+    await a.pagina.locator('.card', { hasText: 'Segredo do computador' }).waitFor();
+    await a.pagina.locator('.card', { hasText: 'Segredo no quadro novo' }).waitFor({ state: 'detached' });
+    // Sob carga, a troca de quadro ainda redesenha a tela por alguns instantes.
+    await dormir(500);
+    await a.pagina.keyboard.press('Escape');
+    await criarCartao(a.pagina, 850, 620, 'Depois da cifra');
+    await aguardarSincronizado(a.pagina);
+    await aguardarTextos(b.pagina, ['Depois da cifra', 'Escrito no Boox sem a chave', 'Segredo do computador']);
+    await conferirServidorCifrado(id);
+
+    // Um aparelho novo, C, recebe tudo decifrado, inclusive o arquivo, só depois de informar a chave.
+    const c = await abrirApp(perfis[2].contexto);
+    await c.pagina.evaluate(([endereco, chaveDeAcesso]) => window.sincronizacaoDaPrancheta.configurar({ endereco, chave: chaveDeAcesso }).catch(() => {}), [sinc.base, CHAVE]);
+    await c.pagina.waitForFunction(() => window.sincronizacaoDaPrancheta.estado.situacao === 'erro', null, { timeout: 15000 });
+    assert.deepEqual(await textosNoBanco(c.pagina), []);
+    await c.pagina.evaluate((texto) => window.sincronizacaoDaPrancheta.usarChaveDaCifra(texto), criada);
+    await aguardarTextos(c.pagina, ['Depois da cifra', 'Escrito no Boox sem a chave', 'Segredo do computador']);
+    await c.pagina.locator('#tree', { hasText: 'Leituras reservadas' }).waitFor();
+    await c.pagina.evaluate((x) => openBoard(x), quadro);
+    await c.pagina.locator('.card', { hasText: 'Segredo no quadro novo' }).waitFor();
+    await aguardar(c.pagina, async (x) => Boolean(await (await claude.use('db')).lerArquivo(x)), arquivo, { descricao: 'o arquivo no perfil C' });
+    const entregue = await c.pagina.evaluate(async (x) => {
+      const r = await fetch(`/_blob/${x}`);
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      return { status: r.status, tipo: r.headers.get('content-type'), tamanho: bytes.length, confere: bytes.every((v, i) => v === i % 251) };
+    }, arquivo);
+    assert.deepEqual(entregue, { status: 200, tipo: 'image/png', tamanho: 3000, confere: true });
+
+    // A limpeza na VPS tira do histórico o que era legível; depois dela, nada legível fica na pasta.
+    const limpeza = await apagarLegiveis(sinc.pasta, { espera: 0 });
+    assert.equal(limpeza.apagou, true);
+    assert.ok(limpeza.versoes > 0);
+    const tudo = textoDaPasta(sinc.pasta);
+    for (const legivel of ['Segredo do computador', 'Segredo no quadro novo', 'Leituras reservadas', 'Escrito no Boox', 'Depois da cifra']) {
+      assert.ok(!tudo.includes(legivel), `"${legivel}" não fica legível no servidor`);
+    }
+    assert.deepEqual([...a.erros, ...b.erros, ...c.erros], []);
+  } finally {
+    await fecharPerfis(perfis);
+  }
+});
+
+test('com a cifra, edições feitas sem rede nos dois perfis se combinam', async () => {
+  const perfis = await abrirPerfis();
+  try {
+    const chave = CifraNoNode.gerarChave();
+    const a = await abrirApp(perfis[0].contexto);
+    const b = await abrirApp(perfis[1].contexto);
+    for (const { pagina } of [a, b]) {
+      await pagina.evaluate(async ([endereco, chaveDeAcesso, chaveDaCifra]) => {
+        await window.sincronizacaoDaPrancheta.usarChaveDaCifra(chaveDaCifra);
+        await window.sincronizacaoDaPrancheta.configurar({ endereco, chave: chaveDeAcesso });
+      }, [sinc.base, CHAVE, chave]);
+    }
+    await criarCartao(a.pagina, 420, 320, 'Ideia original');
+    await aguardarSincronizado(a.pagina);
+    await aguardarTextos(b.pagina, ['Ideia original']);
+    await b.pagina.locator('.card', { hasText: 'Ideia original' }).waitFor();
+
+    await perfis[0].contexto.setOffline(true);
+    await perfis[1].contexto.setOffline(true);
+    await criarCartao(a.pagina, 420, 480, 'Novo no A');
+    await editarCartao(b.pagina, 'Ideia original', 'Ideia revista no B');
+    await criarCartao(b.pagina, 700, 480, 'Novo no B');
+    for (const { pagina } of [a, b]) {
+      await pagina.waitForFunction(() => document.getElementById('sinc').textContent === 'Sem rede', null, { timeout: 15000 });
+    }
+    await perfis[0].contexto.setOffline(false);
+    await aguardarSincronizado(a.pagina);
+    await perfis[1].contexto.setOffline(false);
+    const esperados = ['Ideia revista no B', 'Novo no A', 'Novo no B'];
+    await aguardarTextos(b.pagina, esperados);
+    await aguardarTextos(a.pagina, esperados);
+    await aguardarSincronizado(a.pagina);
+    await aguardarSincronizado(b.pagina);
+    const { id } = await CifraNoNode.prepararChave(chave);
+    await conferirServidorCifrado(id);
+    assert.ok(!textoDaPasta(sinc.pasta).includes('Ideia'));
+    assert.deepEqual([...a.erros, ...b.erros], []);
+  } finally {
+    await fecharPerfis(perfis);
+  }
+});
+
+test('com a cifra, o aparelho recusa conteúdo alterado, trocado de documento ou legível vindo do servidor', async () => {
+  const perfis = await abrirPerfis(1, { intervalo: 600000, esperaDepoisDeGravar: 600000 });
+  try {
+    const chave = CifraNoNode.gerarChave();
+    const a = await abrirApp(perfis[0].contexto);
+    await a.pagina.evaluate(async ([endereco, chaveDeAcesso, chaveDaCifra]) => {
+      const db = await claude.use('db');
+      await db.doc('notas/n1').set({ texto: 'original do um' });
+      await db.doc('notas/n2').set({ texto: 'original do dois' });
+      await window.sincronizacaoDaPrancheta.usarChaveDaCifra(chaveDaCifra);
+      await window.sincronizacaoDaPrancheta.configurar({ endereco, chave: chaveDeAcesso });
+    }, [sinc.base, CHAVE, chave]);
+    const n1 = await sinc.armazem.lerDocumento('notas/n1');
+    const n2 = await sinc.armazem.lerDocumento('notas/n2');
+    const outro = 'cccccccccccccccc';
+    const ciclo = () => a.pagina.evaluate(() => window.sincronizacaoDaPrancheta.sincronizar().then(() => 'ok', (e) => e.code));
+    const textoLocal = () => a.pagina.evaluate(async () => (await (await claude.use('db')).doc('notas/n1').get()).data().texto);
+
+    // O envelope do n2 posto no n1: a decifragem falha, e nada é aplicado.
+    await sinc.armazem.aplicar(outro, [{ seq: 1, base: n1.pos, registro: { ...n1.registro, dados: n2.registro.dados } }]);
+    assert.equal(await ciclo(), 'cifra_invalida');
+    assert.equal(await textoLocal(), 'original do um');
+    // Um envelope com um byte trocado também.
+    const atual = await sinc.armazem.lerDocumento('notas/n1');
+    const conteudo = n1.registro.dados.conteudo;
+    const alterado = { ...n1.registro.dados, conteudo: conteudo.slice(0, 5) + (conteudo[5] === 'A' ? 'B' : 'A') + conteudo.slice(6) };
+    await sinc.armazem.aplicar(outro, [{ seq: 2, base: atual.pos, registro: { ...n1.registro, dados: alterado } }]);
+    assert.equal(await ciclo(), 'cifra_invalida');
+    assert.equal(await textoLocal(), 'original do um');
+    assert.match(await a.pagina.evaluate(() => window.sincronizacaoDaPrancheta.estado.mensagem), /alterado/);
+
+    // Um servidor que esquece a cifra e entrega um quadro legível também é recusado.
+    const ultima = await sinc.armazem.lerDocumento('notas/n1');
+    sinc.armazem.cifra = null;
+    await sinc.armazem.aplicar(outro, [{ seq: 3, base: ultima.pos, registro: { ...n1.registro, versao: 9, dados: { texto: 'forjado pelo servidor' } } }]);
+    assert.equal(await ciclo(), 'cifra_legivel');
+    assert.equal(await textoLocal(), 'original do um');
+    assert.deepEqual(a.erros, []);
+  } finally {
+    await fecharPerfis(perfis);
+  }
+});
+
+test('um aparelho com uma chave diferente da do servidor para e pode trocá-la pela certa', async () => {
+  const perfis = await abrirPerfis(1, { intervalo: 600000, esperaDepoisDeGravar: 600000 });
+  try {
+    // Outro aparelho já ligou a cifra no servidor com a chave certa.
+    const certa = CifraNoNode.gerarChave();
+    const cifraCerta = await CifraNoNode.prepararChave(certa);
+    const registro = { caminho: 'notas/do-outro', colecao: 'notas', id: 'do-outro', apagado: false, versao: 1, atualizadoEm: Date.now(), dispositivo: 'cccccccccccccccc' };
+    await sinc.armazem.aplicar('cccccccccccccccc', [{ seq: 1, base: null, registro: { ...registro, dados: await CifraNoNode.cifrarDocumento(cifraCerta, { ...registro, dados: { texto: 'do outro aparelho' } }) } }]);
+
+    // Este aparelho criou outra chave antes de informar o servidor.
+    const a = await abrirApp(perfis[0].contexto);
+    const resultado = await a.pagina.evaluate(async ([endereco, chaveDeAcesso, errada]) => {
+      const s = window.sincronizacaoDaPrancheta;
+      await s.usarChaveDaCifra(errada);
+      return s.configurar({ endereco, chave: chaveDeAcesso }).then(() => 'ok', (e) => e.code);
+    }, [sinc.base, CHAVE, CifraNoNode.gerarChave()]);
+    assert.equal(resultado, 'cifra_diferente');
+    await abrirDialogo(a.pagina);
+    assert.match(await textoDoDialogo(a.pagina, '[data-cifra-estado]'), /não é a dos quadros do servidor/);
+    assert.equal(await a.pagina.isVisible('#sincDialogo [data-acao="cifra-criar"]'), false);
+    // Uma terceira chave continua recusada; a do servidor substitui a deste aparelho.
+    assert.match(await usarChavePeloDialogo(a.pagina, CifraNoNode.gerarChave()), /não é a dos quadros do servidor/);
+    assert.match(await usarChavePeloDialogo(a.pagina, certa), /Cifra ligada/);
+    assert.equal((await a.pagina.evaluate(() => window.sincronizacaoDaPrancheta.estadoDaCifra())).id, cifraCerta.id);
+    await a.pagina.click('#sincDialogo [data-acao="fechar"]');
+    await aguardar(a.pagina, async () => {
+      const doc = await (await claude.use('db')).doc('notas/do-outro').get();
+      return doc.exists && doc.data().texto === 'do outro aparelho';
+    }, null, { descricao: 'o documento do outro aparelho, decifrado' });
+    await aguardarSincronizado(a.pagina);
+    await conferirServidorCifrado(cifraCerta.id);
     assert.deepEqual(a.erros, []);
   } finally {
     await fecharPerfis(perfis);

@@ -120,7 +120,7 @@ test('cada mudança ganha uma posição, e o aparelho pede só o que veio depois
   try {
     await enviar(s, APARELHO_A, [1, 2, 3].map((i) => ({ seq: i, base: null, registro: registro(`canvas-shards/s${i}`, { items: [], rev: `r${i}` }) })));
     const nada = await pedir(s, 'GET', '/sync/mudancas?desde=3');
-    assert.deepEqual(nada.json, { posicao: 3, mais: false, documentos: [], arquivos: [] });
+    assert.deepEqual(nada.json, { posicao: 3, mais: false, documentos: [], arquivos: [], cifra: null });
     // O documento s2 muda duas vezes depois da posição 3 e aparece uma vez, na versão mais nova.
     await enviar(s, APARELHO_A, [
       { seq: 4, base: 2, registro: registro('canvas-shards/s2', { items: [1], rev: 'r4' }, { versao: 2 }) },

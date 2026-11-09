@@ -80,3 +80,26 @@ docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml 
 ```
 
 A cópia fora da VPS é puxada pelo computador do autor, com a chave `copia`, por `servidor/copia-de-seguranca.cjs`, descrito em `servidor/LEIA-ME.md`; assim, a VPS não guarda credencial de nenhum outro serviço.
+
+## Cifra ponta a ponta
+
+Pelo plano 005, os quadros chegam à VPS cifrados pelos aparelhos, e ela não tem a chave; o formato está em `servidor/LEIA-ME.md`. A troca, uma vez:
+
+1. Publicar a página e o servidor com a cifra e instalar no Boox a casca com a mesma versão da página, porque na casca a página vem dentro do aplicativo. Até a primeira gravação cifrada, o servidor aceita os dois formatos.
+2. Conferir que o Boox e o computador estão sincronizados, sem nada pendente.
+3. No computador, em "Sincronizar", criar a chave, guardá-la no Bitwarden e confirmar. O computador reenvia tudo cifrado, e o servidor passa a recusar gravações legíveis. O Boox para e pede a chave.
+4. No Boox, informar a chave no mesmo diálogo.
+5. Na VPS, como administrador, conferir e tirar do histórico as versões legíveis:
+
+```sh
+docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+  node atual/servidor/cifra.cjs /dados conferir
+docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+  node atual/servidor/cifra.cjs /dados apagar-legiveis
+docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml exec servidor \
+  node atual/servidor/cifra.cjs /dados conferir
+```
+
+A limpeza só apaga se todos os documentos e arquivos atuais estiverem cifrados com a chave do servidor; senão, mostra o que falta e não apaga nada. Ela pode rodar com o servidor no ar. Apagar um arquivo não sobrescreve o disco, e as cópias e os instantâneos da VPS feitos pela Hostinger antes da limpeza guardam os quadros legíveis até expirarem; eles podem ser apagados no painel da Hostinger.
+
+A chave da cifra nunca passa pela VPS, pelo repositório ou por uma sessão do Claude: ela é criada num aparelho, guardada no Bitwarden e digitada ou colada pelo autor nos outros.

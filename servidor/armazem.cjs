@@ -9,7 +9,16 @@
 // - arquivos/<id>.bin e arquivos/<id>.json: os arquivos enviados e os dados deles;
 // - historico/<AAAA-MM-DD>.jsonl: cada versão aceita, com o registro inteiro,
 //   num arquivo por dia, em UTC, apagado depois de `diasDeHistorico` dias; serve
-//   para recuperar um documento sobrescrito ou apagado, por servidor/historico.cjs.
+//   para recuperar um documento sobrescrito ou apagado, por servidor/historico.cjs;
+// - cifra.json: a chave da cifra ponta a ponta, só pelo identificador, e a
+//   posição em que ela foi ligada, gravados na primeira gravação cifrada.
+//
+// Cifra ponta a ponta, etapa 02 do plano 005: o servidor não decifra nada. Ele
+// só reconhece o formato dos envelopes de web/app/compat/cifra.js e o
+// identificador da chave que vem neles. Depois da primeira gravação cifrada,
+// recusa gravações legíveis e as de outra chave, para que nenhum aparelho sem
+// a chave volte a pôr quadros legíveis na VPS; um arquivo legível pode dar
+// lugar ao mesmo arquivo cifrado, com o mesmo id, uma vez.
 //
 // Cada documento é gravado num arquivo temporário e renomeado, e só depois a
 // linha do registro é acrescentada. Ao abrir, uma linha cortada no fim do
@@ -24,6 +33,42 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 
 const ID_DE_ARQUIVO = /^[\w-]{8,64}$/;
+const ID_DA_CHAVE = /^[A-Za-z0-9_-]{22}$/;
+const IV_DO_ENVELOPE = /^[A-Za-z0-9_-]{16}$/;
+const BASE64URL = /^[A-Za-z0-9_-]+$/;
+const MAGICO = Buffer.from('PRCIFRA1');
+// O começo de um arquivo cifrado: o marcador, o identificador da chave, o vetor
+// inicial e, no mínimo, a etiqueta de autenticação.
+const MENOR_ARQUIVO_CIFRADO = MAGICO.length + 16 + 12 + 16;
+
+/** O identificador da chave de um envelope de documento, ou null se os dados não estão cifrados. */
+function chaveDoDocumento(dados) {
+  if (!dados || typeof dados !== 'object' || Array.isArray(dados)) return null;
+  if (Object.keys(dados).length !== 4 || dados.cifra !== 1) return null;
+  if (typeof dados.chave !== 'string' || !ID_DA_CHAVE.test(dados.chave)) return null;
+  if (typeof dados.iv !== 'string' || !IV_DO_ENVELOPE.test(dados.iv)) return null;
+  if (typeof dados.conteudo !== 'string' || !BASE64URL.test(dados.conteudo)) return null;
+  return dados.chave;
+}
+
+/** O identificador da chave de um arquivo cifrado, pelo começo dele, ou null se ele é legível. */
+function chaveDoArquivo(conteudo) {
+  if (!conteudo || conteudo.length < MENOR_ARQUIVO_CIFRADO) return null;
+  if (!conteudo.subarray(0, MAGICO.length).equals(MAGICO)) return null;
+  return conteudo.subarray(MAGICO.length, MAGICO.length + 16).toString('base64url');
+}
+
+/** O identificador da chave de um arquivo guardado em disco, lendo só o começo dele. */
+async function chaveDoArquivoEmDisco(caminho) {
+  const arquivo = await fsp.open(caminho, 'r');
+  try {
+    const cabeca = Buffer.alloc(MENOR_ARQUIVO_CIFRADO);
+    const { bytesRead } = await arquivo.read(cabeca, 0, cabeca.length, 0);
+    return chaveDoArquivo(cabeca.subarray(0, bytesRead));
+  } finally {
+    await arquivo.close();
+  }
+}
 
 const sha256 = (dados) => crypto.createHash('sha256').update(dados).digest('hex');
 
@@ -57,6 +102,8 @@ class Armazem {
     this.ultimas = new Map();
     // Mudanças já aplicadas, por "aparelho:número", com a posição que ganharam.
     this.aplicadas = new Map();
+    // A cifra ligada: { chave, desde, em }, ou null enquanto não houver gravação cifrada.
+    this.cifra = null;
     this._fila = Promise.resolve();
   }
 
@@ -65,6 +112,7 @@ class Armazem {
     await fsp.mkdir(path.join(pasta, 'documentos'), { recursive: true });
     await fsp.mkdir(path.join(pasta, 'arquivos'), { recursive: true });
     await fsp.mkdir(path.join(pasta, 'historico'), { recursive: true });
+    await armazem._lerCifra();
     await armazem._lerRegistro();
     await armazem._recuperar();
     await armazem._podarHistorico();
@@ -114,6 +162,35 @@ class Armazem {
 
   get _registro() {
     return path.join(this.pasta, 'registro.jsonl');
+  }
+
+  get _arquivoDaCifra() {
+    return path.join(this.pasta, 'cifra.json');
+  }
+
+  async _lerCifra() {
+    try {
+      this.cifra = JSON.parse(await fsp.readFile(this._arquivoDaCifra, 'utf8'));
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+    }
+  }
+
+  // Confere a cifra de um pedido antes de gravar qualquer parte dele. A
+  // primeira gravação cifrada liga a cifra, com a chave dela; daí em diante,
+  // o servidor recusa gravações legíveis e as de outra chave.
+  async _conferirCifra(chaves, legivel) {
+    if (!this.cifra && chaves.size > 0) {
+      if (chaves.size > 1) throw erro('cifra_diferente', 'o pedido mistura chaves de cifra diferentes');
+      const cifra = { chave: [...chaves][0], desde: this.posicao, em: new Date().toISOString() };
+      await gravarAtomico(this._arquivoDaCifra, JSON.stringify(cifra));
+      this.cifra = cifra;
+    }
+    if (!this.cifra) return;
+    if (legivel) throw erro('cifra_exigida', 'o servidor só aceita quadros cifrados');
+    for (const chave of chaves) {
+      if (chave !== this.cifra.chave) throw erro('cifra_diferente', 'quadro cifrado com outra chave');
+    }
   }
 
   _arquivoDoDocumento(caminho) {
@@ -221,6 +298,16 @@ class Armazem {
    */
   aplicar(dispositivo, mudancas) {
     return this._emFila(async () => {
+      // Exclusões não têm conteúdo, e mudanças já aplicadas não gravam nada.
+      const chaves = new Set();
+      let legivel = false;
+      for (const m of mudancas) {
+        if (m.registro.apagado || this.aplicadas.has(`${dispositivo}:${m.seq}`)) continue;
+        const chave = chaveDoDocumento(m.registro.dados);
+        if (chave) chaves.add(chave);
+        else legivel = true;
+      }
+      await this._conferirCifra(chaves, legivel);
       const resultados = [];
       for (const m of mudancas) {
         const chave = `${dispositivo}:${m.seq}`;
@@ -271,7 +358,8 @@ class Armazem {
     }
     const mais = depois.length > pagina.length;
     const posicao = mais ? pagina[pagina.length - 1][1].pos : Math.max(desde, this.posicao);
-    return { posicao, mais, documentos, arquivos };
+    const cifra = this.cifra ? { chave: this.cifra.chave, desde: this.cifra.desde } : null;
+    return { posicao, mais, documentos, arquivos, cifra };
   }
 
   async lerDadosDoArquivo(id) {
@@ -291,20 +379,23 @@ class Armazem {
   /**
    * Guarda um arquivo enviado. O mesmo arquivo reenviado é "repetido"; um
    * conteúdo diferente com um id já usado é recusado, porque os ids são
-   * aleatórios e não se repetem entre arquivos diferentes.
+   * aleatórios e não se repetem entre arquivos diferentes. A exceção é a troca
+   * para a cifra: um arquivo legível dá lugar ao mesmo arquivo cifrado.
    */
   guardarArquivo(id, conteudo, { tipo, dispositivo, criadoEm }) {
     if (!ID_DE_ARQUIVO.test(id)) return Promise.reject(erro('id_invalido', 'id de arquivo inválido'));
     return this._emFila(async () => {
       const resumo = sha256(conteudo);
       const existente = await this.lerDadosDoArquivo(id);
-      if (existente) {
-        if (existente.sha256 !== resumo) throw erro('conflito', 'outro conteúdo já usa este id');
-        return { estado: 'repetido', pos: existente.pos };
+      if (existente && existente.sha256 === resumo) return { estado: 'repetido', pos: existente.pos };
+      const chave = chaveDoArquivo(conteudo);
+      await this._conferirCifra(chave ? new Set([chave]) : new Set(), !chave);
+      if (existente && (!chave || await chaveDoArquivoEmDisco(this._arquivoBinario(id)))) {
+        throw erro('conflito', 'outro conteúdo já usa este id');
       }
       const pos = this.posicao + 1;
       await gravarAtomico(this._arquivoBinario(id), conteudo);
-      const dados = { pos, id, tipo, bytes: conteudo.length, sha256: resumo, criadoEm, dispositivo };
+      const dados = { pos, id, tipo, bytes: conteudo.length, sha256: resumo, criadoEm, dispositivo, ...(chave ? { cifra: chave } : {}) };
       await gravarAtomico(this._arquivoDeDados(id), JSON.stringify(dados));
       await this._acrescentar({ pos, caminho: `_arquivos/${id}`, dispositivo, seq: null, tipo: 'arquivo', em: Date.now() });
       return { estado: 'aplicado', pos };
@@ -312,4 +403,4 @@ class Armazem {
   }
 }
 
-module.exports = { Armazem, ID_DE_ARQUIVO };
+module.exports = { Armazem, ID_DE_ARQUIVO, chaveDoDocumento, chaveDoArquivo, chaveDoArquivoEmDisco };

@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-09
 fase: Livros e PDFs, com rede privada e cifra
 plano_ativo: acompanhamento/planos/005-livros-e-pdfs/plano.md
-etapa_atual:
+etapa_atual: acompanhamento/planos/005-livros-e-pdfs/etapas/02-cifra-ponta-a-ponta.md
 bloqueios: []
 ---
 
@@ -30,17 +30,18 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - Sempre que a página apagar traços, a casca redesenha a tela inteira, porque os traços provisórios da Onyx só somem assim.
 - Atualizações da casca pelo próprio aplicativo: o GitHub compila e publica cada versão, assinada com a chave das versões instaladas, e a casca oferece a atualização ao abrir com internet.
 - Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` envia a página e o servidor a cada mudança deles na `main`, por uma conta sem privilégios e sem acesso ao Docker, que só troca a versão em uso e confere na própria VPS que ela entrou no ar; as ações de administrador ficam num roteiro executado pelo autor, e nenhum endereço da Prancheta entra no repositório.
-- Segurança, conforme o debate de 2026-11-08: os quadros só respondem com a chave de cada aparelho; arquivos isolados da página, versão nova só quando o autor pede, histórico de 30 dias e cópia puxada pelo computador; rede privada e cifra no aparelho antes dos livros. Desde 2026-11-09, a Prancheta só responde pela rede privada do Tailscale, com o endereço público fechado, e o Boox precisa do Tailscale sempre ligado; a cifra será ponta a ponta, com a senha só nos aparelhos.
+- Segurança, conforme o debate de 2026-11-08: os quadros só respondem com a chave de cada aparelho; arquivos isolados da página, versão nova só quando o autor pede, histórico de 30 dias e cópia puxada pelo computador; rede privada e cifra no aparelho antes dos livros. Desde 2026-11-09, a Prancheta só responde pela rede privada do Tailscale, com o endereço público fechado, e o Boox precisa do Tailscale sempre ligado.
+- Cifra ponta a ponta, por decisão do autor: uma chave aleatória de 256 bits, criada no primeiro aparelho, guardada só no Bitwarden e informada nos outros; o servidor não a conhece e, depois da primeira gravação cifrada, recusa o legível e outra chave. Sem o Bitwarden e sem os aparelhos, a cópia da VPS fica ilegível; o banco local continua legível.
 - Servidor de sincronização em Node puro, sem dependências e com os dados em arquivos: numera as mudanças, devolve os conflitos para o aparelho combinar e só atende com a chave; a única exceção, aceita pelo autor, é a consulta prévia do navegador vinda da casca, que não recebe dados.
 - Sincronização no próprio banco local, em segundo plano: combina item a item, pelo id; no mesmo campo mudado nos dois aparelhos, prevalece a gravação mais recente; a gravação da página também é combinada com o que chegou do servidor desde a anterior; endereço e chave ficam no banco de cada aparelho.
 
 ## Em andamento
 
-Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, concluída no mesmo dia; 02 cifra ponta a ponta dos quadros, a detalhar; 03 biblioteca do WebDAV entregue pela Prancheta; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
+Plano 005, livros e PDFs, com rede privada e cifra, aberto em 2026-11-09, com a ordem aprovada pelo autor: 01 rede privada com o Tailscale e endereço público fechado, concluída no mesmo dia; 02 cifra ponta a ponta dos quadros, implementada e com os testes passando, a publicar com a casca 0.5.0 e a aplicar nos aparelhos; 03 biblioteca do WebDAV entregue pela Prancheta; 04 leitor de PDF e EPUB com marcações ligadas a quadros. O plano 004 terminou em 2026-11-09, com a faixa única, o modo e-ink, o botão de formas, o laço e os pontos mais espaçados; o autor dispensou as ferramentas de reorganização e, depois de testá-lo, mandou tirar o controle de sensibilidade à pressão, retirado na casca 0.4.2. Os planos 001 a 003 estão concluídos.
 
 ## Próximo passo
 
-Detalhar com o autor a etapa 02 do plano 005, cifra ponta a ponta dos quadros: como a senha é criada e guardada em cada aparelho, o que acontece se ela for perdida, como os dados que já estão na VPS passam a ser cifrados e os critérios da etapa. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar a etapa 02 do plano 005, que publica a página e o servidor com a cifra e a casca 0.5.0; o autor instala a casca no Boox, confere que tudo está sincronizado, cria a chave no computador, guarda-a no Bitwarden, informa-a no Boox e, pela sessão do Mac, roda na VPS a conferência e a limpeza descritas em `servidor/implantacao/LEIA-ME.md`; depois, verificar os critérios restantes. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
