@@ -19,8 +19,11 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 
 ### Pendências
 
-- O autor criar o repositório privado `iago-leal/prancheta-sessoes`, que esta sessão ainda não acessa; até lá, as gravações ficam na fila.
 - Confirmar, numa sessão nova, que o roteiro do ambiente instala o Entire e os ganchos.
+
+### Referências
+
+- O autor considerou guardar as gravações num repositório hospedado só no Entire, mas a versão estável 0.13.1 ainda não cria o segredo da conta de serviço de que as sessões na nuvem precisariam; ficou com o GitHub privado. O repositório `iago-leal/prancheta-sessoes` foi criado, privado e vazio, e esta sessão recebeu acesso de escrita a ele.
 
 ## 2026-11-09 · Etapa 03 do plano 004: formas num botão só e seleção por laço
 
