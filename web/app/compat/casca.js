@@ -9,8 +9,10 @@
 //   Casca.transformacao(json) quando a vista muda; Casca.areasReservadas(json)
 //   com as barras, menus e painéis em que a caneta deve agir sobre a página
 //   em vez de escrever; Casca.canetaEscreve(booleano) conforme a ferramenta
-//   ativa; Casca.tinta(json) com a ferramenta de tinta, a cor e a espessura
-//   escolhidas, para a camada da Onyx desenhar igual; e Casca.redesenharTela()
+//   ativa; Casca.tinta(json) com a ferramenta de tinta, a cor, a espessura e
+//   a sensibilidade à pressão escolhidas, para a camada da Onyx desenhar
+//   igual; Casca.parametrosDoTraco(), que devolve em texto os parâmetros de
+//   traço do sistema da Onyx, quando o diagnóstico é ligado; e Casca.redesenharTela()
 //   quando o traço provisório da Onyx pode ter ficado fora do lugar, porque a
 //   vista mudou ou traços foram movidos ou apagados;
 // - a casca chama prancheta.receberTraco(pontos, contorno), com x, y, pressão
@@ -76,7 +78,7 @@ html.casca #faixa-casca .pill{background:none;border:0;box-shadow:none;padding:0
 html.casca #faixa-casca .btn{width:32px}
 html.casca #zoomPct{min-width:48px;height:34px;padding:0 4px;font:inherit;font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg);background:none;border:0;border-radius:9px}
 html.casca #bottom{top:calc(var(--casca-faixa,48px) + 8px);bottom:auto}
-html.tinta-nativa #inkbar .stab,html.tinta-nativa #inkbar>span.sep:last-of-type{display:none}
+html.tinta-nativa #inkbar .stab:not(.sens),html.tinta-nativa #inkbar>span.sep:last-of-type{display:none}
 html.casca #keys{top:calc(var(--casca-faixa,48px) + 8px)}
 html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,48px) + 64px)}`;
 
@@ -110,6 +112,7 @@ html.casca body.busy #head{opacity:1}`;
   // sobre a página, como um ponteiro.
   const FERRAMENTAS_EM_QUE_A_CANETA_ESCREVE = new Set(['select', 'pen', 'hl']);
   const ESPERA_PARA_REDESENHAR = 250;
+  const ESPERA_PARA_OS_PARAMETROS = 3500;
   const ESPERA_PARA_CONFERIR_AREAS = 400;
   const IGNORADOS = new Set(['SCRIPT', 'STYLE', 'LINK', 'TEMPLATE', 'INPUT', 'NOSCRIPT']);
 
@@ -122,6 +125,7 @@ html.casca body.busy #head{opacity:1}`;
   let ultimasAreas = '';
   let ultimaCaneta = null;
   let ultimaTinta = '';
+  let ultimoDiagnostico = false;
 
   function chamar(nome, ...argumentos) {
     try {
@@ -155,12 +159,28 @@ html.casca body.busy #head{opacity:1}`;
   }
 
   // A tinta que a casca deve usar: a do marca-texto quando ele está ativo, e
-  // a da caneta nos demais casos, com a cor já resolvida para o valor final.
+  // a da caneta nos demais casos, com a cor já resolvida para o valor final e
+  // a sensibilidade à pressão da caneta, de 0 a 100, que vale 90 sem escolha.
   function tintaAtiva() {
     const ferramenta = S.tool === 'hl' ? 'hl' : 'pen';
     const cfg = S.ink[ferramenta];
     const cor = getComputedStyle(document.documentElement).getPropertyValue(`--${cfg.c}`).trim();
-    return { ferramenta, cor, largura: cfg.w };
+    const sensibilidade = typeof sensDaPressao === 'function' ? sensDaPressao() : 90;
+    return { ferramenta, cor, largura: cfg.w, sensibilidade };
+  }
+
+  // Ao ligar o diagnóstico, mostra os parâmetros de traço do sistema da Onyx,
+  // para descobrir se algum deles regula a resposta à pressão do traço provisório.
+  function mostrarParametrosDoTraco() {
+    if (typeof casca.parametrosDoTraco !== 'function') return;
+    let texto = '';
+    try {
+      texto = String(casca.parametrosDoTraco());
+    } catch (e) {
+      texto = `falhou: ${e}`;
+    }
+    const avisar = typeof toast === 'function' ? toast : typeof flash === 'function' ? flash : null;
+    if (avisar) avisar(`Casca: parâmetros do traço da Onyx: ${texto}`);
   }
 
   function canetaEscreve() {
@@ -190,6 +210,12 @@ html.casca body.busy #head{opacity:1}`;
     if (tinta !== ultimaTinta) {
       ultimaTinta = tinta;
       chamar('tinta', tinta);
+    }
+    const diagnostico = !!S.diag;
+    if (diagnostico !== ultimoDiagnostico) {
+      ultimoDiagnostico = diagnostico;
+      // Espera o aviso do próprio diagnóstico, que a página mostra ao ligá-lo.
+      if (diagnostico) setTimeout(mostrarParametrosDoTraco, ESPERA_PARA_OS_PARAMETROS);
     }
   }
 
