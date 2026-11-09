@@ -95,7 +95,7 @@ test('avisa a casca que está pronta, com a vista, as áreas reservadas e a cane
   assert.deepEqual((await ultima(pagina, 'transformacao'))[0], await pagina.evaluate(() => ({ ...S.view })));
   assert.deepEqual(await ultima(pagina, 'canetaEscreve'), [true], 'com a seleção, a caneta escreve');
   const [areas] = await ultima(pagina, 'areasReservadas');
-  for (const seletor of ['#tools [data-t="pen"]', '#bMore', '#zIn', '#bUndo']) {
+  for (const seletor of ['#tools [data-t="pen"]', '#bMore', '#zoomPct', '#bUndo']) {
     const [x, y] = await centro(pagina, seletor);
     assert.ok(dentro(areas, x, y), `${seletor} deveria estar numa área reservada`);
   }
@@ -106,7 +106,7 @@ test('avisa a casca que está pronta, com a vista, as áreas reservadas e a cane
 
 test('a vista, a ferramenta e os menus abertos chegam à casca', async () => {
   const { contexto, pagina, erros } = await abrirNaCasca();
-  await pagina.locator('#zIn').click();
+  await pagina.evaluate(() => zoomCenter(1.25));
   await esperar(pagina, () => window.__chamadas.filter((c) => c[0] === 'transformacao').at(-1)[1].k > 1);
   assert.deepEqual((await ultima(pagina, 'transformacao'))[0], await pagina.evaluate(() => ({ ...S.view })));
 
@@ -243,7 +243,7 @@ test('pede para redesenhar a tela quando a vista muda ou um traço some depois d
   const { contexto, pagina, erros } = await abrirNaCasca();
   await pagina.evaluate(() => prancheta.definirTinta('nativa'));
   // Sem tinta da casca na tela, mudar a vista não pede redesenho.
-  await pagina.locator('#zIn').click();
+  await pagina.evaluate(() => zoomCenter(1.25));
   await pausa(600);
   assert.equal((await chamadas(pagina, 'redesenharTela')).length, 0);
 
@@ -254,8 +254,9 @@ test('pede para redesenhar a tela quando a vista muda ou um traço some depois d
   assert.equal((await chamadas(pagina, 'redesenharTela')).length, 0);
 
   // Mudar a vista depois dele pede um único redesenho, quando a mudança termina.
-  await pagina.locator('#zOut').click();
-  await pagina.locator('#zOut').click();
+  // Na casca, o zoom em passos é o mesmo dos botões de diminuir, que só aparecem no computador.
+  await pagina.evaluate(() => zoomCenter(0.8));
+  await pagina.evaluate(() => zoomCenter(0.8));
   await esperar(pagina, () => window.__chamadas.some((c) => c[0] === 'redesenharTela'));
   await pausa(600);
   assert.equal((await chamadas(pagina, 'redesenharTela')).length, 1);
@@ -290,23 +291,32 @@ test('com a tinta nativa, um dedo move o quadro mesmo com a caneta ativa', async
   await contexto.close();
 });
 
-test('na casca, a barra de ferramentas e o zoom ficam no alto', async () => {
+test('na casca, os controles ficam numa faixa só, no alto da tela', async () => {
   const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate(() => prancheta.definirTinta('nativa'));
   assert.equal(await pagina.evaluate(() => document.documentElement.classList.contains('casca')), true);
-  const barra = await pagina.locator('#tools').boundingBox();
-  assert.ok(barra.y < 40, `a barra fica no alto: ${JSON.stringify(barra)}`);
-  const embaixo = barra.y + barra.height;
-  assert.equal(await pagina.evaluate(() => document.getElementById('zoom').parentElement.id), 'top', 'o zoom entra no grupo da direita');
-  for (const seletor of ['#top', '#zoom', '#bTitle']) {
+  const faixa = await pagina.locator('#faixa-casca').boundingBox();
+  assert.ok(faixa.y === 0 && faixa.height < 56, `uma faixa só, baixa, no alto: ${JSON.stringify(faixa)}`);
+  const embaixo = faixa.y + faixa.height;
+  for (const seletor of ['#bTitle', '#tools', '#sinc', '#bUndo', '#bRedo', '#zoomPct', '#bMore']) {
     const caixa = await pagina.locator(seletor).boundingBox();
-    assert.ok(caixa.y >= embaixo, `${seletor} fica abaixo da barra: ${JSON.stringify(caixa)}`);
+    assert.ok(caixa && caixa.y >= faixa.y && caixa.y + caixa.height <= embaixo, `${seletor} fica dentro da faixa: ${JSON.stringify(caixa)}`);
   }
-  // As opções da caneta, no segundo toque no botão, abrem abaixo da barra.
+  assert.ok(await pagina.evaluate(() => { const t = document.getElementById('tools'); return t.scrollWidth <= t.clientWidth; }), 'as ferramentas cabem sem rolar');
+  // O título fica numa linha, e o que só serve no computador sai da tela.
+  assert.equal(await pagina.evaluate(() => getComputedStyle(document.getElementById('bTitle')).whiteSpace), 'nowrap');
+  for (const seletor of ['#bSub', '#status', '#zIn', '#zOut']) {
+    assert.equal(await pagina.locator(seletor).isVisible(), false, `${seletor} não aparece na casca`);
+  }
+  // As opções da caneta abrem abaixo da faixa, sem os ajustes da tinta da página.
   await pagina.locator('#tools [data-t="pen"]').click();
   await pagina.locator('#tools [data-t="pen"]').click();
   await pagina.locator('#inkbar').waitFor();
   const opcoes = await pagina.locator('#inkbar').boundingBox();
-  assert.ok(opcoes.y >= embaixo, `as opções da caneta abrem abaixo da barra: ${JSON.stringify(opcoes)}`);
+  assert.ok(opcoes.y >= embaixo, `as opções da caneta abrem abaixo da faixa: ${JSON.stringify(opcoes)}`);
+  assert.equal(await pagina.locator('#inkStab').isVisible(), false, 'sem estabilização com a tinta da Onyx');
+  assert.equal(await pagina.locator('#inkPred').isVisible(), false, 'sem previsão com a tinta da Onyx');
+  assert.equal(await pagina.evaluate(() => getComputedStyle(document.getElementById('inkbar')).boxShadow), 'none', 'sem sombra no e-ink');
   // O menu do zoom, que abria para cima, abre para baixo, dentro da tela.
   await pagina.keyboard.press('Escape');
   await pagina.locator('#zoomPct').click();
@@ -314,11 +324,34 @@ test('na casca, a barra de ferramentas e o zoom ficam no alto', async () => {
   const menu = await pagina.locator('#menu').boundingBox();
   const zoom = await pagina.locator('#zoomPct').boundingBox();
   assert.ok(menu.y > zoom.y + zoom.height, `o menu do zoom abre para baixo: ${JSON.stringify(menu)}`);
+  // A faixa inteira é área reservada: a caneta age sobre ela em vez de escrever.
   await esperar(pagina, () => {
     const areas = window.__chamadas.filter((c) => c[0] === 'areasReservadas').at(-1)[1];
-    const r = document.getElementById('zIn').getBoundingClientRect();
+    const r = document.getElementById('faixa-casca').getBoundingClientRect();
     return areas.some((a) => r.left + 1 >= a.x && r.right - 1 <= a.x + a.largura && r.top + 1 >= a.y && r.bottom - 1 <= a.y + a.altura);
   });
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('com o painel de quadros aberto numa tela estreita, a faixa ganha uma segunda linha em vez de rolar', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.setViewportSize({ width: 930, height: 1240 });
+  if (!(await pagina.evaluate(() => document.body.classList.contains('side')))) await pagina.keyboard.press('b');
+  await esperar(pagina, () => document.body.classList.contains('side'));
+  await pausa(300);
+  const faixa = await pagina.locator('#faixa-casca').boundingBox();
+  assert.ok(faixa.height > 56 && faixa.height < 100, `duas linhas: ${JSON.stringify(faixa)}`);
+  assert.ok(await pagina.evaluate(() => { const t = document.getElementById('tools'); return t.scrollWidth <= t.clientWidth; }), 'as ferramentas cabem sem rolar');
+  const opcoes = await pagina.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--casca-faixa'));
+  assert.equal(opcoes, `${Math.ceil(faixa.y + faixa.height)}px`, 'o que abre abaixo da faixa acompanha a altura dela');
+  // Com o painel fechado, na mesma largura, tudo volta a caber numa linha.
+  await pagina.keyboard.press('b');
+  await esperar(pagina, () => !document.body.classList.contains('side'));
+  await pausa(300);
+  const sozinha = await pagina.locator('#faixa-casca').boundingBox();
+  assert.ok(sozinha.height < 56, `uma linha só com o painel fechado: ${JSON.stringify(sozinha)}`);
+  assert.ok(await pagina.evaluate(() => { const t = document.getElementById('tools'); return t.scrollWidth <= t.clientWidth; }), 'as ferramentas cabem sem rolar');
   assert.deepEqual(erros, []);
   await contexto.close();
 });

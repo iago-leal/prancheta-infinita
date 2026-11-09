@@ -3,10 +3,10 @@ tipo: etapa
 plano: "003"
 etapa: "02"
 titulo: Traço sensível à pressão igual na Onyx e na página
-status: em_andamento
+status: concluida
 depende_de: ["01"]
 iniciada_em: 2026-11-08
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 02: traço sensível à pressão igual na Onyx e na página
@@ -17,11 +17,11 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 
 ## Critérios de conclusão
 
-- [ ] A camada da Onyx desenha com um estilo de caneta sensível à pressão, e a espessura e a cor escolhidas na Prancheta valem também para ela, em qualquer zoom.
-- [ ] A Prancheta desenha os traços vindos da casca com a mesma forma do traço provisório, e o traço guardado continua com os pontos, a pressão e o horário originais.
+- [x] A camada da Onyx desenha com um estilo de caneta sensível à pressão, e a espessura e a cor escolhidas na Prancheta valem também para ela, em qualquer zoom.
+- [x] A Prancheta desenha os traços vindos da casca com a mesma forma do traço provisório, e o traço guardado continua com os pontos, a pressão e o horário originais.
 - [x] O Registro traz uma medição feita no Boox, com traços de pressão leve, média e forte, comparando a espessura do traço provisório com a do definitivo.
 - [x] Testes cobrem a conversão dos traços da casca para a Prancheta, inclusive a escala no zoom.
-- [ ] O autor confirma no Boox que, na escrita normal, o traço não muda de forma perceptível quando a tela se atualiza, inclusive na atualização completa.
+- [x] O autor confirma no Boox que, na escrita normal, o traço não muda de forma perceptível quando a tela se atualiza, inclusive na atualização completa.
 
 ## Registro
 
@@ -94,4 +94,17 @@ Fazer o traço provisório da camada da Onyx e o traço definitivo da página te
 - Testes: 5 testes JUnit novos do roteador, 35 ao todo, que acusam as 8 mutações introduzidas nele; 4 testes novos no Chromium, 60 ao todo na web, que acusam as 9 mutações introduzidas na página e no adaptador.
 - O autor também pediu um controle deslizante da sensibilidade à pressão. O SDK da Onyx não oferece ajuste da resposta à pressão do traço provisório, desenhado pelo sistema, só a espessura, a cor e o estilo; um ajuste só no traço definitivo faria o traço mudar na troca, o que esta etapa quer evitar. O autor decidiu adiar o controle: mesclar a 0.3.5, testá-la e decidir depois se ele ainda faz falta.
 
+### 2026-11-09, confirmação do autor com a versão 0.3.5
+
+- O autor atualizou para a 0.3.5 e confirmou que o traço forte não afina mais na troca; perguntado, confirmou também que a espessura e a cor escolhidas valem no Boox em qualquer zoom e que o traço não muda nem na atualização completa da tela.
+- Relatou ainda que a barra no alto, com o título, desfazer, refazer e o zoom, ocupava espaço demais; o novo desenho da tela segue no plano 004.
+
 ## Resultado
+
+Etapa concluída em 2026-11-09, com a casca 0.3.5. Cada critério foi verificado assim:
+
+1. Estilo sensível à pressão, espessura e cor em qualquer zoom: a medição do vídeo IMG_5257 mostrou a espessura variar com a pressão, de 1 para 1,4 para 2,0; o autor confirmou as cores no vídeo IMG_5255 e, com a 0.3.5, que a espessura e a cor escolhidas valem em qualquer zoom.
+2. Mesma forma do traço provisório, com os pontos, a pressão e o horário originais: o autor confirmou que o traço não muda na troca com a 0.3.5; os testes "o traço da casca vira traço da Prancheta no lugar certo, com pressão e horário" e "o traço com o contorno da Onyx guarda a espessura de cada ponto e é desenhado com ela" conferem o que é guardado.
+3. Medição no Boox com pressão leve, média e forte: registrada em 2026-11-08, a partir do vídeo IMG_5257.
+4. Testes da conversão, inclusive a escala no zoom: os testes do adaptador da casca em `web/testes/casca.test.cjs` e os da `Tinta` em JUnit.
+5. Confirmação do autor de que o traço não muda de forma perceptível, inclusive na atualização completa: dada em 2026-11-09, com a 0.3.5.
