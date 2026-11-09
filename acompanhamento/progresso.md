@@ -6,6 +6,20 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Curva da sensibilidade à pressão refeita
+
+### Feito
+
+- Com a 0.4.0 no Boox, o autor achou o traço a 0% grosso demais, porque a curva aproximava toda pressão da pressão média, e viu o traço engrossar na atualização da tela, o que confirma que o traço provisório da Onyx não segue o controle. Na casca 0.4.1, a curva da [etapa 04](planos/004-modo-e-ink/etapas/04-sensibilidade-e-pontos.md) passou a elevar a pressão a 90 sobre a sensibilidade: com menos sensibilidade, a escrita leve afina e engrossar pede mais força, e a 0% o traço fica sempre fino.
+
+### Decidido
+
+- **Critério 1 da etapa 04 trocado.** O autor dispensou o critério que descrevia a curva antiga e aprovou um novo, com o comportamento escolhido, registrado na etapa.
+
+### Pendências
+
+- Foto do aviso dos parâmetros do traço da Onyx no diagnóstico, para investigar `setStrokeParameters`; até lá, no Boox, o traço muda na atualização da tela fora dos 90%.
+
 ## 2026-11-09 · Etapa 04 do plano 004: sensibilidade à pressão e pontos do fundo
 
 ### Feito

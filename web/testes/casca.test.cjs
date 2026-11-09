@@ -805,10 +805,11 @@ async function tracarComCaneta(cdp, x0, y0, x1, forca) {
 }
 
 // A pressão que a Prancheta guarda para uma força da caneta, na sensibilidade dada,
-// com a mesma quantização da gravação, em vigésimos.
+// com a mesma quantização da gravação, em vigésimos: a pressão na escala da
+// Prancheta é elevada a 90 sobre a sensibilidade, e a 0% vale a mínima.
 const pressaoEsperada = (forca, sensibilidade) => {
   const q = Math.pow(forca, 0.65);
-  const ajustada = Math.min(1, Math.max(0.04, 0.5 + ((q - 0.5) * sensibilidade) / 90));
+  const ajustada = Math.min(1, Math.max(0.04, sensibilidade > 0 ? Math.pow(q, 90 / sensibilidade) : 0));
   return Math.round(ajustada * 20) / 20;
 };
 
@@ -837,7 +838,7 @@ test('o controle de sensibilidade à pressão ajusta a pressão dos traços da c
   // Em 90%, o traço sai como antes do controle.
   await tracarComCaneta(cdp, 450, 300, 750, 0.8);
   assert.deepEqual(await pressoesDoUltimo(1), [pressaoEsperada(0.8, 90)]);
-  // A 45%, a pressão forte se aproxima do meio pela metade.
+  // A 45%, a mesma força dá um traço mais fino: é preciso mais força para engrossar.
   await ajustar('45');
   assert.equal(await pagina.locator('#inkSensV').textContent(), '45%');
   assert.equal(await pagina.evaluate(() => S.ink.pen.ps), 45);
@@ -845,18 +846,20 @@ test('o controle de sensibilidade à pressão ajusta a pressão dos traços da c
   const metade = await pressoesDoUltimo(2);
   assert.deepEqual(metade, [pressaoEsperada(0.8, 45)]);
   assert.ok(metade[0] < pressaoEsperada(0.8, 90));
-  // A 0%, a pressão forte e a leve valem a do meio: espessura constante.
+  // A 0%, a pressão forte e a leve valem a mínima: o traço fica sempre fino.
   await ajustar('0');
   await tracarComCaneta(cdp, 450, 420, 750, 0.9);
-  assert.deepEqual(await pressoesDoUltimo(3), [0.5]);
+  const fino = await pressoesDoUltimo(3);
+  assert.deepEqual(fino, [pressaoEsperada(0.9, 0)]);
+  assert.ok(fino[0] <= 0.05, `${fino[0]}`);
   await tracarComCaneta(cdp, 450, 480, 750, 0.1);
-  assert.deepEqual(await pressoesDoUltimo(4), [0.5]);
-  // A 100%, a pressão leve fica mais leve que em 90%.
+  assert.deepEqual(await pressoesDoUltimo(4), fino);
+  // A 100%, a pressão leve engrossa mais que em 90%.
   await ajustar('100');
-  await tracarComCaneta(cdp, 450, 540, 750, 0.05);
+  await tracarComCaneta(cdp, 450, 540, 750, 0.2);
   const leve = await pressoesDoUltimo(5);
-  assert.deepEqual(leve, [pressaoEsperada(0.05, 100)]);
-  assert.ok(leve[0] < pressaoEsperada(0.05, 90), `${leve[0]} e ${pressaoEsperada(0.05, 90)}`);
+  assert.deepEqual(leve, [pressaoEsperada(0.2, 100)]);
+  assert.ok(leve[0] > pressaoEsperada(0.2, 90), `${leve[0]} e ${pressaoEsperada(0.2, 90)}`);
   // Os traços já feitos não mudam com o controle.
   const desenhos = await pagina.evaluate(() => [...S.items.values()].filter((i) => i.type === 'stroke').map((i) => i.d));
   await ajustar('30');
