@@ -137,6 +137,30 @@ test('a vista, a ferramenta e os menus abertos chegam à casca', async () => {
   await contexto.close();
 });
 
+test('o painel do leitor entra nas áreas reservadas, para a tinta da Onyx não riscar o livro', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await esperar(pagina, () => Boolean(window.leitorDaPrancheta && document.getElementById('leitor')));
+  const reservado = ([x, y]) => window.__chamadas.filter((c) => c[0] === 'areasReservadas').at(-1)[1]
+    .some((a) => x >= a.x && x <= a.x + a.largura && y >= a.y && y <= a.y + a.altura);
+  // O painel aberto lado a lado, sem livro, como logo ao abrir um.
+  await pagina.evaluate(() => {
+    document.body.classList.add('leitor-lado');
+    document.getElementById('leitor').hidden = false;
+  });
+  const [x, y] = await centro(pagina, '#leitor');
+  await esperar(pagina, reservado, [x, y]);
+  // O lado do quadro continua livre para a caneta.
+  assert.ok(!(await pagina.evaluate(reservado, [450, 400])), 'o quadro ao lado do leitor não é área reservada');
+  await pagina.evaluate(() => {
+    document.getElementById('leitor').hidden = true;
+    document.body.classList.remove('leitor-lado');
+  });
+  await esperar(pagina, (ponto) => !window.__chamadas.filter((c) => c[0] === 'areasReservadas').at(-1)[1]
+    .some((a) => ponto[0] >= a.x && ponto[0] <= a.x + a.largura && ponto[1] >= a.y && ponto[1] <= a.y + a.altura), [x, y]);
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
 test('o traço da casca vira traço da Prancheta no lugar certo, com pressão e horário', async () => {
   const { contexto, pagina, erros } = await abrirNaCasca();
   await pagina.evaluate(() => { prancheta.definirTinta('nativa'); zoomAt(600, 400, 2); });

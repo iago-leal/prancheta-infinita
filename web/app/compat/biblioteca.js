@@ -10,8 +10,9 @@
 //   não passam pela cifra. Na VPS, eles já estão no WebDAV; no caminho, vão
 //   cifrados pelo Tailscale.
 // - Tocar num livro ainda não guardado o baixa, com o progresso em texto, sem
-//   animação, e o guarda; tocar num livro guardado, por enquanto, só confirma
-//   que ele está no aparelho. A leitura vem na etapa 04.
+//   animação, e o guarda; com o leitor de compat/leitor.js, da etapa 04, o
+//   livro abre em seguida. A última posição lida de cada livro também fica
+//   neste banco, só neste aparelho.
 //
 // Deve ser carregado depois de compat/sincronizacao.js; compat/claude.js liga
 // a biblioteca à sincronização em window.bibliotecaDaPrancheta.
@@ -97,6 +98,18 @@
     async livro(id) {
       const idb = await this._banco;
       return operar(idb, 'livros', 'readonly', (d) => d.get(String(id)));
+    }
+
+    /** A última posição lida de um livro neste aparelho, ou undefined. */
+    async lerPosicao(id) {
+      const idb = await this._banco;
+      const r = await operar(idb, 'meta', 'readonly', (d) => d.get(`posicao:${id}`));
+      return r ? r.posicao : undefined;
+    }
+
+    async gravarPosicao(id, posicao) {
+      const idb = await this._banco;
+      await operar(idb, 'meta', 'readwrite', (d) => d.put({ chave: `posicao:${id}`, posicao, em: Date.now() }));
     }
 
     // A lista guardada da última vez, para mostrar logo e sem rede.
@@ -337,21 +350,30 @@
     async function abrir(id) {
       const livro = biblioteca.estado.lista.find((l) => l.id === id);
       if (!livro) return;
-      if (biblioteca.estado.guardados.has(id)) {
+      if (!biblioteca.estado.guardados.has(id)) {
+        avisoProprio = '';
+        try {
+          await biblioteca.guardar(id);
+          avisoProprio = `"${livro.nome}" foi guardado neste aparelho e fica disponível sem rede.`;
+        } catch (e) {
+          avisoProprio = e.code === 'sem_rede'
+            ? `Sem rede: "${livro.nome}" ainda não está guardado neste aparelho.`
+            : `Não foi possível guardar "${livro.nome}": ${e.message}.`;
+          redesenhar();
+          return;
+        }
+      } else {
         avisoProprio = `"${livro.nome}" está guardado neste aparelho.`;
-        redesenhar();
-        return;
-      }
-      avisoProprio = '';
-      try {
-        await biblioteca.guardar(id);
-        avisoProprio = `"${livro.nome}" foi guardado neste aparelho e fica disponível sem rede.`;
-      } catch (e) {
-        avisoProprio = e.code === 'sem_rede'
-          ? `Sem rede: "${livro.nome}" ainda não está guardado neste aparelho.`
-          : `Não foi possível guardar "${livro.nome}": ${e.message}.`;
       }
       redesenhar();
+      const leitor = global.leitorDaPrancheta;
+      if (!leitor) return;
+      try {
+        await leitor.abrir(id);
+      } catch (e) {
+        avisoProprio = `Não foi possível abrir "${livro.nome}": ${e.message}.`;
+        redesenhar();
+      }
     }
 
     secao.addEventListener('click', (e) => {

@@ -19,7 +19,7 @@
 
 importScripts('compat/banco-local.js');
 
-const VERSAO = 'prancheta-app-18bf9d3fae5a';
+const VERSAO = 'prancheta-app-addb964f16b5';
 const ARQUIVOS = [
   'index.html',
   'compat/banco-local.js',
@@ -27,6 +27,7 @@ const ARQUIVOS = [
   'compat/cifra.js',
   'compat/sincronizacao.js',
   'compat/biblioteca.js',
+  'compat/leitor.js',
   'compat/claude.js',
   'compat/casca.js',
   'compat/traco-onyx.js',
@@ -37,6 +38,8 @@ const ARQUIVOS = [
   'vendor/pdfjs/pdf.min.js',
   'vendor/pdfjs/pdf.worker.min.js',
   'vendor/mammoth/mammoth.browser.min.js',
+  'vendor/jszip/jszip.min.js',
+  'vendor/epubjs/epub.min.js',
 ];
 // Sem resposta do servidor nesse prazo, vale a cópia guardada.
 const PRAZO_DA_REDE = 3000;
