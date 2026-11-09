@@ -1,0 +1,4 @@
+# Impeccable: o executável e os arquivos de trabalho que ele cria ficam fora do Git.
+.claude/skills/impeccable/scripts/bin/
+**/.impeccable/hook.cache.json
+.impeccable/live/

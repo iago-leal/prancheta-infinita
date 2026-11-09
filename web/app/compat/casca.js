@@ -23,10 +23,13 @@
 // sem mudá-los; deve ser carregado antes do código do artefato e só começa
 // depois que ele roda.
 //
-// Na casca, a barra de ferramentas, com as opções da caneta, e o zoom ficam no
-// alto da tela, porque a mão que escreve se apoia na parte de baixo e tocava
-// os botões sem querer: a barra ocupa a primeira faixa, ao centro, e o título,
-// os botões de desfazer e o zoom descem para a faixa seguinte.
+// Na casca, os controles ficam numa faixa só, no alto da tela, longe da mão
+// que escreve, que se apoia na parte de baixo e tocava os botões sem querer:
+// à esquerda, o painel de quadros e o título, numa linha; ao centro, as
+// ferramentas; à direita, a sincronização, desfazer, refazer, o zoom em
+// porcentagem e mais opções. A descrição do quadro, o aviso "Salvo" e os
+// botões de aumentar e diminuir o zoom só aparecem no computador. A faixa, as
+// opções da caneta e os menus não têm sombras, que o e-ink mostra como manchas.
 
 (function () {
   'use strict';
@@ -35,14 +38,27 @@
   if (!casca) return;
 
   const ESTILO_DA_CASCA = `
-html.casca #bottom{top:calc(env(safe-area-inset-top,0px) + 12px);bottom:auto;flex-direction:column-reverse;z-index:7}
-html.casca #top{top:var(--casca-faixa,72px)}
-html.casca #sideBtn,html.casca #head{top:calc(var(--casca-faixa,72px) + 4px)}
-html.casca #head{width:min(460px,calc(100vw - 300px))}
-html.casca body.side #head{width:min(460px,calc(100vw - 284px - 350px))}
-html.casca #zoom{position:static}
-html.casca #keys{top:calc(var(--casca-faixa,72px) + 48px)}
-html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,72px) + 56px)}`;
+html.casca #faixa-casca{position:fixed;top:0;left:0;right:0;z-index:6;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;
+  padding:calc(env(safe-area-inset-top,0px) + 6px) max(12px,env(safe-area-inset-right,0px)) 6px max(12px,env(safe-area-inset-left,0px));
+  background:var(--bg);border-bottom:1px solid var(--line)}
+@media (min-width:761px){html.casca body.side #faixa-casca{left:260px}}
+html.casca #faixa-casca>.lado{flex:1 1 0;display:flex;align-items:center;gap:6px;min-width:0}
+html.casca #faixa-casca>.lado.esquerdo{min-width:120px}
+html.casca #faixa-casca>.lado.direito{justify-content:flex-end;min-width:max-content}
+html.casca #sideBtn,html.casca #head,html.casca #top{position:static}
+html.casca #head{width:auto!important;min-width:0;flex:1 1 auto;display:flex;align-items:center;gap:8px;pointer-events:auto}
+html.casca #bTitle{font-size:15px;font-weight:600;line-height:1.3;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;min-width:0}
+html.casca #bSub,html.casca #status,html.casca #zoom{display:none}
+html.casca #backl{margin:0;flex:none}
+html.casca #tools{flex:0 0 auto}
+html.casca #faixa-casca .pill{background:none;border:0;box-shadow:none;padding:0;border-radius:0}
+html.casca #faixa-casca .btn{width:32px}
+html.casca #zoomPct{min-width:48px;height:34px;padding:0 4px;font:inherit;font-size:13px;font-variant-numeric:tabular-nums;color:var(--fg);background:none;border:0;border-radius:9px}
+html.casca #bottom{top:calc(var(--casca-faixa,48px) + 8px);bottom:auto}
+html.casca #inkbar,html.casca #menu{box-shadow:none;border:1px solid var(--line-strong,var(--line))}
+html.tinta-nativa #inkbar .stab,html.tinta-nativa #inkbar>span.sep:last-of-type{display:none}
+html.casca #keys{top:calc(var(--casca-faixa,48px) + 8px)}
+html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,48px) + 64px)}`;
 
   document.documentElement.classList.add('casca');
   const estilo = document.createElement('style');
@@ -215,6 +231,9 @@ html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,72px) + 56px)}`;
     // Com a tinta nativa, os traços da caneta não chegam à página; marcar a
     // caneta como vista faz um dedo mover o quadro em vez de desenhar.
     if (nativa) S.penSeen = true;
+    // A estabilização e a previsão só valem para a tinta desenhada pela
+    // página; com a tinta da Onyx, as opções da caneta mostram só cor e espessura.
+    document.documentElement.classList.toggle('tinta-nativa', nativa);
     agendar();
   }
 
@@ -226,19 +245,39 @@ html.casca #toast{bottom:auto;top:calc(var(--casca-faixa,72px) + 56px)}`;
     }
   }
 
-  // O zoom entra no grupo de botões da direita, e a segunda faixa começa logo
-  // abaixo da barra de ferramentas, qualquer que seja a altura dela.
+  // Monta a faixa do alto com os elementos que o artefato já criou, sem
+  // recriá-los: os botões continuam com os mesmos ids e as mesmas ações.
+  function montarFaixa() {
+    if (document.getElementById('faixa-casca')) return;
+    const pegar = (id) => document.getElementById(id);
+    const [painel, cabecalho, ferramentas, topo, porcentagem, mais] = ['sideBtn', 'head', 'tools', 'top', 'zoomPct', 'bMore'].map(pegar);
+    if (!cabecalho || !ferramentas || !topo) return;
+    const faixa = document.createElement('div');
+    faixa.id = 'faixa-casca';
+    const esquerdo = document.createElement('div');
+    esquerdo.className = 'lado esquerdo';
+    const direito = document.createElement('div');
+    direito.className = 'lado direito';
+    if (painel) esquerdo.appendChild(painel);
+    esquerdo.appendChild(cabecalho);
+    direito.appendChild(topo);
+    // O zoom em porcentagem fica entre refazer e mais opções; o menu dele
+    // ajusta à tela e escolhe 50, 100 ou 200%.
+    if (porcentagem && mais && mais.parentNode) mais.parentNode.insertBefore(porcentagem, mais);
+    faixa.append(esquerdo, ferramentas, direito);
+    document.body.appendChild(faixa);
+  }
+
+  // As opções da caneta, os avisos e os atalhos começam logo abaixo da faixa.
   function arrumarNoAlto() {
-    const zoom = document.getElementById('zoom');
-    const topo = document.getElementById('top');
-    if (zoom && topo && zoom.parentNode !== topo) topo.appendChild(zoom);
-    const ferramentas = document.getElementById('tools');
-    const r = ferramentas && ferramentas.getBoundingClientRect();
-    if (r && r.height) document.documentElement.style.setProperty('--casca-faixa', `${Math.ceil(r.bottom + 12)}px`);
+    const faixa = document.getElementById('faixa-casca');
+    const r = faixa && faixa.getBoundingClientRect();
+    if (r && r.height) document.documentElement.style.setProperty('--casca-faixa', `${Math.ceil(r.bottom)}px`);
   }
 
   function iniciar() {
     if (!artefatoPronto()) return;
+    montarFaixa();
     window.prancheta = Object.freeze({ receberTraco, definirTinta, tintaNativa: () => nativa });
     const mundo = document.getElementById('world');
     const palco = document.getElementById('stage');

@@ -1,9 +1,9 @@
 ---
 tipo: estado
-atualizado_em: 2026-11-08
-fase: Prancheta no Boox e sincronização com a VPS
-plano_ativo: acompanhamento/planos/003-boox-e-sincronizacao/plano.md
-etapa_atual: acompanhamento/planos/003-boox-e-sincronizacao/etapas/02-traco-sensivel-a-pressao.md
+atualizado_em: 2026-11-09
+fase: Modo e-ink e ferramentas de reorganização
+plano_ativo: acompanhamento/planos/004-modo-e-ink/plano.md
+etapa_atual: acompanhamento/planos/004-modo-e-ink/etapas/01-faixa-unica-no-boox.md
 bloqueios: []
 ---
 
@@ -22,7 +22,7 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - Um service worker guarda a página para abri-la sem rede e entrega os arquivos enviados, lidos do banco local; a fonte e as bibliotecas vão junto com a página, sem nenhuma requisição externa.
 - Conversa com o Claude e conectores MCP fora da primeira versão, porque exigem chave de API paga e configuração de cada conector.
 - Tinta livre com laço, setas que acompanham a seleção e "manter junto" sob demanda, sem agrupamento automático, para que a Prancheta nunca precise adivinhar.
-- No Boox, a caneta escreve, um dedo seleciona e arrasta, e dois dedos movem e ampliam o quadro; com a borracha ou as ferramentas de forma e de texto, a caneta age sobre a página. Um toque de dedo até 1 s depois da caneta, ou maior que a ponta de um dedo, é tido como palma, e a caneta que chega cancela o gesto de dedos em andamento, sem deixar efeito; desfazer e refazer pelos dedos pedem dois toques seguidos, e a barra de ferramentas e o zoom ficam no alto da tela.
+- No Boox, a caneta escreve, um dedo seleciona e arrasta, e dois dedos movem e ampliam o quadro; com a borracha ou as ferramentas de forma e de texto, a caneta age sobre a página. Um toque de dedo até 1 s depois da caneta, ou maior que a ponta de um dedo, é tido como palma, e a caneta que chega cancela o gesto de dedos em andamento, sem deixar efeito; desfazer e refazer pelos dedos pedem dois toques seguidos, e os controles ficam numa faixa só no alto da tela, sem sombras.
 - Reorganização pensada para e-ink já na primeira versão: contorno durante o arrasto, mover por toque e modo e-ink sem sombras, animações ou transparências.
 - Cada traço guarda identificador, posição e horário, para permitir agrupamento e transcrição no futuro.
 - Traço sensível à pressão, por decisão do autor, com o traço provisório da Onyx e o definitivo da página na mesma forma, para que nada mude quando a tela do Boox se atualiza.
@@ -36,18 +36,18 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 003, Prancheta no Boox e sincronização com a VPS: as etapas 01, Prancheta real na casca, 03, servidor de sincronização, em `servidor/`, 04, sincronização no banco local, 05, publicação na VPS, e 06, atualização pelo próprio aplicativo, estão concluídas. Desde 2026-11-09, o Boox e o computador sincronizam pela VPS, e o critério do plano está verificado. Falta só a 02, traço sensível à pressão, para encerrar o plano. Os planos 001, casca Android, e 002, Prancheta independente em `web/app/`, estão concluídos.
+Plano 004, modo e-ink e ferramentas de reorganização, aberto em 2026-11-09: a etapa 01 reúne os controles da casca numa faixa só no alto da tela, desenhada com a skill Impeccable, na casca 0.3.6. Os planos 001, casca Android, 002, Prancheta independente em `web/app/`, e 003, Prancheta no Boox e sincronização com a VPS, estão concluídos; o 003 terminou em 2026-11-09, com o Boox e o computador sincronizando pela VPS e o traço igual antes e depois da troca.
 
 ## Próximo passo
 
-O autor confirmar no Boox, com a casca 0.3.5, que o traço forte não afina mais na troca, como acontecia na 0.3.4, em que os traços seguidos já apareciam na hora, para fechar a etapa 02, e que a mão apoiada não move mais o quadro. O controle de sensibilidade à pressão, que o SDK da Onyx não permite aplicar ao traço provisório, foi adiado pelo autor até ele testar a 0.3.5. Com a 02 concluída, encerrar o plano 003 e escolher o próximo, entre o modo e-ink, plano 004, e os livros, plano 005. Os ícones selecionados, pouco legíveis no e-ink, ficam para o plano 004, por decisão do autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+O autor atualizar para a casca 0.3.6 e confirmar no Boox que a faixa ocupa pouco espaço e que todos os controles continuam ao alcance, para fechar a etapa 01 do plano 004; depois, detalhar com ele as etapas seguintes, como o modo e-ink sem sombras, animações ou transparências, os ícones selecionados legíveis e as ferramentas de reorganização. O controle de sensibilidade à pressão, que o SDK da Onyx não permite aplicar ao traço provisório, foi adiado pelo autor. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
 1. 001: experimento da casca Android, concluído.
 2. 002: Prancheta independente do claude.ai, concluído.
-3. 003: Prancheta no Boox e sincronização com a VPS, ativo.
-4. Modo e-ink e ferramentas de reorganização.
+3. 003: Prancheta no Boox e sincronização com a VPS, concluído.
+4. 004: modo e-ink e ferramentas de reorganização, ativo.
 5. Livros e PDFs: a biblioteca do WebDAV da VPS montada só para leitura no servidor da Prancheta e, antes, a rede privada e a cifra dos dados no aparelho.
 
 ## Ambiente de nuvem

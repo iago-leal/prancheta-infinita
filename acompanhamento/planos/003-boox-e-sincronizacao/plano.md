@@ -2,9 +2,9 @@
 tipo: plano
 id: "003"
 titulo: Prancheta no Boox e sincronização com a VPS
-status: em_andamento
+status: concluido
 criado_em: 2026-11-08
-concluido_em:
+concluido_em: 2026-11-09
 ---
 
 # Plano 003: Prancheta no Boox e sincronização com a VPS
@@ -26,7 +26,7 @@ O plano 002 deixou a Prancheta funcionando sem internet no navegador, mas o uso 
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-prancheta-na-casca.md) | Prancheta real dentro da casca | concluida |
-| [02](etapas/02-traco-sensivel-a-pressao.md) | Traço sensível à pressão igual na Onyx e na página | em_andamento |
+| [02](etapas/02-traco-sensivel-a-pressao.md) | Traço sensível à pressão igual na Onyx e na página | concluida |
 | [03](etapas/03-servidor-de-sincronizacao.md) | Servidor de sincronização | concluida |
 | [04](etapas/04-sincronizacao-no-banco-local.md) | Sincronização no banco local | concluida |
 | [05](etapas/05-publicacao-na-vps.md) | Publicação na VPS e acesso protegido | concluida |
@@ -40,7 +40,7 @@ Em 2026-11-08, durante a etapa 02, o autor pediu que as atualizações da casca 
 
 ## Verificação do critério do plano
 
-Verificado em 2026-11-09: a Prancheta abre pela casca sem internet no Boox, como o autor confirmou depois da atualização para a 0.3.1, e escreve com a tinta da Onyx; com a sincronização configurada nos dois aparelhos, um quadro feito no Boox apareceu no navegador do computador, aberto no endereço da VPS, e um cartão criado no computador apareceu no Boox, como o autor confirmou. O plano só se encerra quando a etapa 02 for concluída.
+Verificado em 2026-11-09: a Prancheta abre pela casca sem internet no Boox, como o autor confirmou depois da atualização para a 0.3.1, e escreve com a tinta da Onyx; com a sincronização configurada nos dois aparelhos, um quadro feito no Boox apareceu no navegador do computador, aberto no endereço da VPS, e um cartão criado no computador apareceu no Boox, como o autor confirmou. Com a etapa 02 concluída em 2026-11-09, o plano foi encerrado na mesma data.
 
 ## Riscos
 
