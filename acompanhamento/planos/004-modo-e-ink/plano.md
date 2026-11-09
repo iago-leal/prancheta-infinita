@@ -25,7 +25,7 @@ O plano 003 deixou a escrita no Boox rápida e igual antes e depois da troca do 
 
 | Etapa | Título | Status |
 |---|---|---|
-| [01](etapas/01-faixa-unica-no-boox.md) | Controles numa faixa só no alto da tela do Boox | em_andamento |
+| [01](etapas/01-faixa-unica-no-boox.md) | Controles numa faixa só no alto da tela do Boox | concluida |
 
 As etapas seguintes, como o modo e-ink sem sombras, animações ou transparências, os ícones selecionados legíveis e as ferramentas de reorganização, serão detalhadas com o autor antes de começar.
 

@@ -3,10 +3,10 @@ tipo: etapa
 plano: "004"
 etapa: "01"
 titulo: Controles numa faixa só no alto da tela do Boox
-status: em_andamento
+status: concluida
 depende_de: []
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 01: controles numa faixa só no alto da tela do Boox
@@ -20,7 +20,7 @@ Reunir os controles da Prancheta na casca numa faixa só, no alto da tela, para 
 - [x] Na casca, os controles ficam numa faixa só no alto da tela, com menos de 56 px de altura numa página de 930 px de largura com o painel de quadros fechado, e as 14 ferramentas cabem sem rolar.
 - [x] Na casca, o título aparece numa linha, cortado com reticências se for longo, e a descrição do quadro, o aviso "Salvo" e os botões de aumentar e diminuir o zoom não aparecem; no navegador, a interface não muda.
 - [x] Na casca, as opções da caneta, o menu do zoom e os avisos abrem abaixo da faixa, sem sombras, e, com a tinta da Onyx, as opções da caneta mostram só a cor e a espessura.
-- [ ] O autor confirma no Boox que a faixa ocupa pouco espaço e que todos os controles continuam ao alcance.
+- [x] O autor confirma no Boox que a faixa ocupa pouco espaço e que todos os controles continuam ao alcance.
 
 ## Registro
 
@@ -43,3 +43,11 @@ Reunir os controles da Prancheta na casca numa faixa só, no alto da tela, para 
 - O detector da skill não apontou problemas.
 
 ## Resultado
+
+Etapa concluída em 2026-11-09, com a casca 0.3.7. Cada critério foi verificado assim:
+
+1. Faixa só no alto, com menos de 56 px numa página de 930 px com o painel fechado, e as 14 ferramentas sem rolar: o teste "na casca, os controles ficam numa faixa só, no alto da tela" e o teste da segunda linha, que confere uma linha só também em 860 px; no Chromium, a faixa tem 47 px e cabe numa linha a partir de 820 px.
+2. Título numa linha, sem a descrição, o aviso "Salvo" e os botões de aumentar e diminuir o zoom na casca, e o navegador sem mudança: o mesmo teste da faixa e o teste "fora da casca, o adaptador não faz nada", que confere a barra embaixo no navegador.
+3. Opções da caneta, menu do zoom e avisos abaixo da faixa, sem sombras, e só cor e espessura com a tinta da Onyx: o teste da faixa.
+4. Confirmação do autor no Boox: com a 0.3.7, o autor confirmou que a faixa coube numa linha, com todos os controles nela, e que o ícone de sincronização está legível.
+
