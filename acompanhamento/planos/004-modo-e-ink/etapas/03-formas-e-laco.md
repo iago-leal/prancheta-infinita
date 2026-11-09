@@ -3,10 +3,10 @@ tipo: etapa
 plano: "004"
 etapa: "03"
 titulo: Formas num botão só e seleção por laço
-status: em_andamento
+status: concluida
 depende_de: ["02"]
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 03: formas num botão só e seleção por laço
@@ -20,9 +20,9 @@ Enxugar a barra de ferramentas, juntando num só botão as formas, a linha e os 
 - [x] Um botão "Formas" substitui na barra o retângulo, a elipse, o losango, a linha e o símbolo; tocado, abre um painel com as quatro formas e os sete símbolos elétricos à vista. A forma escolhida fica ativa e aparece no ícone do botão; os atalhos de teclado R, O, D, L e S continuam valendo.
 - [x] Uma ferramenta de laço, ao lado da seleção: a caneta ou o dedo desenha uma linha livre, e entra na seleção o item que estiver na maior parte dentro do laço, os traços pela maioria dos pontos e os demais itens pelo centro.
 - [x] O que o laço seleciona pode ser movido, copiado e apagado como numa seleção comum.
-- [ ] No Boox, a caneta desenha o laço, sem escrever, e a faixa continua cabendo numa linha.
+- [x] No Boox, a caneta desenha o laço, sem escrever, e a faixa continua cabendo numa linha.
 - [x] Testes cobrem o painel de formas e a seleção pelo laço, com traços, cartões e formas.
-- [ ] O autor confirma no Boox que o laço seleciona o que ele circula e que o botão de formas deixa a barra mais fácil de usar.
+- [x] O autor confirma no Boox que o laço seleciona o que ele circula e que o botão de formas deixa a barra mais fácil de usar.
 
 ## Registro
 
@@ -37,3 +37,13 @@ Enxugar a barra de ferramentas, juntando num só botão as formas, a linha e os 
 - Os critérios 1, 2, 3 e 5 foram verificados pelos testes "o botão de formas abre um painel com as quatro formas e os sete símbolos elétricos", "o laço seleciona os traços pela maioria dos pontos e os demais itens pelo centro", em que a caneta desenha o laço, e "o que o laço seleciona pode ser movido, copiado e apagado como numa seleção comum". Faltam a verificação no Boox, do critério 4, e a confirmação do autor.
 
 ## Resultado
+
+Etapa concluída em 2026-11-09, com a casca 0.3.9. Cada critério foi verificado assim:
+
+1. Botão de formas com o painel das quatro formas e dos sete símbolos, o ícone da forma escolhida e os atalhos R, O, D, L e S: o teste "o botão de formas abre um painel com as quatro formas e os sete símbolos elétricos", na casca e no navegador.
+2. Laço ao lado da seleção, com os traços pela maioria dos pontos e os demais itens pelo centro: o teste "o laço seleciona os traços pela maioria dos pontos e os demais itens pelo centro", com a caneta e com o dedo.
+3. Mover, copiar e apagar o que o laço seleciona: o teste "o que o laço seleciona pode ser movido, copiado e apagado como numa seleção comum".
+4. No Boox, a caneta desenha o laço sem escrever, e a faixa cabe numa linha: o autor confirmou no Boox que o laço funcionou; com o laço, a casca deixa a caneta agir sobre a página, como confere o mesmo teste do laço; e a barra passou de 14 para 11 botões, menos que os da faixa que o autor já tinha confirmado numa linha com a 0.3.7, além do teste que confere uma linha só em 860 px.
+5. Testes do painel de formas e do laço, com traços, cartões e formas: os três testes acima.
+6. Confirmação do autor: no Boox, com a 0.3.9, o laço funcionou, e o botão de formas deixou a barra melhor.
+
