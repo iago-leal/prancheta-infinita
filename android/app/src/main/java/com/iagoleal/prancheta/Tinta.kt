@@ -35,17 +35,19 @@ data class Tinta(
     /**
      * Ajusta a pressão de um ponto da caneta, de 0 a 1, à sensibilidade
      * escolhida, como a Prancheta faz no navegador: na escala que ela usa, a
-     * pressão bruta elevada a [EXPOENTE_DA_PRESSAO], a pressão se aproxima do
-     * meio, 0,5, ou se afasta dele, na proporção da sensibilidade sobre
-     * [SENSIBILIDADE_PADRAO], e volta à escala bruta. Em 90, nada muda; em 0,
-     * toda pressão vale a do meio, e o traço tem espessura constante. O
-     * marca-texto não varia com a pressão, e uma pressão nula fica nula.
+     * pressão bruta elevada a [EXPOENTE_DA_PRESSAO], a pressão é elevada a
+     * [SENSIBILIDADE_PADRAO] sobre a sensibilidade, limitada à
+     * [PRESSAO_MINIMA], e volta à escala bruta. Em 90, nada muda; abaixo
+     * disso, a escrita leve fica mais fina e é preciso mais força para
+     * engrossar o traço, até que, em 0, toda pressão vale a mínima; acima de
+     * 90, o traço engrossa com menos força. O marca-texto não varia com a
+     * pressão, e uma pressão nula fica nula.
      */
     fun ajustarPressao(bruta: Float): Float {
         if (marcaTexto || sensibilidade == SENSIBILIDADE_PADRAO || !(bruta > 0f)) return bruta
         val escala = bruta.coerceAtMost(1f).toDouble().pow(EXPOENTE_DA_PRESSAO)
-        val ajustada = (0.5 + (escala - 0.5) * sensibilidade / SENSIBILIDADE_PADRAO).coerceIn(PRESSAO_MINIMA, 1.0)
-        return ajustada.pow(1.0 / EXPOENTE_DA_PRESSAO).toFloat()
+        val ajustada = if (sensibilidade > 0) escala.pow(SENSIBILIDADE_PADRAO.toDouble() / sensibilidade) else 0.0
+        return ajustada.coerceIn(PRESSAO_MINIMA, 1.0).pow(1.0 / EXPOENTE_DA_PRESSAO).toFloat()
     }
 
     /** Espessura do traço na tela, em pixels físicos, para o zoom e a densidade dados. */

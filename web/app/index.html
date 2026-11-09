@@ -644,7 +644,7 @@ function flushInk(){
 }
 const inkColor=c=>getComputedStyle(document.documentElement).getPropertyValue('--'+c).trim();
 const sensDaPressao=()=>{const s=S.ink&&S.ink.pen&&S.ink.pen.ps;return typeof s==='number'?s:90};
-function ajustePressao(p,s){return s===90?p:.5+(p-.5)*s/90}
+function ajustePressao(p,s){return s===90?p:s>0?Math.pow(p,90/s):0}
 function penPressure(ev,last){
   const r=ev.pressure;if(!(r>0))return last;let p=Math.pow(r,.65);
   const alt=ev.altitudeAngle;if(typeof alt==='number'&&alt<.75)p*=1+(.75-alt)*1.1;

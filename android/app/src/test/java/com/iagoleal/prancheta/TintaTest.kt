@@ -91,27 +91,37 @@ class TintaTest {
     }
 
     @Test
-    fun `a zero por cento toda pressão vale a do meio`() {
-        val constante = caneta(0)
+    fun `a zero por cento toda pressão vale a mínima, e o traço fica sempre fino`() {
+        val fino = caneta(0)
         for (bruta in listOf(0.01f, 0.2f, 0.5f, 0.8f, 1f)) {
-            assertEquals(0.5, naPrancheta(constante.ajustarPressao(bruta)), 0.0001)
+            assertEquals(Tinta.PRESSAO_MINIMA, naPrancheta(fino.ajustarPressao(bruta)), 0.0001)
         }
     }
 
     @Test
-    fun `abaixo de 90 a diferença entre a pressão leve e a forte diminui, e acima aumenta`() {
-        fun amplitude(sensibilidade: Int): Double {
-            val t = caneta(sensibilidade)
-            return naPrancheta(t.ajustarPressao(0.9f)) - naPrancheta(t.ajustarPressao(0.1f))
-        }
-        val hoje = amplitude(90)
-        assertEquals(hoje / 2, amplitude(45), 0.0001)
-        assertTrue(amplitude(70) < hoje)
-        assertTrue(amplitude(100) > hoje)
-        // Na escala da Prancheta, a pressão ajustada se aproxima do meio na proporção da sensibilidade.
+    fun `abaixo de 90 a escrita leve afina e é preciso mais força para engrossar, e acima engrossa com menos força`() {
+        // Na escala da Prancheta, a pressão é elevada a 90 sobre a sensibilidade.
         val metade = caneta(45)
-        assertEquals(0.5 + (naPrancheta(0.9f) - 0.5) / 2, naPrancheta(metade.ajustarPressao(0.9f)), 0.0001)
-        assertEquals(0.5 + (naPrancheta(0.1f) - 0.5) / 2, naPrancheta(metade.ajustarPressao(0.1f)), 0.0001)
+        for (bruta in listOf(0.1f, 0.3f, 0.6f, 0.9f)) {
+            val q = naPrancheta(bruta)
+            assertEquals(maxOf(Tinta.PRESSAO_MINIMA, q * q), naPrancheta(metade.ajustarPressao(bruta)), 0.0001)
+        }
+        for (bruta in listOf(0.1f, 0.3f, 0.6f, 0.9f)) {
+            val hoje = naPrancheta(bruta)
+            assertTrue("em 60%, a pressão $bruta não afinou", naPrancheta(caneta(60).ajustarPressao(bruta)) < hoje)
+            assertTrue("em 100%, a pressão $bruta não engrossou", naPrancheta(caneta(100).ajustarPressao(bruta)) > hoje)
+        }
+        // A força máxima continua dando o traço mais grosso em qualquer sensibilidade acima de zero.
+        for (sensibilidade in listOf(10, 45, 60, 100)) {
+            assertEquals(1.0, naPrancheta(caneta(sensibilidade).ajustarPressao(1f)), 0.0001)
+        }
+        // Quanto menor a sensibilidade, mais fino o traço da mesma força.
+        var anterior = 0.0
+        for (sensibilidade in listOf(10, 30, 45, 60, 90, 100)) {
+            val q = naPrancheta(caneta(sensibilidade).ajustarPressao(0.5f))
+            assertTrue("em $sensibilidade%, o traço não engrossou em relação à sensibilidade anterior", q > anterior)
+            anterior = q
+        }
     }
 
     @Test

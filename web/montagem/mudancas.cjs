@@ -196,7 +196,7 @@ function lassoSelect(p,base){const ids=new Set(base||[]);if(p.length>=6){const d
     para: `let s=24*v.k;while(s<14)s*=2;while(s>44)s/=2;s*=1.15;`,
   },
   {
-    motivo: 'Sensibilidade da caneta à pressão, pedida pelo autor, que avalia o traço de hoje como uns 90% de sensibilidade: o ajuste aproxima ou afasta a pressão do meio da escala, na proporção da sensibilidade escolhida sobre 90. Em 90%, a pressão segue sem mudança; a 0%, toda pressão vale a do meio, e o traço tem espessura constante. A pressão ajustada é a que o traço guarda, de modo que mudar o controle não altera os traços já feitos.',
+    motivo: 'Sensibilidade da caneta à pressão, pedida pelo autor, que avalia o traço de hoje como uns 90% de sensibilidade: a pressão é elevada a 90 sobre a sensibilidade escolhida. Em 90%, a pressão segue sem mudança; abaixo disso, a escrita leve fica mais fina e é preciso mais força para engrossar o traço, até que, a 0%, toda pressão vale a mínima e o traço fica sempre fino; acima de 90%, o traço engrossa com menos força. A primeira versão aproximava a pressão do meio da escala, e a 0% o traço ficava com a espessura da pressão média, grossa demais para o autor. A pressão ajustada é a que o traço guarda, de modo que mudar o controle não altera os traços já feitos.',
     de: `  return clamp(p,.04,1);`,
     para: `  return clamp(ajustePressao(p,sensDaPressao()),.04,1);`,
   },
@@ -204,7 +204,7 @@ function lassoSelect(p,base){const ids=new Set(base||[]);if(p.length>=6){const d
     motivo: 'Continuação da mudança anterior: o ajuste da pressão e a sensibilidade escolhida, guardada com as opções da caneta no aparelho; sem escolha, vale 90%.',
     de: `function penPressure(ev,last){`,
     para: `const sensDaPressao=()=>{const s=S.ink&&S.ink.pen&&S.ink.pen.ps;return typeof s==='number'?s:90};
-function ajustePressao(p,s){return s===90?p:.5+(p-.5)*s/90}
+function ajustePressao(p,s){return s===90?p:s>0?Math.pow(p,90/s):0}
 function penPressure(ev,last){`,
   },
   {
