@@ -16,6 +16,8 @@ const { Armazem } = require('../armazem.cjs');
 const { criarServidor } = require('../servidor.cjs');
 const { conferir, apagarLegiveis } = require('../cifra.cjs');
 
+// O Node 18, que o fluxo do servidor também testa, só tem a WebCrypto em node:crypto.
+globalThis.crypto ??= require('node:crypto').webcrypto;
 require('../../web/app/compat/cifra.js');
 
 const Cifra = globalThis.CifraPrancheta;
@@ -76,9 +78,10 @@ async function arquivoCifrado(cifra, id, texto) {
 const novaCifra = () => Cifra.prepararChave(Cifra.gerarChave());
 
 test('a primeira gravação cifrada liga a cifra, e depois o servidor recusa o legível e a outra chave', async () => {
-  const s = await subir();
+  // As chaves vêm antes do servidor: se falharem, nenhum servidor fica aberto.
   const cifra = await novaCifra();
   const outra = await novaCifra();
+  const s = await subir();
   try {
     // Antes da cifra, tudo como antes.
     assert.equal((await enviar(s, APARELHO_A, [{ seq: 1, base: null, registro: registro('canvas-shards/s1', { texto: SEGREDO }) }])).status, 200);
@@ -128,10 +131,10 @@ test('a primeira gravação cifrada liga a cifra, e depois o servidor recusa o l
 });
 
 test('um pedido que mistura chaves antes da cifra é recusado e não liga a cifra', async () => {
+  const a = await novaCifra();
+  const b = await novaCifra();
   const s = await subir();
   try {
-    const a = await novaCifra();
-    const b = await novaCifra();
     const r = await enviar(s, APARELHO_A, [
       { seq: 1, base: null, registro: await cifrado(a, 'canvas-shards/s1', { a: 1 }) },
       { seq: 2, base: null, registro: await cifrado(b, 'canvas-shards/s2', { b: 1 }) },
@@ -146,9 +149,9 @@ test('um pedido que mistura chaves antes da cifra é recusado e não liga a cifr
 });
 
 test('um arquivo legível dá lugar ao mesmo arquivo cifrado uma vez, e depois só valem arquivos cifrados com a chave', async () => {
-  const s = await subir();
   const cifra = await novaCifra();
   const outra = await novaCifra();
+  const s = await subir();
   const id = '0123456789abcdef';
   try {
     assert.equal((await guardar(s, id, Buffer.from(SEGREDO))).status, 201);
@@ -183,10 +186,14 @@ test('um arquivo legível dá lugar ao mesmo arquivo cifrado uma vez, e depois s
 });
 
 test('a cifra ligada continua valendo depois de reiniciar o servidor', async () => {
-  const s = await subir();
   const cifra = await novaCifra();
-  await enviar(s, APARELHO_A, [{ seq: 1, base: null, registro: await cifrado(cifra, 'canvas-shards/s1', { a: 1 }) }]);
-  await s.fechar();
+  const primeiro = await cifrado(cifra, 'canvas-shards/s1', { a: 1 });
+  const s = await subir();
+  try {
+    await enviar(s, APARELHO_A, [{ seq: 1, base: null, registro: primeiro }]);
+  } finally {
+    await s.fechar();
+  }
   const s2 = await subir(s.pasta);
   try {
     assert.deepEqual((await pedir(s2, 'GET', '/sync/mudancas?desde=0')).json.cifra, { chave: cifra.id, desde: 0 });
@@ -197,8 +204,8 @@ test('a cifra ligada continua valendo depois de reiniciar o servidor', async () 
 });
 
 test('a limpeza confere tudo antes e só então tira do histórico as versões legíveis', async () => {
-  const s = await subir();
   const cifra = await novaCifra();
+  const s = await subir();
   try {
     // Antes da troca: dois quadros e um arquivo legíveis, com histórico.
     await enviar(s, APARELHO_A, [
