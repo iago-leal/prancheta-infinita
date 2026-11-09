@@ -112,6 +112,10 @@
         if (window.SincronizacaoPrancheta && !window.sincronizacaoDaPrancheta) {
           window.sincronizacaoDaPrancheta = window.SincronizacaoPrancheta.ligar(b, window.opcoesDaSincronizacao);
         }
+        // A biblioteca de livros usa o endereço e a chave da sincronização.
+        if (window.BibliotecaPrancheta && window.sincronizacaoDaPrancheta && !window.bibliotecaDaPrancheta) {
+          window.bibliotecaDaPrancheta = window.BibliotecaPrancheta.ligar(window.sincronizacaoDaPrancheta);
+        }
       }, () => { banco = null; });
     }
     return banco;

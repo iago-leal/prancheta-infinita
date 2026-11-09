@@ -10,6 +10,8 @@
 //   com a cifra ligada no servidor, se houver
 // - PUT  /sync/arquivos/<id>               → guarda um arquivo enviado
 // - GET  /sync/arquivos/<id>               → devolve um arquivo enviado
+// - GET  /sync/biblioteca                  → os livros da biblioteca, por servidor/biblioteca.cjs
+// - GET  /sync/biblioteca/<id>             → um livro da biblioteca
 //
 // Configuração por variáveis de ambiente, nunca no repositório:
 // - PRANCHETA_CHAVES_ARQUIVO: o arquivo com o resumo da chave de cada aparelho,
@@ -25,7 +27,8 @@
 //   apontar para outra versão, o servidor termina, e o contêiner o reinicia
 //   com o código novo;
 // - PRANCHETA_HISTORICO_DIAS: por quantos dias as versões antigas dos
-//   documentos ficam guardadas, por padrão 30.
+//   documentos ficam guardadas, por padrão 30;
+// - PRANCHETA_BIBLIOTECA: a pasta dos livros, só lida, por padrão nenhuma.
 //
 // Com PRANCHETA_VERSAO, depois de começar, o servidor anota em no-ar.json, na
 // pasta dos dados, a versão que entrega e se a sincronização recusa um pedido
@@ -43,6 +46,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { Armazem, ID_DE_ARQUIVO } = require('./armazem.cjs');
+const { Biblioteca } = require('./biblioteca.cjs');
 const { criarVerificador } = require('./chaves.cjs');
 const { criarServidorDaPagina } = require('./pagina.cjs');
 
@@ -150,8 +154,9 @@ function validarMudanca(m) {
  * @param opcoes.chave uma chave única, para rodar localmente; ou
  * @param opcoes.verificar a função de servidor/chaves.cjs, que confere a chave de cada aparelho.
  * @param opcoes.origens as origens de navegador aceitas.
+ * @param opcoes.biblioteca a Biblioteca de servidor/biblioteca.cjs, se houver.
  */
-function criarServidor({ armazem, chave, verificar, origens = [] }) {
+function criarServidor({ armazem, chave, verificar, origens = [], biblioteca = null }) {
   const conferir = verificar || criarVerificador({ chave });
   const origensAceitas = new Set(origens);
 
@@ -255,6 +260,24 @@ function criarServidor({ armazem, chave, verificar, origens = [] }) {
       }
     }
 
+    if (rota === '/sync/biblioteca' && req.method === 'GET') {
+      return responder(res, 200, { livros: biblioteca ? await biblioteca.listar() : [] }, origem);
+    }
+
+    const livro = rota.match(/^\/sync\/biblioteca\/([^/]+)$/);
+    if (livro && req.method === 'GET') {
+      const aberto = biblioteca ? await biblioteca.abrir(livro[1]) : null;
+      if (!aberto) return responder(res, 404, { erro: 'livro_inexistente' }, origem);
+      res.writeHead(200, {
+        ...SEGURANCA, ...origem, ...cabecalhosDeArquivo(aberto.livro.tipo),
+        'Content-Length': aberto.livro.bytes, 'Cache-Control': 'private, no-store',
+      });
+      aberto.fluxo.on('error', () => res.destroy());
+      res.on('close', () => aberto.fluxo.destroy());
+      aberto.fluxo.pipe(res);
+      return undefined;
+    }
+
     return responder(res, 404, { erro: 'rota_inexistente' }, origem);
   }
 
@@ -344,8 +367,9 @@ async function iniciar(ambiente = process.env) {
   const origens = (ambiente.PRANCHETA_ORIGENS || 'https://appassets.androidplatform.net').split(',').map((o) => o.trim()).filter(Boolean);
   const diasDeHistorico = Number(ambiente.PRANCHETA_HISTORICO_DIAS || 30);
   const armazem = await Armazem.abrir(pasta, { diasDeHistorico });
+  const biblioteca = new Biblioteca(ambiente.PRANCHETA_BIBLIOTECA || null);
   const servidores = [];
-  const servidor = criarServidor({ armazem, verificar, origens });
+  const servidor = criarServidor({ armazem, verificar, origens, biblioteca });
   await ouvir(servidor, porta, endereco);
   servidores.push(servidor);
   console.log(`sincronização da Prancheta em http://${endereco}:${servidor.address().port}, posição ${armazem.posicao}`);

@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Biblioteca do WebDAV implementada
+
+### Feito
+
+- O autor aprovou os critérios da [etapa 03 do plano 005](planos/005-livros-e-pdfs/etapas/03-biblioteca-do-webdav.md) e escolheu: cada livro baixado ao ser aberto e guardado no aparelho, só PDFs e EPUBs, uma subpasta de livros do WebDAV e a seção no painel lateral.
+- A sessão do Mac conferiu a subpasta, sem trazer o caminho: 13 livros, 0,09 GB, todos legíveis só pelo usuário do WebDAV.
+- Implementados a biblioteca no servidor, com o identificador do KOReader, a montagem só de leitura, o roteiro com a permissão extra de leitura e a seção "Biblioteca", com os livros num banco separado dos quadros. Casca 0.6.0.
+
+### Decidido
+
+- **Permissão extra de leitura no WebDAV.** O autor escolheu uma ACL só de leitura para a conta `prancheta`, sem mudar o dono nem as permissões dos livros, em vez de uma cópia periódica ou de mudar o WebDAV.
+
+### Pendências
+
+- Mesclar, publicar, rodar o roteiro com `--biblioteca` pela sessão do Mac, conferir como o WebDAV cria os livros novos e confirmar a biblioteca nos dois aparelhos.
+
 ## 2026-11-09 · Cifra ponta a ponta concluída
 
 ### Feito

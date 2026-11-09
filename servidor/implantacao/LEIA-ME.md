@@ -48,6 +48,24 @@ O login é feito num contêiner provisório, `prancheta-tailscale-login`, que es
 
 O primeiro acesso pelo endereço da rede privada pode falhar por alguns minutos, com um erro de TLS, enquanto o Tailscale emite o certificado. Na primeira implantação, o erro durou cerca de 8 minutos, com a criação do registro de DNS do certificado falhando no lado do Tailscale, e cessou sozinho, sem nenhuma mudança na VPS.
 
+## Biblioteca de livros
+
+Pelo plano 005, a Prancheta mostra os PDFs e EPUBs de uma subpasta de livros do WebDAV, montada só para leitura no contêiner, em `/biblioteca`. Os aparelhos não falam com o WebDAV: o servidor da Prancheta lê a subpasta e a entrega com a chave de cada aparelho. Para montá-la, informe o caminho uma vez:
+
+```sh
+ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh --biblioteca <subpasta>'
+```
+
+O caminho fica em `/etc/prancheta/ambiente` e vale nas execuções seguintes do roteiro, sem repeti-lo; ele nunca entra no repositório. Sem ele, uma pasta vazia ocupa o lugar, e a biblioteca aparece vazia.
+
+Os livros do WebDAV só são legíveis pelo usuário dele. Por decisão do autor, o roteiro instala o pacote `acl` e põe na subpasta uma permissão extra, só de leitura, para a conta `prancheta`, com uma regra padrão nas pastas que a estende aos livros novos. O dono e as permissões normais dos arquivos não mudam, e o WebDAV continua funcionando como antes. Se o WebDAV criar um livro novo pedindo explicitamente só a leitura do dono, a regra padrão não vale para ele, que fica fora da biblioteca até o roteiro rodar de novo. Depois de ligar os contêineres, o roteiro confere, de dentro do contêiner da Prancheta, quantos PDFs e EPUBs ela consegue ler.
+
+Para tirar a permissão extra e desmontar a biblioteca:
+
+```sh
+ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh --sem-biblioteca'
+```
+
 ## A cada envio à main
 
 O fluxo `.github/workflows/publicar.yml` testa o servidor, confere a página montada, monta um pacote com `web/app` e `servidor` por `git archive` e o envia pela conta `prancheta` com `publicar <commit>`. O comando forçado:
