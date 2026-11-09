@@ -6,6 +6,21 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Rede privada concluída, endereço público fechado
+
+### Feito
+
+- A [etapa 01 do plano 005](planos/005-livros-e-pdfs/etapas/01-rede-privada.md) foi concluída. A sessão do Mac, com a aprovação do autor, implantou o Tailscale na VPS e depois fechou o endereço público; o computador e o Boox sincronizam pela rede privada, sem perda de quadros, e cada publicação é conferida na própria VPS e confere que o endereço público não entrega mais a Prancheta.
+- O roteiro passou a fazer o login do Tailscale num contêiner provisório, sem prazo, depois que o do serviço, com 60 segundos, fez a primeira aprovação do autor cair num endereço morto.
+
+### Decidido
+
+- **Só a rede privada.** A decisão vigente dizia que a página ficava aberta pela internet, porque é o código público; agora a página e a sincronização só respondem pela rede privada do Tailscale, como o autor escolheu no plano 005.
+
+### Pendências
+
+- Detalhar com o autor a etapa 02 do plano 005, cifra ponta a ponta dos quadros.
+
 ## 2026-11-09 · Rede privada, primeira fase, e controle de sensibilidade retirado
 
 ### Feito

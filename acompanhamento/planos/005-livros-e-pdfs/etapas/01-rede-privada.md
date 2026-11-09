@@ -3,10 +3,10 @@ tipo: etapa
 plano: "005"
 etapa: "01"
 titulo: Rede privada com o Tailscale e endereço público fechado
-status: em_andamento
+status: concluida
 depende_de: []
 iniciada_em: 2026-11-09
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 01: rede privada com o Tailscale e endereço público fechado
@@ -19,9 +19,9 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
 
 - [x] No Boox, o Tailscale fica ligado junto com a casca, e a escrita com a tinta da Onyx continua como antes.
 - [x] A VPS entra na rede privada, e a página e a sincronização da Prancheta respondem por https num nome da rede privada, com certificado válido, no Boox e no computador.
-- [ ] O endereço público da Prancheta deixa de responder à página e à sincronização.
+- [x] O endereço público da Prancheta deixa de responder à página e à sincronização.
 - [x] A publicação pelo GitHub continua funcionando e confere, na própria VPS, que a versão nova está no ar e que a sincronização recusa pedidos sem a chave.
-- [ ] As ações de administrador na VPS ficam num roteiro do repositório, executado pelo autor; nenhum nome da rede privada, chave do Tailscale ou endereço entra no repositório.
+- [x] As ações de administrador na VPS ficam num roteiro do repositório, executado pelo autor; nenhum nome da rede privada, chave do Tailscale ou endereço entra no repositório.
 - [x] O autor confirma, no Boox e no computador, que a Prancheta abre e sincroniza pela rede privada, sem perder nenhum quadro na troca de endereço.
 
 ## Registro
@@ -56,4 +56,19 @@ Pôr o Boox, o computador e a VPS numa rede privada do Tailscale, fazer a págin
 
 - Critério 6 verificado: o autor confirmou que os quadros estão todos no Boox e no computador, sincronizando pela rede privada, e que ajustou o Tailscale do Boox para ficar sempre ligado.
 
+- Segunda fase aplicada: a sessão do Mac, com a aprovação do autor, rodou o roteiro a partir do ramo do PR #33, sem argumento; o contêiner da Prancheta foi recriado sem os rótulos do Traefik, o Traefik saiu da rede da Prancheta sem reiniciar e o Tailscale seguiu com o login salvo. Pelo trecho que o roteiro mostrou, a rede da Prancheta saiu do arquivo do Traefik, com cópia de segurança e sem recriá-lo. Pela rede privada, `/versao.txt` mostrou a versão em uso e `/sync/estado` respondeu 401; pelo endereço público antigo, os dois responderam 404 do Traefik; os outros endereços da VPS responderam como antes.
+- Mesclado o PR #33. A publicação disparada pela mesclagem terminou com "publicado 4549d06…", "no ar 4549d06…" e "conferido na VPS", e com "o endereço público não entrega mais a Prancheta (sincronização: 404)".
+- Critério 3 verificado por essa publicação e pela conferência da sessão do Mac. Critério 5 verificado: todas as ações de administrador estão em `servidor/implantacao/preparar-vps.sh`, inclusive o login do Tailscale e o desligamento do Traefik, com as edições no arquivo do Traefik descritas por ele e feitas como descritas; uma busca no repositório não encontrou o nome da rede privada, endereços da VPS nem chaves.
+
 ## Resultado
+
+Etapa concluída em 2026-11-09. Cada critério foi verificado assim:
+
+1. Tailscale ligado no Boox junto com a casca, com a escrita igual: confirmação do autor.
+2. Página e sincronização por https no nome da rede privada, com certificado válido: no computador, a página e a sincronização, pelo autor; no Boox, a sincronização, já que a página da casca vem do APK; e as conferências da sessão do Mac.
+3. Endereço público fechado: a publicação do PR #33 e a conferência da sessão do Mac, com 404 do Traefik na página e na sincronização.
+4. Publicação conferida na própria VPS: a publicação do PR #33, com a versão nova 4549d06, terminou com "no ar" pelo comando novo.
+5. Ações de administrador no roteiro e nada sensível no repositório: o roteiro cobre tudo o que foi feito na VPS, e a busca no repositório não achou nome da rede, endereço nem chave.
+6. Quadros nos dois aparelhos pela rede privada: confirmação do autor, que também deixou o Tailscale do Boox sempre ligado.
+
+Fica aprendido que o sistema da Boox desliga o Tailscale em segundo plano; com o endereço público fechado, a sincronização do Boox depende da "VPN sempre ativa".
