@@ -110,4 +110,84 @@ module.exports = [
     de: `[S.diag?'Desligar diagnóstico do traço':'Ligar diagnóstico do traço','',()=>{S.diag=!S.diag;toast(S.diag?'Faça um traço longo para ver a medição.':'Diagnóstico desligado.')}]`,
     para: `[S.diag?'Desligar diagnóstico do traço e dos toques':'Ligar diagnóstico do traço e dos toques','',()=>{S.diag=!S.diag;toast(S.diag?'Faça um traço longo ou um gesto de dedos para ver a medição.':'Diagnóstico desligado.')}]`,
   },
+  {
+    motivo: 'A barra de ferramentas fica mais enxuta, sobretudo no Boox: um só botão de formas toma o lugar do retângulo, da elipse, do losango, da linha e do símbolo, e abre um painel com tudo o que há dentro; ao lado da seleção entra a ferramenta de laço. O botão de formas mostra o ícone da última forma escolhida.',
+    de: `const TOOLS=[['select','Selecionar (V)'],['hand','Mover o quadro (H)'],'|',['text','Cartão de texto (T)'],['rect','Retângulo (R)'],['ellipse','Elipse (O)'],['diamond','Losango (D)'],['line','Linha (L)'],['symbol','Símbolo (S)'],['frame','Grupo (G)'],['image','Imagem (I)'],['file','Arquivo (F)'],'|',['pen','Caneta (P)'],['hl','Marca-texto (M)'],['eraser','Borracha (E)']];`,
+    para: `I.shapes=I.rect;I.lasso='<path d="M7 22a5 5 0 0 1-2-4"/><path d="M3.3 14A6.8 6.8 0 0 1 2 10c0-4.4 4.5-8 10-8s10 3.6 10 8-4.5 8-10 8a12 12 0 0 1-5-1"/><circle cx="5" cy="16" r="2"/>';
+const FORMAS_DA_BARRA=['rect','ellipse','diamond','line'],NOMES_DAS_FORMAS={rect:'Retângulo (R)',ellipse:'Elipse (O)',diamond:'Losango (D)',line:'Linha (L)'};
+const TOOLS=[['select','Selecionar (V)'],['lasso','Laço (A)'],['hand','Mover o quadro (H)'],'|',['text','Cartão de texto (T)'],['shapes','Formas e símbolos (R, O, D, L, S)'],['frame','Grupo (G)'],['image','Imagem (I)'],['file','Arquivo (F)'],'|',['pen','Caneta (P)'],['hl','Marca-texto (M)'],['eraser','Borracha (E)']];`,
+  },
+  {
+    motivo: 'Continuação da mudança anterior: tocar no botão de formas abre o painel delas.',
+    de: `if(b.dataset.t==='symbol'){symbolMenu(b);return}`,
+    para: `if(b.dataset.t==='shapes'){shapesPanel(b);return}`,
+  },
+  {
+    motivo: 'Continuação das mudanças anteriores: o painel de formas mostra à vista as quatro formas e os sete símbolos elétricos, num menu que abre para cima com a barra embaixo e para baixo com a barra no alto; escolher uma forma a deixa ativa, e escolher um símbolo o insere no centro da tela, como o antigo menu de símbolos, que passa a abrir o painel. Vêm junto as funções do laço: entra na seleção o traço com a maioria dos pontos dentro do laço e o item com o centro dentro dele.',
+    de: `function symbolMenu(b){if(S.ro)return;openMenu(b,Object.keys(SYMS).map(k=>[SYMS[k].t,'',()=>{const c=toWorld(visC(),innerHeight/2),[W,H]=SYMS[k].vb;begin();const it=add({type:'card',v:'symbol',sym:k,x:Math.round(c.x-W/2),y:Math.round(c.y-H/2),w:W,h:H,blocks:[{h:''}],c:'none'});commit();setTool('select');select([it.id])}]),true)}`,
+    para: `function insertSymbol(k){const c=toWorld(visC(),innerHeight/2),[W,H]=SYMS[k].vb;begin();const it=add({type:'card',v:'symbol',sym:k,x:Math.round(c.x-W/2),y:Math.round(c.y-H/2),w:W,h:H,blocks:[{h:''}],c:'none'});commit();setTool('select');select([it.id])}
+function symbolMenu(b){if(S.ro)return;shapesPanel(b)}
+function shapesPanel(b){if(S.ro||!b)return;const open=!menu.hidden&&menu._a===b;closePops();if(open)return;menu._a=b;
+  const forma=f=>\`<button class="btn" data-forma="\${f}" title="\${NOMES_DAS_FORMAS[f]}" aria-label="\${NOMES_DAS_FORMAS[f]}" aria-pressed="\${S.tool===f}">\${icon(f)}</button>\`;
+  const simbolo=k=>{const q=SYMS[k],[W,H]=q.vb,m=Math.max(W,H);return \`<button class="btn" data-sym="\${k}" title="\${q.t}" aria-label="\${q.t}"><svg class="i" viewBox="\${-(m-W)/2-2} \${-(m-H)/2-2} \${m+4} \${m+4}" style="stroke-width:\${(m/18*1.4).toFixed(2)}">\${q.svg}</svg></button>\`};
+  menu.innerHTML=\`<div class="formas" role="group" aria-label="Formas">\${FORMAS_DA_BARRA.map(forma).join('')}</div><hr><div class="formas" role="group" aria-label="Símbolos elétricos">\${Object.keys(SYMS).map(simbolo).join('')}</div>\`;
+  menu.onclick=e=>{const f=e.target.closest('[data-forma]'),s=e.target.closest('[data-sym]');if(!f&&!s)return;closePops();if(f)setTool(f.dataset.forma);else insertSymbol(s.dataset.sym)};
+  menu.hidden=false;const r=b.getBoundingClientRect(),w=menu.offsetWidth,h=menu.offsetHeight;menu.style.left=clamp(r.left+r.width/2-w/2,8,innerWidth-w-8)+'px';menu.style.top=(r.top>innerHeight/2&&r.top-h-8>=8?r.top-h-8:r.bottom+8)+'px';
+}
+function inSelBox(w){let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;for(const it of selOf()){const r=rectOf(it);if(!r)continue;x0=Math.min(x0,r.x);y0=Math.min(y0,r.y);x1=Math.max(x1,r.x+r.w);y1=Math.max(y1,r.y+r.h)}const m=8/S.view.k;return w.x>=x0-m&&w.x<=x1+m&&w.y>=y0-m&&w.y<=y1+m}
+function lassoSelect(p,base){const ids=new Set(base||[]);if(p.length>=6){const dentro=(x,y)=>{let c=false;for(let i=0,j=p.length-2;i<p.length;j=i,i+=2){const xi=p[i],yi=p[i+1],xj=p[j],yj=p[j+1];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)c=!c}return c};
+  for(const it of S.items.values()){if(it.type==='edge'&&!hasFree(it))continue;if(it.type==='stroke'){const q=decode(it.d);let n=0,m=0;for(let i=0;i+1<q.length;i+=3){m++;if(dentro(q[i]+it.ox,q[i+1]+it.oy))n++}if(m&&n*2>m)ids.add(it.id);continue}const r=rectOf(it);if(r&&dentro(r.x+r.w/2,r.y+r.h/2))ids.add(it.id)}}
+  select([...ids])}`,
+  },
+  {
+    motivo: 'Continuação das mudanças anteriores: a forma escolhida no painel deixa o botão de formas ligado e com o ícone dela.',
+    de: `document.querySelectorAll('#tools [data-t]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t));`,
+    para: `document.querySelectorAll('#tools [data-t]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===t||b.dataset.t==='shapes'&&FORMAS_DA_BARRA.includes(t)));if(FORMAS_DA_BARRA.includes(t)){const b=$('#t-shapes');if(b)b.innerHTML=icon(t)}`,
+  },
+  {
+    motivo: 'Continuação das mudanças anteriores: a tecla S abre o painel de formas, onde estão os símbolos, e a tecla A escolhe o laço; R, O, D e L continuam escolhendo as formas.',
+    de: `if(k==='s'){if(!S.ro)symbolMenu($('#t-symbol'));return}`,
+    para: `if(k==='s'){if(!S.ro)shapesPanel($('#t-shapes'));return}`,
+  },
+  {
+    motivo: 'Continuação da mudança anterior: a tecla A escolhe o laço.',
+    de: `const map={v:'select',h:'hand',t:'text',r:'rect',o:'ellipse',d:'diamond',l:'line',g:'frame',p:'pen',m:'hl',e:'eraser'};`,
+    para: `const map={v:'select',a:'lasso',h:'hand',t:'text',r:'rect',o:'ellipse',d:'diamond',l:'line',g:'frame',p:'pen',m:'hl',e:'eraser'};`,
+  },
+  {
+    motivo: 'Com o laço, a caneta, o mouse ou um dedo desenham uma linha livre sobre o quadro; tocar dentro da seleção já feita a arrasta, como na seleção comum, para que no Boox a própria caneta circule e mova os itens. Com Shift, o laço soma à seleção.',
+    de: `  if(S.tool==='line'){const from=e.altKey?null:snapAt(e,w,null),el=mkEdgeEl();`,
+    para: `  if(S.tool==='lasso'){if(S.sel.size&&inSelBox(w)){startMove(e,w,[...S.sel][0],t);return}if(!e.shiftKey&&S.sel.size)select([]);const sv=document.createElementNS('http://www.w3.org/2000/svg','svg');sv.setAttribute('class','laco');const pa=document.createElementNS('http://www.w3.org/2000/svg','path');sv.appendChild(pa);overEl.appendChild(sv);setAct({kind:'lasso',pts:[w.x,w.y],el:sv,path:pa,base:e.shiftKey?new Set(S.sel):new Set()},e);return}
+  if(S.tool==='line'){const from=e.altKey?null:snapAt(e,w,null),el=mkEdgeEl();`,
+  },
+  {
+    motivo: 'Continuação da mudança anterior: enquanto se desenha, o laço cresce com os pontos do traço, fechado de volta ao começo.',
+    de: `  if(a.kind==='marquee'||a.kind==='create'){`,
+    para: `  if(a.kind==='lasso'){const n=a.pts.length,dx=w.x-a.pts[n-2],dy=w.y-a.pts[n-1];if(dx*dx+dy*dy>=Math.pow(3/S.view.k,2)){a.pts.push(w.x,w.y);let d='M'+a.pts[0]+' '+a.pts[1];for(let i=2;i<a.pts.length;i+=2)d+='L'+a.pts[i]+' '+a.pts[i+1];a.path.setAttribute('d',d+'Z')}return}
+  if(a.kind==='marquee'||a.kind==='create'){`,
+  },
+  {
+    motivo: 'Continuação das mudanças anteriores: ao soltar, o laço some e os itens dentro dele ficam selecionados.',
+    de: `  if(a.kind==='marquee'){a.el.remove();renderSel();return}`,
+    para: `  if(a.kind==='lasso'){a.el.remove();lassoSelect(a.pts,a.base);return}
+  if(a.kind==='marquee'){a.el.remove();renderSel();return}`,
+  },
+  {
+    motivo: 'Continuação das mudanças anteriores: um laço interrompido, como pelo cancelamento do toque, some sem selecionar nada.',
+    de: `if(a.kind==='marquee'||a.kind==='create')a.el.remove();`,
+    para: `if(a.kind==='marquee'||a.kind==='create'||a.kind==='lasso')a.el.remove();`,
+  },
+  {
+    motivo: 'Continuação das mudanças anteriores: o estilo do painel de formas, em grade, e da linha do laço, fina e contínua na cor de destaque.',
+    de: `.menu{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:5px;min-width:200px;z-index:20}`,
+    para: `.menu{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:5px;min-width:200px;z-index:20}
+.menu .formas{display:grid;grid-template-columns:repeat(4,36px);gap:2px;padding:2px;justify-content:center}
+#over .laco{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+#over .laco path{fill:none;stroke:var(--accent);stroke-width:calc(1.5px/var(--k));stroke-linejoin:round}`,
+  },
+  {
+    motivo: 'Continuação das mudanças anteriores: a ajuda dos atalhos inclui o laço.',
+    de: `<dt>Selecionar, mão</dt><dd>V, H</dd>`,
+    para: `<dt>Selecionar, laço, mão</dt><dd>V, A, H</dd>`,
+  },
 ];

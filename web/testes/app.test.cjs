@@ -100,7 +100,7 @@ test('a página independente é o original com as mudanças listadas, cada uma c
   // A versão do cache do service worker corresponde aos arquivos que ele guarda.
   const sw = fs.readFileSync(SERVICE_WORKER, 'utf8');
   assert.equal(sw, carimbarServiceWorker(sw), 'a VERSAO de web/app/sw.js está desatualizada; rode node web/montagem/montar.cjs');
-  assert.equal(mudancas.length, 19);
+  assert.equal(mudancas.length, 31);
   for (const m of mudancas) assert.ok(m.motivo.length > 40, `motivo curto: ${m.motivo}`);
   // Os endereços externos que a página carregava não aparecem mais. Restam
   // citações a CDNs só nos desenhos por código e nas instruções da conversa,
