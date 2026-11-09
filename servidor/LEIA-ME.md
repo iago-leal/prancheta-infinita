@@ -18,6 +18,7 @@ PRANCHETA_CHAVE='uma chave longa e aleatória' PRANCHETA_DADOS=/caminho/dos/dado
 | `PRANCHETA_WEB` e `PRANCHETA_PORTA_DA_PAGINA` | pasta da página e porta em que ela é entregue, sem a chave | nenhuma e `8788` |
 | `PRANCHETA_VERSAO` | atalho da versão publicada; quando ele muda, o servidor termina para recomeçar com a versão nova | nenhum |
 | `PRANCHETA_HISTORICO_DIAS` | por quantos dias as versões antigas dos documentos ficam guardadas | `30` |
+| `PRANCHETA_BIBLIOTECA` | pasta dos livros, só lida, entregue em `/sync/biblioteca`; na VPS, a subpasta de livros do WebDAV | nenhuma |
 
 A chave nunca fica no repositório. Uma forma de gerar: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Na VPS, as chaves são criadas por `prancheta-chave`, uma por aparelho, e o servidor só guarda os resumos.
 
@@ -88,6 +89,22 @@ O aparelho guarda `posicao` e pede de novo a partir dela; com `mais`, há outra 
 ### `PUT /sync/arquivos/<id>` e `GET /sync/arquivos/<id>`
 
 O corpo é o arquivo, com `Content-Type`, `X-Prancheta-Dispositivo` e, se houver, `X-Prancheta-Criado-Em`. O id é o do banco local, de 8 a 64 caracteres entre letras, números, `_` e `-`. O mesmo arquivo reenviado é `repetido`; outro conteúdo com um id já usado é recusado com 409 e `conflito`, exceto o mesmo arquivo cifrado no lugar do legível. Com a cifra, o `Content-Type` é `application/octet-stream`, e o tipo vai dentro da cifra. O limite é de 25 MB.
+
+### `GET /sync/biblioteca` e `GET /sync/biblioteca/<id>`
+
+A biblioteca de livros, da etapa 03 do plano 005, por `servidor/biblioteca.cjs`. A lista traz os PDFs e EPUBs da pasta de `PRANCHETA_BIBLIOTECA`, contando as subpastas:
+
+```json
+{ "livros": [{ "id": "<32 algarismos hexadecimais>", "nome": "Dom Casmurro.epub", "pasta": "Romances", "tipo": "application/epub+zip", "bytes": 401234, "modificadoEm": 1762600000000 }] }
+```
+
+- `id` é o mesmo resumo parcial MD5 que o KOReader calcula, sobre trechos de 1 KB do começo do arquivo e das posições 1 KB, 4 KB, 16 KB e assim por diante, até 1 GB. Ele não muda quando o livro é renomeado ou trocado de pasta.
+- `pasta` é relativa à biblioteca; o caminho na VPS nunca aparece.
+- A pasta é percorrida sem seguir atalhos, e as pastas ocultas e as `.sdr` do KOReader ficam de fora. A lista é refeita no máximo a cada 30 segundos.
+
+`GET /sync/biblioteca/<id>` entrega o livro, só se ele estiver na lista, com o tipo dele, `nosniff` e, para o EPUB, isolado e como anexo, como os arquivos enviados. Um livro cuja pasta, ou ele mesmo, virou atalho depois de listado não é entregue. Sem a biblioteca configurada, a lista é vazia.
+
+Nos aparelhos, a seção "Biblioteca" do painel lateral, de `web/app/compat/biblioteca.js`, mostra a lista e guarda cada livro aberto num banco próprio, `prancheta-biblioteca`, separado do banco dos quadros: os livros não sobem ao servidor nem passam pela cifra. A última lista recebida fica guardada para o uso sem rede.
 
 ## Dados em disco
 

@@ -4,7 +4,10 @@
 #   docker compose --env-file /etc/prancheta/ambiente -f /opt/prancheta/compose.yml up -d
 #
 # /etc/prancheta/ambiente, legível só pelo administrador, define PRANCHETA_UID
-# e PRANCHETA_GID, os da conta prancheta, com que o servidor roda.
+# e PRANCHETA_GID, os da conta prancheta, com que o servidor roda, e, se houver,
+# PRANCHETA_BIBLIOTECA_DA_VPS, a subpasta de livros do WebDAV, montada só para
+# leitura em /biblioteca; sem ela, uma pasta vazia ocupa o lugar. O caminho fica
+# só na VPS e nunca entra no repositório.
 #
 # O código vem de /home/prancheta/publicado, que a conta prancheta atualiza a
 # cada publicação, sem acesso ao Docker: o servidor percebe que o atalho
@@ -49,10 +52,12 @@ services:
       PRANCHETA_PORTA_DA_PAGINA: "8788"
       PRANCHETA_VERSAO: /srv/prancheta/atual
       PRANCHETA_HISTORICO_DIAS: "30"
+      PRANCHETA_BIBLIOTECA: /biblioteca
     volumes:
       - /home/prancheta/publicado:/srv/prancheta:ro
       - /var/lib/prancheta:/dados
       - /etc/prancheta/acesso:/run/prancheta:ro
+      - ${PRANCHETA_BIBLIOTECA_DA_VPS:-/var/lib/prancheta-biblioteca-vazia}:/biblioteca:ro
     networks: [prancheta_borda]
 
   tailscale:

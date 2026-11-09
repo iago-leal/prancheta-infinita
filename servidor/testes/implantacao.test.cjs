@@ -315,3 +315,40 @@ test('o roteiro tem sintaxe válida, e a Prancheta não é entregue pelo endere�
   assert.equal(serve.read_only, true);
   assert.ok(!JSON.parse(config.stdout).networks.saida.internal, 'a rede do Tailscale tem saída');
 });
+
+test('a biblioteca é montada só para leitura, e o roteiro só dá à Prancheta o direito de ler', (t) => {
+  const roteiro = fs.readFileSync(path.join(PASTA, 'preparar-vps.sh'), 'utf8');
+  // Toda permissão extra posta pelo roteiro é só de leitura e de entrada nas pastas.
+  const concessoes = roteiro.match(/setfacl[^\n]* -m "[^"]*"/g) || [];
+  assert.equal(concessoes.length, 2);
+  for (const c of concessoes) assert.match(c, /-m "(d:)?u:\$PRANCHETA_UID:rX"$/);
+  // O dono e as permissões normais da subpasta nunca mudam.
+  assert.doesNotMatch(roteiro, /(chown|chmod|chgrp)[^\n]*BIBLIOTECA/);
+  // O caminho fica só no ambiente da VPS e é preservado nas execuções seguintes.
+  assert.match(roteiro, /PRANCHETA_BIBLIOTECA_DA_VPS=%s/);
+  assert.match(roteiro, /BIBLIOTECA="\$ANTERIOR"/);
+  const versao = spawnSync('docker', ['compose', 'version'], { encoding: 'utf8' });
+  if (versao.status !== 0) {
+    t.skip('docker compose indisponível; o arquivo do contêiner não foi conferido');
+    return;
+  }
+  const pasta = temporaria('compose-biblioteca');
+  const configurar = (ambiente) => {
+    fs.writeFileSync(path.join(pasta, 'ambiente'), ambiente);
+    const r = spawnSync('docker', ['compose', '--env-file', path.join(pasta, 'ambiente'), '-f', path.join(PASTA, 'compose.yml'), 'config', '--format', 'json'], { encoding: 'utf8' });
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout).services.servidor;
+  };
+  // Sem a subpasta, uma pasta vazia ocupa o lugar.
+  let servico = configurar('PRANCHETA_UID=1001\nPRANCHETA_GID=1002\n');
+  assert.equal(servico.environment.PRANCHETA_BIBLIOTECA, '/biblioteca');
+  let montagem = servico.volumes.find((v) => v.target === '/biblioteca');
+  assert.equal(montagem.source, '/var/lib/prancheta-biblioteca-vazia');
+  assert.equal(montagem.read_only, true);
+  // Com a subpasta no ambiente da VPS, ela é montada só para leitura.
+  servico = configurar('PRANCHETA_UID=1001\nPRANCHETA_GID=1002\nPRANCHETA_BIBLIOTECA_DA_VPS=/srv/webdav/Livros de teste\n');
+  montagem = servico.volumes.find((v) => v.target === '/biblioteca');
+  assert.equal(montagem.source, '/srv/webdav/Livros de teste');
+  assert.equal(montagem.read_only, true);
+  assert.ok(servico.volumes.every((v) => v.target === '/dados' || v.read_only), 'só os dados podem ser gravados');
+});
