@@ -6,6 +6,25 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Entire para gravar as sessões com os agentes
+
+### Feito
+
+- Instalado o Entire 0.13.1, a pedido do autor, com o comando oficial de `entire.com`, cujo instalador é idêntico ao do repositório `entireio/cli`. Ativado no repositório para o Claude Code, com a telemetria anônima desligada: `.entire/settings.json`, `.entire/.gitignore` e os ganchos em `.claude/settings.json`, que não fazem nada se o programa faltar.
+- O ambiente de nuvem passou a liberar `entire.com` e `install.entire.com`, e o roteiro de configuração instala o Entire e os ganchos do Git dele em cada sessão nova, com `entire configure --force`, que não precisa de identidade do Git nem altera os arquivos do repositório.
+
+### Decidido
+
+- **Gravações num repositório privado.** O Entire grava, a cada commit com trabalho de agente, as instruções, a conversa e os arquivos tocados, e por padrão envia isso ao repositório. Como o `prancheta-infinita` é público e as sessões trataram da VPS, o autor escolheu enviar as gravações só ao repositório privado `iago-leal/prancheta-sessoes`; o Entire nunca recorre ao `origin` quando o destino falha, e uma falha no envio das gravações não bloqueia o envio do código.
+
+### Pendências
+
+- Confirmar, numa sessão nova, que o roteiro do ambiente instala o Entire e os ganchos.
+
+### Referências
+
+- O autor considerou guardar as gravações num repositório hospedado só no Entire, mas a versão estável 0.13.1 ainda não cria o segredo da conta de serviço de que as sessões na nuvem precisariam; ficou com o GitHub privado. O repositório `iago-leal/prancheta-sessoes` foi criado, privado e vazio, e esta sessão recebeu acesso de escrita a ele. O primeiro envio falhou com erro 403: o intermediário de rede das sessões na nuvem recusa as referências `refs/entire/...`, que o Entire usa por padrão, mas aceita ramos. O Entire passou ao formato de ramo, e a gravação chegou ao ramo `entire/checkpoints/v1` do repositório privado, sem nada no público. O teste deixou no repositório privado dois ramos vazios, `claude/teste-de-envio` e `entire/teste-de-envio`, que o intermediário não deixa apagar; o autor pode apagá-los pelo GitHub.
+
 ## 2026-11-09 · Etapa 03 do plano 004: formas num botão só e seleção por laço
 
 ### Feito
