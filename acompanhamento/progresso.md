@@ -6,6 +6,18 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Etapa 05 do plano 003 concluída: Boox e computador sincronizam pela VPS
+
+### Feito
+
+- O autor configurou a sincronização no computador e no Boox, cada um com a sua chave, guardada no Bitwarden, e confirmou que os quadros passam nos dois sentidos e que a Prancheta abre sem internet no computador depois da primeira visita.
+- Concluída a etapa 05, com os cinco critérios verificados, e marcado o critério do plano 003.
+
+### Pendências
+
+- A etapa 02: o autor confirmar no Boox, com a casca 0.3.4, que os traços seguidos aparecem na hora e que o traço não muda de forma perceptível na troca; com ela, o plano 003 se encerra.
+- Agendar no Mac a cópia de segurança diária com a chave `copia`, por `servidor/copia-de-seguranca.cjs`.
+
 ## 2026-11-08 · Etapa 05 do plano 003: Prancheta no ar na VPS
 
 ### Feito

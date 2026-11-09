@@ -3,10 +3,10 @@ tipo: etapa
 plano: "003"
 etapa: "05"
 titulo: Publicação na VPS e acesso protegido
-status: em_andamento
+status: concluida
 depende_de: ["01", "03", "04"]
 iniciada_em: 2026-11-08
-concluida_em:
+concluida_em: 2026-11-09
 ---
 
 # Etapa 05: publicação na VPS e acesso protegido
@@ -20,8 +20,8 @@ Publicar na VPS a Prancheta de `web/app/` e o servidor de sincronização a cada
 - [x] Cada envio à `main` publica na VPS a pasta `web/app/` e o servidor de sincronização, pelo canal restrito do GitHub, sem usar acesso de administrador.
 - [x] As ações de administrador na VPS, feitas uma única vez pelo autor, estão num roteiro do repositório, e o servidor da Prancheta roda numa conta sem privilégios, sem mexer nos outros serviços da VPS.
 - [x] A Prancheta e o servidor respondem por HTTPS no endereço escolhido pelo autor, e o servidor só atende com a chave de acesso.
-- [ ] No navegador do computador, a Prancheta aberta no endereço da VPS continua funcionando sem internet depois da primeira visita.
-- [ ] O autor confirma que um quadro feito no Boox aparece no computador e um quadro feito no computador aparece no Boox.
+- [x] No navegador do computador, a Prancheta aberta no endereço da VPS continua funcionando sem internet depois da primeira visita.
+- [x] O autor confirma que um quadro feito no Boox aparece no computador e um quadro feito no computador aparece no Boox.
 
 ## Registro
 
@@ -58,4 +58,18 @@ Publicar na VPS a Prancheta de `web/app/` e o servidor de sincronização a cada
 - Mesclado o PR #20. A publicação disparada pelo envio à `main`, ce7fda3, passou em todos os passos: o comando restrito publicou a versão, a conferência por https encontrou ce7fda3 em `/versao.txt` no endereço da Prancheta, e `/sync/estado` respondeu 401 sem a chave e com uma chave errada.
 - Critério 1 verificado por essa execução, disparada pelo próprio envio à `main`, pela conta `prancheta`, sem acesso de administrador nem ao Docker. Critério 3 verificado pela mesma execução: a página e o servidor respondem por https no endereço escolhido, com o certificado do Traefik, e a sincronização recusa quem não tem uma chave válida. As duas verificações se repetem a cada publicação.
 
+### 2026-11-09
+
+- O autor configurou a sincronização no computador, pelo navegador no endereço da VPS, e no Boox, pela casca 0.3.4, cada um com a sua chave, copiada do Bitwarden; os dois mostraram "Sincronizado".
+- O autor confirmou que um quadro feito no Boox apareceu no computador e que um cartão criado no computador apareceu no Boox.
+- O autor confirmou que, com a Prancheta já aberta uma vez no computador, ela abriu sem internet ao recarregar e voltou a sincronizar quando a rede voltou.
+
 ## Resultado
+
+Etapa concluída em 2026-11-09.
+
+1. Publicação a cada envio à `main`: verificada pela execução de "Publicar na VPS" disparada pela mesclagem do PR #20, ce7fda3, pela conta `prancheta`, sem acesso de administrador nem ao Docker; a conferência encontrou a versão no ar.
+2. Ações de administrador num roteiro e servidor sem privilégios: o roteiro `servidor/implantacao/preparar-vps.sh` foi executado uma vez, com a aprovação do autor, e passou a incluir a correção de posse feita à mão; o contêiner roda com a conta `prancheta`, só leitura e sem saída para a internet, e nos outros serviços o único toque foi ligar o Traefik à rede nova sem reiniciá-lo e anotá-la no arquivo dele.
+3. HTTPS e chave: a mesma execução encontrou a versão por https no endereço escolhido e confirmou que `/sync/estado` responde 401 sem a chave e com uma chave errada; a verificação se repete a cada publicação.
+4. Sem internet no computador: confirmado pelo autor, no navegador do computador, depois da primeira visita; os testes de `web/testes/publicacao.test.cjs` cobrem o mesmo caso com a página e a sincronização servidas como na VPS.
+5. Quadros nos dois sentidos: confirmado pelo autor, entre o Boox e o computador, depois de configurar a sincronização em cada um.
