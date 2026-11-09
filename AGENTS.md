@@ -24,6 +24,7 @@ O andamento do projeto fica em `acompanhamento/`. Os modelos de arquivo e os pas
 - Escreva documentação, mensagens de commit e comentários em português.
 - Use datas no formato AAAA-MM-DD.
 - Proponha mudanças no ambiente de nuvem `prancheta-infinita` somente diante de uma necessidade concreta, como um bloqueio real da rede, e salve-as apenas com a aprovação do autor.
+- As sessões com os agentes são gravadas pelo Entire, configurado em `.entire/settings.json`, e as gravações vão só para o repositório privado `iago-leal/prancheta-sessoes`, nunca para este, que é público. Não mude esse destino nem deixe as gravações irem para o `origin`; para conferir o que o próximo envio leva, use `entire checkpoint list --outgoing`.
 
 ## Comandos
 
