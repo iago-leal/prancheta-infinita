@@ -403,17 +403,29 @@ test('desfazer e refazer pelos dedos pedem dois toques seguidos', async () => {
   await esperar(pagina, () => ![...S.items.values()].some((it) => it.type === 'stroke'));
   await pausa(600);
 
-  // Toques seguidos com números de dedos diferentes não agem.
+  // Se um dos toques perdeu um dedo, vale o maior número de dedos dos dois: refaz.
   await tocarComDedos(cdp, 2);
   await pausa(80);
   await tocarComDedos(cdp, 3);
+  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
   await pausa(600);
-  assert.equal(await contarTracos(pagina), 0, 'dois dedos e depois três não refazem');
-
+  // Sem nada a refazer, o gesto é reconhecido e avisa, também com três dedos e depois dois.
   await tocarComDedos(cdp, 3);
   await pausa(80);
-  await tocarComDedos(cdp, 3);
-  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
+  await tocarComDedos(cdp, 2);
+  await esperar(pagina, () => document.getElementById('toast').textContent === 'Nada a refazer');
+  assert.equal(await contarTracos(pagina), 1, 'três dedos e depois dois não desfazem');
+  await pausa(600);
+  // Desfaz o traço e, sem mais nada a desfazer, avisa.
+  await tocarComDedos(cdp, 2);
+  await pausa(80);
+  await tocarComDedos(cdp, 2);
+  await esperar(pagina, () => ![...S.items.values()].some((it) => it.type === 'stroke'));
+  await pausa(600);
+  await tocarComDedos(cdp, 2);
+  await pausa(80);
+  await tocarComDedos(cdp, 2);
+  await esperar(pagina, () => document.getElementById('toast').textContent === 'Nada a desfazer');
   assert.deepEqual(erros, []);
   await contexto.close();
 });
@@ -483,6 +495,145 @@ test('um item arrastado por um dedo volta ao lugar quando o gesto é cancelado',
   assert.deepEqual(await posicao(), antes, 'o cartão volta ao lugar');
   assert.equal(await pagina.evaluate(() => S.undo.length), historico, 'o arrasto cancelado não fica no histórico');
   assert.equal(await pagina.evaluate(() => S.redo.length), 0, 'nem entre o que se pode refazer');
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+// Um toque de vários dedos que dura e se desloca um pouco, como três dedos pousando juntos.
+async function tocarDevagar(cdp, n, { duracao = 0, deslocamento = 0, fim = 'touchEnd' } = {}) {
+  const pontos = Array.from({ length: n }, (_, i) => ({ x: 500 + i * 60, y: 500, id: i + 1 }));
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pontos });
+  if (deslocamento) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pontos.map((p) => ({ ...p, x: p.x + deslocamento })) });
+  if (duracao) await pausa(duracao);
+  await cdp.send('Input.dispatchTouchEvent', { type: fim, touchPoints: [] });
+}
+
+test('refazer com três dedos tolera toques mais lentos e o cancelamento pelo sistema', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate((pontos) => { prancheta.definirTinta('nativa'); prancheta.receberTraco(pontos); }, traco(300, 300, 700, 360, 20, 0.5));
+  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
+  // A página ignora gestos nos primeiros 500 ms, que confunde com a caneta recém-levantada.
+  await esperar(pagina, () => performance.now() > 600);
+  const cdp = await contexto.newCDPSession(pagina);
+  const desfazer = async () => {
+    await tocarComDedos(cdp, 2);
+    await pausa(80);
+    await tocarComDedos(cdp, 2);
+    await esperar(pagina, () => ![...S.items.values()].some((it) => it.type === 'stroke'));
+    await pausa(600);
+  };
+
+  // Três dedos que levam 550 ms e se deslocam 20 px ainda contam como toque.
+  await desfazer();
+  await tocarDevagar(cdp, 3, { duracao: 550, deslocamento: 20 });
+  await pausa(80);
+  await tocarDevagar(cdp, 3, { duracao: 550, deslocamento: 20 });
+  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
+  await pausa(600);
+
+  // Com dois dedos, os limites continuam os de antes: 550 ms já não é toque.
+  await tocarDevagar(cdp, 2, { duracao: 550 });
+  await pausa(80);
+  await tocarDevagar(cdp, 2, { duracao: 550 });
+  await pausa(600);
+  assert.equal(await contarTracos(pagina), 1, 'dois dedos demorados não desfazem');
+
+  // Toques de três dedos cancelados pelo sistema, curtos e parados, ainda refazem.
+  await desfazer();
+  await tocarComDedos(cdp, 3, 'touchCancel');
+  await pausa(80);
+  await tocarComDedos(cdp, 3, 'touchCancel');
+  await esperar(pagina, () => [...S.items.values()].some((it) => it.type === 'stroke'));
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('com o diagnóstico ligado, os gestos e os toques descartados pela casca aparecem em avisos', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate(() => prancheta.definirTinta('nativa'));
+  const aviso = () => pagina.evaluate(() => document.getElementById('toast').textContent);
+  // Desligado, o motivo da casca não aparece.
+  await pagina.evaluate(() => prancheta.toqueDescartado('toque descartado: caneta perto há 300 ms'));
+  assert.notEqual(await aviso(), 'Casca: toque descartado: caneta perto há 300 ms');
+  await pagina.evaluate(() => { S.diag = true; });
+  await pagina.evaluate(() => prancheta.toqueDescartado('o sistema cancelou o toque de 3 dedos'));
+  assert.equal(await aviso(), 'Casca: o sistema cancelou o toque de 3 dedos');
+  await esperar(pagina, () => performance.now() > 600);
+  const cdp = await contexto.newCDPSession(pagina);
+  await tocarComDedos(cdp, 3);
+  await esperar(pagina, () => /^Toque de 3 dedos, \d+ ms$/.test(document.getElementById('toast').textContent));
+  await tocarComDedos(cdp, 2, 'touchCancel');
+  await esperar(pagina, () => /^Toque de 2 dedos, \d+ ms, cancelado$/.test(document.getElementById('toast').textContent));
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('na casca, a página fica sem sombras, transições, animações e fundos translúcidos', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca();
+  await pagina.evaluate(() => prancheta.definirTinta('nativa'));
+  // Um cartão selecionado, as opções da caneta abertas e o menu de mais opções.
+  await pagina.mouse.dblclick(600, 500);
+  await pagina.keyboard.type('selecionado');
+  await pagina.keyboard.press('Escape');
+  await pagina.locator('.card', { hasText: 'selecionado' }).waitFor();
+  await pagina.locator('.card', { hasText: 'selecionado' }).click();
+  await esperar(pagina, () => document.querySelector('.card.sel') !== null);
+  const restos = await pagina.evaluate(() => {
+    const achados = [];
+    for (const el of document.querySelectorAll('*')) {
+      for (const pseudo of [null, '::before', '::after']) {
+        const s = getComputedStyle(el, pseudo);
+        if (s.boxShadow !== 'none') achados.push(`${el.id || el.className || el.tagName}${pseudo || ''}: sombra`);
+        if (s.transitionDuration.split(',').some((d) => parseFloat(d) > 0)) achados.push(`${el.id || el.className || el.tagName}${pseudo || ''}: transição`);
+        if (s.animationName !== 'none') achados.push(`${el.id || el.className || el.tagName}${pseudo || ''}: animação`);
+      }
+    }
+    return achados;
+  });
+  assert.deepEqual(restos, [], 'nenhum elemento com sombra, transição ou animação');
+  const cores = await pagina.evaluate(() => {
+    const raiz = getComputedStyle(document.documentElement);
+    const amostra = document.createElement('div');
+    document.body.appendChild(amostra);
+    const resolver = (v) => { amostra.style.color = v; return getComputedStyle(amostra).color; };
+    const fg = resolver(raiz.getPropertyValue('--fg'));
+    const bg = resolver(raiz.getPropertyValue('--bg'));
+    amostra.remove();
+    const ativo = getComputedStyle(document.querySelector('#tools .btn[aria-pressed="true"]'));
+    const cartao = getComputedStyle(document.querySelector('.card.sel'));
+    return { fg, bg, fundoAtivo: ativo.backgroundColor, iconeAtivo: ativo.color, contorno: cartao.outlineColor, estiloDoContorno: cartao.outlineStyle };
+  });
+  assert.equal(cores.fundoAtivo, cores.fg, 'a ferramenta ativa tem fundo escuro');
+  assert.equal(cores.iconeAtivo, cores.bg, 'e ícone claro');
+  assert.equal(cores.contorno, cores.fg, 'o item selecionado tem contorno escuro');
+  assert.equal(cores.estiloDoContorno, 'solid', 'e contínuo');
+  // Menus, barra de seleção e diálogos: fundo opaco e borda fina, sem escurecer atrás.
+  await pagina.locator('#bMore').click();
+  await pagina.locator('#menu').waitFor();
+  const opacos = await pagina.evaluate(() => {
+    const ver = (el) => { const s = getComputedStyle(el); return { fundo: s.backgroundColor, borda: s.borderTopWidth }; };
+    const selbar = document.getElementById('selbar');
+    return { menu: ver(document.getElementById('menu')), selbar: selbar ? ver(selbar) : null, dialogo: getComputedStyle(document.getElementById('sincDialogo')).backgroundColor, previa: getComputedStyle(document.getElementById('prev')).backgroundColor };
+  });
+  const opaco = (cor) => /^rgb\(/.test(cor);
+  assert.ok(opaco(opacos.menu.fundo) && opacos.menu.borda === '1px', `menu opaco com borda: ${JSON.stringify(opacos.menu)}`);
+  if (opacos.selbar) assert.ok(opaco(opacos.selbar.fundo) && opacos.selbar.borda === '1px', `barra de seleção opaca com borda: ${JSON.stringify(opacos.selbar)}`);
+  assert.equal(opacos.dialogo, 'rgba(0, 0, 0, 0)', 'o diálogo de sincronização não escurece a tela');
+  assert.ok(opaco(opacos.previa), `a prévia de arquivos tem fundo opaco: ${opacos.previa}`);
+  assert.deepEqual(erros, []);
+  await contexto.close();
+});
+
+test('no navegador, a aparência continua com as sombras e o destaque de antes', async () => {
+  const { contexto, pagina, erros } = await abrirNaCasca({ casca: false });
+  const visto = await pagina.evaluate(() => ({
+    sombra: getComputedStyle(document.getElementById('tools')).boxShadow,
+    ativo: getComputedStyle(document.querySelector('#tools .btn[aria-pressed="true"]')).backgroundColor,
+    transicao: getComputedStyle(document.getElementById('head')).transitionDuration,
+  }));
+  assert.notEqual(visto.sombra, 'none', 'a barra mantém a sombra');
+  assert.equal(visto.ativo, 'rgb(233, 232, 251)', 'a ferramenta ativa mantém o fundo lilás');
+  assert.notEqual(visto.transicao, '0s', 'as transições continuam');
   assert.deepEqual(erros, []);
   await contexto.close();
 });

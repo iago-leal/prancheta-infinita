@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-09 · Etapa 02 do plano 004: modo e-ink na casca e refazer com três dedos
+
+### Feito
+
+- Aberta a [etapa 02](planos/004-modo-e-ink/etapas/02-modo-e-ink.md), com os critérios aprovados pelo autor. Na casca 0.3.8, a página fica sem sombras, transições, animações e fundos translúcidos, com a ferramenta ativa invertida e a seleção em contorno escuro.
+- O refazer com dois toques de três dedos, que não funcionava no Boox, passou a tolerar toques mais lentos, o toque que perde um dedo e o cancelamento pelo sistema, provável causa da falha, por causa do gesto de captura de tela com três dedos; sem nada a desfazer ou refazer, um aviso diz isso.
+- Novo diagnóstico dos toques, em "Mais opções", que mostra no Boox por que um gesto foi descartado ou cancelado.
+
+### Decidido
+
+- **Laço e formas num botão só na etapa 03.** O autor pediu a seleção por laço e um botão só para as formas, a linha e os símbolos elétricos, e escolheu fazê-los na etapa seguinte.
+
+### Pendências
+
+- O autor confirmar no Boox, com a 0.3.8, que o refazer com três dedos funciona e que a tela fica legível, sem manchas cinzas, com a ferramenta ativa em destaque.
+
 ## 2026-11-09 · Plano 003 concluído e plano 004 aberto: faixa única no Boox
 
 ### Feito

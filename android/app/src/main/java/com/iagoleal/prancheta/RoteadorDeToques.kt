@@ -1,6 +1,7 @@
 package com.iagoleal.prancheta
 
 import android.view.MotionEvent
+import kotlin.math.roundToInt
 
 /** Para onde vai um evento de toque enquanto a camada da Onyx está ativa. */
 enum class Destino { CAMADA_ONYX, WEBVIEW, DESCARTAR }
@@ -38,6 +39,12 @@ class RoteadorDeToques(private val aoSuspender: (Boolean) -> Unit) {
 
     /** Chamado para cancelar, na WebView, o gesto de dedos em andamento. */
     var aoCancelarDedos: () -> Unit = {}
+
+    /**
+     * Recebe o motivo de cada gesto de dedos descartado ou cancelado, inclusive
+     * pelo sistema, para o diagnóstico dos toques da Prancheta.
+     */
+    var aoDescartar: (String) -> Unit = {}
 
     /** Pixels físicos por milímetro, para medir os contatos; zero desliga a medida. */
     var pixelsPorMm = 0f
@@ -87,15 +94,16 @@ class RoteadorDeToques(private val aoSuspender: (Boolean) -> Unit) {
 
     private fun sinalDaCaneta(tempo: Long) {
         ultimoSinalDaCaneta = tempo
-        if (dedosNaWebView) cancelarDedos()
+        if (dedosNaWebView) cancelarDedos("toque cancelado: a caneta se aproximou")
     }
 
     // Cancela na WebView o gesto de dedos em andamento e descarta o resto dele.
-    private fun cancelarDedos() {
+    private fun cancelarDedos(motivo: String) {
         dedosNaWebView = false
         dedosDescartados = true
         suspender(false)
         aoCancelarDedos()
+        aoDescartar(motivo)
     }
 
     private fun rotearCaneta(acao: Int, x: Float, y: Float): Destino {
@@ -113,10 +121,19 @@ class RoteadorDeToques(private val aoSuspender: (Boolean) -> Unit) {
         val terminou = acao == MotionEvent.ACTION_UP || acao == MotionEvent.ACTION_CANCEL
         val palma = contato > LIMITE_DO_CONTATO_MM
         if (acao == MotionEvent.ACTION_DOWN) {
-            dedosDescartados = palma || destinoDaCaneta != null || tempo - ultimoSinalDaCaneta < JANELA_DA_PALMA_MS
+            val motivo = when {
+                palma -> "toque descartado: contato de ${contato.roundToInt()} mm, tido como palma"
+                destinoDaCaneta != null -> "toque descartado: a caneta estava na tela"
+                tempo - ultimoSinalDaCaneta < JANELA_DA_PALMA_MS -> "toque descartado: caneta perto há ${tempo - ultimoSinalDaCaneta} ms"
+                else -> null
+            }
+            dedosDescartados = motivo != null
             dedosNaWebView = !dedosDescartados
+            if (motivo != null) aoDescartar(motivo)
         } else if (palma && dedosNaWebView) {
-            cancelarDedos()
+            cancelarDedos("toque cancelado: contato de ${contato.roundToInt()} mm, tido como palma")
+        } else if (acao == MotionEvent.ACTION_CANCEL && dedosNaWebView) {
+            aoDescartar("o sistema cancelou o toque de $ponteiros dedo${if (ponteiros > 1) "s" else ""}")
         }
         if (dedosDescartados) {
             if (terminou) dedosDescartados = false

@@ -18,6 +18,7 @@ class RoteadorDeToquesTest {
 
     private val suspensoes = mutableListOf<Boolean>()
     private var cancelamentos = 0
+    private val motivos = mutableListOf<String>()
     private lateinit var roteador: RoteadorDeToques
 
     private val caneta = intArrayOf(TOOL_TYPE_STYLUS)
@@ -28,8 +29,10 @@ class RoteadorDeToquesTest {
     fun preparar() {
         suspensoes.clear()
         cancelamentos = 0
+        motivos.clear()
         roteador = RoteadorDeToques { suspensoes.add(it) }
         roteador.aoCancelarDedos = { cancelamentos++ }
+        roteador.aoDescartar = { motivos.add(it) }
         // Barra de 52 px CSS numa tela de densidade 2, com 1600 px de largura.
         roteador.areasReservadas = listOf(Retangulo(0f, 0f, 1600f, 104f))
     }
@@ -203,5 +206,37 @@ class RoteadorDeToquesTest {
         roteador.rotear(ACTION_CANCEL, doisDedos, 500f, 300f)
         assertFalse(roteador.suspensa)
         assertEquals(Destino.CAMADA_ONYX, roteador.rotear(ACTION_DOWN, caneta, 400f, 600f))
+    }
+
+    @Test
+    fun `cada toque descartado ou cancelado tem o motivo relatado`() {
+        val tresDedos = intArrayOf(TOOL_TYPE_FINGER, TOOL_TYPE_FINGER, TOOL_TYPE_FINGER)
+        // Um toque comum não relata nada.
+        roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 1_000, 8f)
+        roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 1_050, 8f)
+        assertTrue(motivos.isEmpty())
+        // A palma no começo do gesto.
+        roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 2_000, 31.4f)
+        roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 2_050, 31.4f)
+        assertEquals("toque descartado: contato de 31 mm, tido como palma", motivos.last())
+        // A caneta perto.
+        roteador.registrarCanetaPerto(3_000)
+        roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 3_300, 8f)
+        roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 3_350, 8f)
+        assertEquals("toque descartado: caneta perto há 300 ms", motivos.last())
+        // A caneta que se aproxima durante o gesto.
+        roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 5_000, 8f)
+        roteador.registrarCanetaPerto(5_100)
+        assertEquals("toque cancelado: a caneta se aproximou", motivos.last())
+        roteador.rotear(ACTION_UP, umDedo, 300f, 900f, 5_200, 8f)
+        // O sistema que cancela um toque de três dedos.
+        roteador.rotear(ACTION_DOWN, umDedo, 300f, 900f, 7_000, 8f)
+        roteador.rotear(ACTION_POINTER_DOWN, doisDedos, 360f, 900f, 7_010, 8f)
+        roteador.rotear(ACTION_POINTER_DOWN, tresDedos, 420f, 900f, 7_020, 8f)
+        val antes = motivos.size
+        assertEquals(Destino.WEBVIEW, roteador.rotear(ACTION_CANCEL, tresDedos, 420f, 900f, 7_030, 8f))
+        assertEquals(antes + 1, motivos.size)
+        assertEquals("o sistema cancelou o toque de 3 dedos", motivos.last())
+        assertFalse(roteador.suspensa)
     }
 }
