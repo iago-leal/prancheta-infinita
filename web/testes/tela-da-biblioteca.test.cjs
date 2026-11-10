@@ -215,7 +215,7 @@ test('o botão do painel abre a biblioteca por cima do quadro, com os livros por
     await pagina.keyboard.type('pb');
     assert.equal(await pagina.inputValue('#tela-biblioteca .tb-busca'), 'pb');
     await pagina.fill('#tela-biblioteca .tb-busca', '');
-    await pagina.locator('#tela-biblioteca .tb-livro').first().focus();
+    await pagina.locator('#tela-biblioteca .tb-livro .tb-abrir').first().focus();
     for (const tecla of ['p', 'b', 'Delete', 'Backspace']) await pagina.keyboard.press(tecla);
     await pagina.evaluate(() => document.activeElement.blur());
     for (const tecla of ['p', 'b', 'Delete']) await pagina.keyboard.press(tecla);
@@ -265,7 +265,7 @@ test('o botão do painel abre a biblioteca por cima do quadro, com os livros por
     await pagina.locator('#biblioteca [data-acao="abrir-a-biblioteca"]').focus();
     await pagina.keyboard.press('Enter');
     assert.equal(await telaAberta(pagina), true);
-    await pagina.locator('#tela-biblioteca .tb-livro').first().focus();
+    await pagina.locator('#tela-biblioteca .tb-livro .tb-abrir').first().focus();
     await pagina.keyboard.press('Escape');
     assert.equal(await telaAberta(pagina), false);
     assert.equal(await pagina.evaluate(() => document.activeElement.dataset.acao), 'abrir-a-biblioteca', 'o foco volta ao botão que abriu a tela');
@@ -419,7 +419,7 @@ test('tocar num livro o baixa com o andamento à vista, fecha a biblioteca e o a
     await pagina.evaluate((id) => window.bibliotecaDaPrancheta.guardar(id), await idDe(pagina, 'dc-1899.epub'));
     // Desta vez pelo teclado, com a linha em foco: outra tecla não abre nada, e Enter abre.
     await abrirABiblioteca(pagina);
-    await pagina.locator('#tela-biblioteca .tb-livro[data-arquivo="dc-1899.epub"]').focus();
+    await pagina.locator('#tela-biblioteca .tb-livro[data-arquivo="dc-1899.epub"] .tb-abrir').focus();
     await pagina.keyboard.press('x');
     assert.equal(await telaAberta(pagina), true);
     await pagina.keyboard.press('Enter');
