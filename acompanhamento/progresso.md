@@ -11,7 +11,7 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 ### Feito
 
 - O autor decidiu, com um "faça", a saída completa para o iPad e o iPhone: o quadro em que a página do e-book fica passa a deixar código rodar, para os avisos pedidos pelo leitor chegarem também no Safari, e o código do próprio livro é barrado por duas travas independentes. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
-- A limpeza de cada capítulo e a regra do navegador no começo dele, com a recusa de mostrar o capítulo que não começa por ela. Um livro de teste tenta rodar código de 24 formas: com qualquer uma das travas sozinha, nenhuma rodou; sem as duas, 14 rodaram.
+- A limpeza de cada capítulo e a regra do navegador no começo dele, com a recusa de mostrar o capítulo que não começa por ela. Um livro de teste tenta rodar código de 26 formas: com qualquer uma das travas sozinha, nenhuma rodou; sem as duas, 14 rodaram.
 - 32 mutações, todas acusadas depois de o teste ser reforçado em 2 pontos. A suíte da página tem 123 testes. A mudança vai no mesmo PR #52, na casca 0.19.0.
 
 ### Decidido
