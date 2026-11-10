@@ -6,6 +6,28 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 008: o agrupamento por autor, corrigido
+
+### Feito
+
+- Mesclado o PR #49, com a etapa 02 do plano 008; a casca 0.16.0 foi publicada.
+- O autor relatou que o agrupamento por autor mostrava um identificador no lugar do nome. Corrigido, na casca 0.17.0, com o registro na [etapa 01 do plano 008](planos/008-biblioteca-organizada/etapas/01-tela-da-biblioteca.md): o grupo é o primeiro autor escrito no livro, as grafias do mesmo nome ficam juntas, e uma pasta só vale como autor quando tem cara de nome.
+- 21 mutações da correção, todas acusadas. A suíte da página tem 118 testes, e a do servidor, 50.
+- O ramo antigo `claude/canal-publicacao-vps`, já mesclado, não pôde ser excluído daqui: o acesso desta sessão só envia para o ramo de trabalho. A exclusão fica com o autor, na página de ramos do GitHub.
+
+### Decidido
+
+- **O grupo de cada livro é o autor escrito nele, e não a pasta.** Decisão anterior, desta mesma data: o grupo era a primeira pasta do caminho, porque o autor tinha dito que as pastas eram por autor. Motivo da mudança: na biblioteca dele, a primeira pasta de cada livro é um identificador, e a lista mostrava esse identificador como nome de grupo.
+
+### Ideias guardadas
+
+- Ler o autor e o título de dentro dos PDFs, que hoje ficam em "Sem autor" quando a pasta não tem nome.
+
+### Pendências
+
+- O teste do autor no Boox, com a casca 0.17.0, para os critérios 9 da etapa 01 e 8 da etapa 02 do plano 008.
+- Os testes do autor com o KOReader, do plano 007, e os do plano 006 no Boox.
+
 ## 2026-11-10 · Plano 008: a ficha do livro
 
 ### Feito

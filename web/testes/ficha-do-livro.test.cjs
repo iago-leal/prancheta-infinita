@@ -241,7 +241,7 @@ test('a ficha mostra os destaques e os quadros que citam o livro, leva ao trecho
     await abrirAFicha(pagina, 'dc-1899.epub');
     assert.equal(await pagina.textContent('#tela-biblioteca h2'), 'Ficha do livro');
     assert.deepEqual(await ficha(pagina), [
-      'titulo: Dom Casmurro', 'dados: Machado de Assis · Assis, Machado de · EPUB · 0,0 MB', 'abrir: Abrir o livro',
+      'titulo: Dom Casmurro', 'dados: Assis, Machado de · EPUB · 0,0 MB', 'abrir: Abrir o livro',
       '# Destaques (0)', '! Nenhum destaque neste livro.', '# Nos quadros (0)', '! Nenhum quadro cita este livro.',
     ]);
     // Na ficha, saem a busca e os filtros, e entra o botão de voltar à lista.
@@ -311,7 +311,7 @@ test('a ficha mostra os destaques e os quadros que citam o livro, leva ao trecho
     assert.equal(await pagina.getAttribute('#tela-biblioteca .tb-livro[data-arquivo="dc-1899.epub"] [data-acao="ficha"]', 'aria-label'), 'Ficha de Dom Casmurro');
     await pagina.click('#tela-biblioteca [data-acao="so-citados"]');
     assert.equal(await pagina.getAttribute('#tela-biblioteca [data-acao="so-citados"]', 'aria-pressed'), 'true');
-    assert.deepEqual(await titulos(pagina), ['A hora da estrela', 'Dom Casmurro']);
+    assert.deepEqual(await titulos(pagina), ['Dom Casmurro', 'A hora da estrela']);
     assert.equal(await pagina.textContent('#tela-biblioteca .tb-conta'), '2 de 3');
     await pagina.fill('#tela-biblioteca .tb-busca', 'solto');
     assert.equal(await pagina.textContent('#tela-biblioteca .tb-vazio'), 'Nenhum livro com "solto" entre os citados em algum quadro.');
@@ -337,7 +337,7 @@ test('a ficha mostra os destaques e os quadros que citam o livro, leva ao trecho
     await pagina.waitForFunction(() => document.querySelectorAll('#tela-biblioteca .tb-ficha .tb-item').length === 4);
     const daFicha = await ficha(pagina);
     assert.equal(daFicha[0], 'titulo: Dom Casmurro');
-    assert.match(daFicha[1], /^dados: Machado de Assis · Assis, Machado de · EPUB · guardado · \d+%$/);
+    assert.match(daFicha[1], /^dados: Assis, Machado de · EPUB · guardado · \d+%$/);
     assert.deepEqual(daFicha.slice(2, 4), ['abrir: Continuar a leitura', '# Destaques (2)']);
     assert.match(daFicha[4], /^- trecho: primeiro capítulo \| nota: Uma nota sobre o começo \| onde: Capítulo um/);
     assert.match(daFicha[5], /^- trecho: segundo capítulo \| onde: Capítulo dois/);
@@ -469,7 +469,7 @@ test('a ficha mostra os destaques e os quadros que citam o livro, leva ao trecho
     await abrirABiblioteca(pagina);
     assert.equal(await pagina.getAttribute('#tela-biblioteca [data-acao="so-citados"]', 'aria-pressed'), 'true');
     await pagina.waitForFunction(() => document.querySelectorAll('#tela-biblioteca .tb-livro').length === 2);
-    assert.deepEqual(await titulos(pagina), ['A hora da estrela', 'Dom Casmurro']);
+    assert.deepEqual(await titulos(pagina), ['Dom Casmurro', 'A hora da estrela']);
     await abrirAFicha(pagina, 'dc-1899.epub');
     await pagina.waitForFunction(() => document.querySelectorAll('#tela-biblioteca .tb-ficha .tb-item').length === 3);
     assert.deepEqual((await ficha(pagina)).filter((linha) => /^#/.test(linha)), ['# Destaques (2)', '# Nos quadros (1)', '## Caderno']);

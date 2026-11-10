@@ -18,7 +18,9 @@
 //   compat/tela-da-biblioteca.js, com busca, ordenação e filtro, feitos aqui
 //   por organizar(). No painel lateral ficam o botão que abre a tela e os
 //   livros lidos por último. Cada livro vem do servidor com título e autor, e
-//   a porcentagem lida fica guardada junto com a posição, neste aparelho.
+//   a porcentagem lida fica guardada junto com a posição, neste aparelho. O
+//   grupo de cada livro é o autor dele, e nunca a pasta em si, que pode ser
+//   só um identificador.
 //
 // Deve ser carregado depois de compat/sincronizacao.js; compat/claude.js liga
 // a biblioteca à sincronização em window.bibliotecaDaPrancheta.
@@ -76,22 +78,63 @@
   /** O título de um livro: o que veio de dentro dele, ou o nome do arquivo. */
   const tituloDe = (livro) => (livro && (livro.titulo || semExtensao(livro.nome))) || '';
 
-  /**
-   * O autor sob o qual um livro é agrupado: a primeira pasta do caminho, que
-   * na biblioteca do autor é a do autor da obra, ou, fora de pasta, o autor
-   * escrito no livro.
-   */
-  const grupoDe = (livro) => String((livro && livro.pasta) || '').split('/')[0] || (livro && livro.autor) || '';
-
   /** Sem acentos, sem maiúsculas e com os espaços juntados, para buscar e comparar. */
-  const normalizar = (texto) => String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const normalizar = (texto) => String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
   const comparar = (a, b) => normalizar(a).localeCompare(normalizar(b), 'pt') || String(a).localeCompare(String(b), 'pt');
 
-  /** O autor escrito no livro, quando não é o mesmo nome do grupo. */
-  function autorProprio(livro) {
-    const autor = (livro && livro.autor) || '';
-    return autor && normalizar(autor) !== normalizar(grupoDe(livro)) ? autor : '';
+  /** Os autores de um livro, como o servidor os entrega: os do livro, separados por ponto e vírgula, ou a pasta com nome de gente. */
+  const autoresDe = (livro) => String((livro && livro.autor) || '').split(';').map((nome) => nome.trim()).filter(Boolean);
+
+  /**
+   * A chave de um nome de autor: as palavras dele, sem acentos nem maiúsculas,
+   * em ordem alfabética. Assim, "Assis, Machado de" e "Machado de Assis" são o
+   * mesmo autor, sem que seja preciso adivinhar qual parte é o sobrenome.
+   */
+  const chaveDoAutor = (nome) => (normalizar(nome).match(/[\p{L}\p{N}]+/gu) || []).sort().join(' ');
+
+  /**
+   * O nome com que cada autor aparece, entre as grafias que os livros trazem:
+   * a mais usada e, no empate, a que não tem vírgula, a que mistura maiúsculas
+   * e minúsculas, a que tem mais acentos e a primeira do alfabeto. Devolve um
+   * Map da chave do autor para o nome.
+   */
+  function nomesDosAutores(lista) {
+    const grafias = new Map();
+    for (const livro of lista || []) {
+      const primeiro = autoresDe(livro)[0];
+      if (!primeiro) continue;
+      const chave = chaveDoAutor(primeiro);
+      if (!grafias.has(chave)) grafias.set(chave, new Map());
+      grafias.get(chave).set(primeiro, (grafias.get(chave).get(primeiro) || 0) + 1);
+    }
+    const nomes = new Map();
+    for (const [chave, contagem] of grafias) {
+      const comVirgula = (nome) => (nome.includes(',') ? 1 : 0);
+      const numaCaixaSo = (nome) => (nome === nome.toLowerCase() || nome === nome.toUpperCase() ? 1 : 0);
+      const acentos = (nome) => nome.normalize('NFD').length - nome.normalize('NFC').length;
+      nomes.set(chave, [...contagem].sort((a, b) => b[1] - a[1] || comVirgula(a[0]) - comVirgula(b[0])
+        || numaCaixaSo(a[0]) - numaCaixaSo(b[0]) || acentos(b[0]) - acentos(a[0]) || comparar(a[0], b[0]))[0][0]);
+    }
+    return nomes;
+  }
+
+  /**
+   * O autor sob o qual um livro é agrupado: o primeiro autor dele, na grafia
+   * escolhida entre os livros de `lista`; sem autor, ''. O autor vem do
+   * servidor: o que está escrito no livro ou, sem isso, a pasta, quando ela tem
+   * nome de gente, e não a pasta em si, que pode ser só um identificador.
+   */
+  function grupoDe(livro, nomes) {
+    const primeiro = autoresDe(livro)[0];
+    if (!primeiro) return '';
+    return (nomes && nomes.get(chaveDoAutor(primeiro))) || primeiro;
+  }
+
+  /** Os autores de um livro por extenso, com o primeiro na grafia do grupo. */
+  function autoresPorExtenso(livro, nomes) {
+    const autores = autoresDe(livro);
+    return autores.length ? [grupoDe(livro, nomes), ...autores.slice(1)].join('; ') : '';
   }
 
   /**
@@ -108,6 +151,8 @@
     consulta = '', ordem = 'autor', soGuardados = false, guardados = new Set(), soCitados = false, citados = new Set(), leituras = new Map(),
   } = {}) {
     const palavras = normalizar(consulta).split(' ').filter(Boolean);
+    // As grafias saem da lista inteira, para o nome de um autor não mudar com a busca.
+    const nomes = nomesDosAutores(lista);
     const escolhidos = (lista || []).filter((livro) => {
       if (soGuardados && !guardados.has(livro.id)) return false;
       if (soCitados && !citados.has(livro.id)) return false;
@@ -119,12 +164,13 @@
     if (ordem === 'titulo' || ordem === 'recentes') {
       const quando = (livro) => (leituras.get(livro.id) || {}).em || 0;
       const ordenados = [...escolhidos].sort(ordem === 'titulo' ? porTitulo : (a, b) => quando(b) - quando(a) || porTitulo(a, b));
-      return ordenados.map((livro) => ({ tipo: 'livro', livro, autor: grupoDe(livro) || livro.autor || '' }));
+      return ordenados.map((livro) => ({ tipo: 'livro', livro, autor: autoresPorExtenso(livro, nomes) }));
     }
     const grupos = new Map();
     for (const livro of escolhidos) {
-      const chave = normalizar(grupoDe(livro));
-      if (!grupos.has(chave)) grupos.set(chave, { nome: grupoDe(livro), livros: [] });
+      const nome = grupoDe(livro, nomes);
+      const chave = chaveDoAutor(nome);
+      if (!grupos.has(chave)) grupos.set(chave, { nome, livros: [] });
       grupos.get(chave).livros.push(livro);
     }
     const linhas = [];
@@ -132,7 +178,8 @@
     const ordenados = [...grupos.values()].sort((a, b) => (a.nome ? 0 : 1) - (b.nome ? 0 : 1) || comparar(a.nome, b.nome));
     for (const grupo of ordenados) {
       linhas.push({ tipo: 'grupo', nome: grupo.nome || 'Sem autor', quantos: grupo.livros.length });
-      for (const livro of grupo.livros.sort(porTitulo)) linhas.push({ tipo: 'livro', livro, autor: autorProprio(livro) });
+      // Na linha, os autores só aparecem quando há mais de um: o primeiro já é o nome do grupo.
+      for (const livro of grupo.livros.sort(porTitulo)) linhas.push({ tipo: 'livro', livro, autor: autoresDe(livro).length > 1 ? autoresPorExtenso(livro, nomes) : '' });
     }
     return linhas;
   }
@@ -550,7 +597,7 @@
         linha.setAttribute('role', 'button');
         linha.innerHTML = `<span class="ic">${ICONE_DO_LIVRO}</span><span class="nm"></span>`;
         linha.querySelector('.nm').textContent = tituloDe(livro);
-        linha.title = [tituloDe(livro), grupoDe(livro) || livro.autor].filter(Boolean).join(', ');
+        linha.title = [tituloDe(livro), autoresPorExtenso(livro)].filter(Boolean).join(', ');
         linhas.push(linha);
       }
       listaEl.replaceChildren(...linhas);
@@ -595,5 +642,5 @@
     return biblioteca;
   }
 
-  global.BibliotecaPrancheta = Object.freeze({ Biblioteca, ligar, NOME_DO_BANCO, organizar, tituloDe, grupoDe, situacaoDe, normalizar });
+  global.BibliotecaPrancheta = Object.freeze({ Biblioteca, ligar, NOME_DO_BANCO, organizar, tituloDe, grupoDe, autoresPorExtenso, nomesDosAutores, situacaoDe, normalizar });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -22,7 +22,7 @@ const { criarEpub, criarPdf } = require('./apoio/livros.cjs');
 const { esperarLista, abrirABiblioteca, abrirPelaBiblioteca } = require('./apoio/biblioteca.cjs');
 
 require('../app/compat/biblioteca.js');
-const { organizar, tituloDe, grupoDe, situacaoDe, normalizar } = globalThis.BibliotecaPrancheta;
+const { organizar, tituloDe, grupoDe, autoresPorExtenso, nomesDosAutores, situacaoDe, normalizar } = globalThis.BibliotecaPrancheta;
 
 const CHAVE = 'chave-de-teste-da-tela-0123456789abcdef';
 const TELA = { width: 1200, height: 800 };
@@ -32,8 +32,8 @@ let navegador;
 let vps;
 before(async () => {
   navegador = await chromium.launch();
-  // Uma biblioteca por autor, como a do autor: uma pasta para cada um, uma
-  // subpasta, um arquivo cujo nome não diz o título e dois livros fora de pasta.
+  // Uma biblioteca com pastas de autor, uma subpasta, um arquivo cujo nome não
+  // diz o título e, como na do autor, pastas que são só identificadores.
   const livros = fs.mkdtempSync(path.join(os.tmpdir(), 'prancheta-tela-'));
   fs.mkdirSync(path.join(livros, 'Machado de Assis'));
   fs.mkdirSync(path.join(livros, 'Clarice Lispector', 'Contos'), { recursive: true });
@@ -41,8 +41,11 @@ before(async () => {
   fs.writeFileSync(path.join(livros, 'Machado de Assis', 'Memórias póstumas.epub'), await criarEpub({ titulo: 'Memórias póstumas de Brás Cubas', autor: 'Assis, Machado de' }));
   fs.writeFileSync(path.join(livros, 'Clarice Lispector', 'A hora da estrela.pdf'), criarPdf(['Pagina um da estrela', 'Pagina dois', 'Pagina tres']));
   fs.writeFileSync(path.join(livros, 'Clarice Lispector', 'Contos', 'Laços.epub'), await criarEpub({ titulo: 'Laços de família', autor: 'Clarice Lispector' }));
-  fs.writeFileSync(path.join(livros, 'Solto.pdf'), criarPdf(['Um documento solto', 'Segunda pagina dele']));
-  fs.writeFileSync(path.join(livros, 'Avulso.epub'), await criarEpub({ titulo: 'Um avulso', autor: 'Ana Cristina Cesar' }));
+  // Dois livros em pastas com cara de identificador: um sem autor escrito, e outro com o autor só dentro do livro.
+  fs.mkdirSync(path.join(livros, 'c0ffee00c0ffee00c0ffee00c0ffee00'));
+  fs.mkdirSync(path.join(livros, '9f2c1a7b4e5d6c3f8a1b2c3d4e5f6a7b'));
+  fs.writeFileSync(path.join(livros, 'c0ffee00c0ffee00c0ffee00c0ffee00', 'Solto.pdf'), criarPdf(['Um documento solto', 'Segunda pagina dele']));
+  fs.writeFileSync(path.join(livros, '9f2c1a7b4e5d6c3f8a1b2c3d4e5f6a7b', 'Avulso.epub'), await criarEpub({ titulo: 'Um avulso', autor: 'Ana Cristina Cesar' }));
   const armazem = await Armazem.abrir(fs.mkdtempSync(path.join(os.tmpdir(), 'prancheta-vps-')));
   const sincronia = criarServidor({ armazem, chave: CHAVE, biblioteca: new Biblioteca(livros) }).listeners('request')[0];
   const pagina = criarServidorDaPagina({ pasta: APP }).listeners('request')[0];
@@ -90,39 +93,57 @@ const telaAberta = (pagina) => pagina.locator('#tela-biblioteca').isVisible();
 const idDe = (pagina, arquivo) => pagina.evaluate((nome) => window.bibliotecaDaPrancheta.estado.lista.find((l) => l.nome === nome).id, arquivo);
 
 test('a lista é organizada por autor, por título ou pelos lidos por último, com busca sem acentos e filtro dos guardados', () => {
+  // As pastas, aqui, são identificadores, como as que alguns leitores criam para cada livro: o autor vem do livro.
   const lista = [
-    { id: 'a', nome: 'dc-1899.epub', pasta: 'Machado de Assis', titulo: 'Dom Casmurro', autor: 'Machado de Assis', bytes: 2 * 1024 * 1024 },
-    { id: 'b', nome: 'Memórias.epub', pasta: 'Machado de Assis/Romances', titulo: 'Memórias póstumas de Brás Cubas', autor: 'Assis, Machado de' },
+    { id: 'a', nome: 'dc-1899.epub', pasta: '9f2c1a7b4e5d6c3f8a1b2c3d4e5f6a7b', titulo: 'Dom Casmurro', autor: 'Machado de Assis', bytes: 2 * 1024 * 1024 },
+    { id: 'b', nome: 'Memórias.epub', pasta: '77aa1a7b4e5d6c3f8a1b2c3d4e5f6a7b/Romances', titulo: 'Memórias póstumas de Brás Cubas', autor: 'Assis, Machado de' },
     { id: 'c', nome: 'A hora da estrela.pdf', pasta: 'Clarice Lispector', titulo: 'A hora da estrela', autor: 'Clarice Lispector' },
-    { id: 'd', nome: 'Solto.pdf', pasta: '', titulo: 'Solto', autor: '' },
+    { id: 'd', nome: 'Solto.pdf', pasta: 'c0ffee00c0ffee00c0ffee00c0ffee00', titulo: 'Solto', autor: '' },
     { id: 'e', nome: 'Avulso.epub', pasta: '', titulo: 'Água viva', autor: 'clarice lispector' },
     // Uma lista guardada por uma versão anterior, sem título nem autor.
     { id: 'f', nome: 'Écloga antiga.EPUB', pasta: 'machado de assis' },
+    { id: 'g', nome: 'antologia.epub', pasta: '0a1b2c3d4e5f60718293a4b5c6d7e8f9', titulo: 'Antologia', autor: 'Ana Cesar; Bia Souza; Machado de Assis' },
+    { id: 'h', nome: 'qb.epub', pasta: '1b2c3d4e5f60718293a4b5c6d7e8f90a', titulo: 'Quincas Borba', autor: 'Machado de Assis' },
   ];
   const resumo = (itens) => itens.map((l) => (l.tipo === 'grupo' ? `# ${l.nome} (${l.quantos})` : `${tituloDe(l.livro)}${l.autor ? ` [${l.autor}]` : ''}`));
 
-  // O título e o grupo de cada livro.
-  assert.deepEqual(lista.map(tituloDe), ['Dom Casmurro', 'Memórias póstumas de Brás Cubas', 'A hora da estrela', 'Solto', 'Água viva', 'Écloga antiga']);
-  assert.deepEqual(lista.map(grupoDe), ['Machado de Assis', 'Machado de Assis', 'Clarice Lispector', '', 'clarice lispector', 'machado de assis']);
+  // O título e o autor de cada livro: o primeiro autor do livro, e nunca a pasta.
+  assert.deepEqual(lista.map(tituloDe), ['Dom Casmurro', 'Memórias póstumas de Brás Cubas', 'A hora da estrela', 'Solto', 'Água viva', 'Écloga antiga', 'Antologia', 'Quincas Borba']);
+  assert.deepEqual(lista.map((l) => grupoDe(l)), ['Machado de Assis', 'Assis, Machado de', 'Clarice Lispector', '', 'clarice lispector', '', 'Ana Cesar', 'Machado de Assis']);
   assert.equal(tituloDe(null), '');
-  assert.equal(normalizar('  Água   VIVÁ '), 'agua viva');
+  assert.equal(grupoDe(null), '');
+  assert.equal(normalizar('  Água   VIVA\u0301 '), 'agua viva');
+  // As grafias do mesmo autor viram uma só: a mais usada e, no empate, a sem vírgula, a que mistura maiúsculas e minúsculas e a com mais acentos.
+  const nome = (...autores) => [...nomesDosAutores(autores.map((autor) => ({ autor }))).values()].join(' | ');
+  assert.equal(nome('Assis, Machado de', 'Machado de Assis'), 'Machado de Assis');
+  assert.equal(nome('Machado de Assis', 'Assis, Machado de', 'Assis, Machado de'), 'Assis, Machado de');
+  assert.equal(nome('clarice lispector', 'Clarice Lispector'), 'Clarice Lispector');
+  assert.equal(nome('GUIMARÃES ROSA', 'Guimaraes Rosa', 'Guimarães Rosa'), 'Guimarães Rosa');
+  assert.equal(nome('Ana Cesar; Bia Souza', 'Bia Souza'), 'Ana Cesar | Bia Souza');
+  assert.equal(nome('', '  ;  '), '');
+  assert.equal(autoresPorExtenso(lista[1], nomesDosAutores(lista)), 'Machado de Assis');
+  assert.equal(autoresPorExtenso(lista[6], nomesDosAutores(lista)), 'Ana Cesar; Bia Souza; Machado de Assis');
+  assert.equal(autoresPorExtenso(lista[3], nomesDosAutores(lista)), '');
 
-  // Por autor: a pasta agrupa, sem distinguir maiúsculas, o autor escrito no
-  // livro só aparece quando difere dela, e os sem autor vão para o fim.
+  // Por autor: as grafias do mesmo autor num grupo só, os outros autores do livro na linha,
+  // e os livros sem autor no fim, sem que a pasta vire nome de grupo.
   assert.deepEqual(resumo(organizar(lista)), [
+    '# Ana Cesar (1)', 'Antologia [Ana Cesar; Bia Souza; Machado de Assis]',
     '# Clarice Lispector (2)', 'A hora da estrela', 'Água viva',
-    '# Machado de Assis (3)', 'Dom Casmurro', 'Écloga antiga', 'Memórias póstumas de Brás Cubas [Assis, Machado de]',
-    '# Sem autor (1)', 'Solto',
+    '# Machado de Assis (3)', 'Dom Casmurro', 'Memórias póstumas de Brás Cubas', 'Quincas Borba',
+    '# Sem autor (2)', 'Écloga antiga', 'Solto',
   ]);
   // Por título, sem grupos, com o autor em cada linha, e os acentos na ordem do alfabeto.
   assert.deepEqual(resumo(organizar(lista, { ordem: 'titulo' })), [
-    'A hora da estrela [Clarice Lispector]', 'Água viva [clarice lispector]', 'Dom Casmurro [Machado de Assis]', 'Écloga antiga [machado de assis]',
-    'Memórias póstumas de Brás Cubas [Machado de Assis]', 'Solto',
+    'A hora da estrela [Clarice Lispector]', 'Água viva [Clarice Lispector]', 'Antologia [Ana Cesar; Bia Souza; Machado de Assis]', 'Dom Casmurro [Machado de Assis]',
+    'Écloga antiga', 'Memórias póstumas de Brás Cubas [Machado de Assis]', 'Quincas Borba [Machado de Assis]', 'Solto',
   ]);
+  // O nome do grupo não muda com a busca: continua o da lista inteira.
+  assert.deepEqual(resumo(organizar(lista, { consulta: 'memorias' })), ['# Machado de Assis (1)', 'Memórias póstumas de Brás Cubas']);
   // Lidos por último: os mais recentes primeiro, e depois os nunca lidos, por título.
   const leituras = new Map([['d', { em: 300 }], ['a', { em: 500, porcentagem: 0.4 }], ['c', { em: 100 }]]);
   assert.deepEqual(resumo(organizar(lista, { ordem: 'recentes', leituras })).map((l) => l.replace(/ \[.*/, '')), [
-    'Dom Casmurro', 'Solto', 'A hora da estrela', 'Água viva', 'Écloga antiga', 'Memórias póstumas de Brás Cubas',
+    'Dom Casmurro', 'Solto', 'A hora da estrela', 'Água viva', 'Antologia', 'Écloga antiga', 'Memórias póstumas de Brás Cubas', 'Quincas Borba',
   ]);
 
   // A busca: sem acentos nem maiúsculas, cada palavra em qualquer lugar do título, do autor, da pasta ou do arquivo.
@@ -131,15 +152,16 @@ test('a lista é organizada por autor, por título ou pelos lidos por último, c
   assert.equal(achar('  BRAS   memórias '), 'b');
   assert.equal(achar('agua'), 'e');
   assert.equal(achar('ÁGUA'), 'e');
-  assert.equal(achar('machado'), 'afb');
-  assert.equal(achar('assis machado de'), 'afb');
+  assert.equal(achar('machado'), 'gafbh');
+  assert.equal(achar('assis machado de'), 'gafbh');
+  assert.equal(achar('bia'), 'g');
   assert.equal(achar('romances'), 'b');
   assert.equal(achar('dc-1899'), 'a');
   assert.equal(achar('ecloga'), 'f');
   assert.equal(achar('clarice estrela'), 'c');
   assert.equal(achar('lispector agua'), 'e');
   assert.equal(achar('clarice machado'), '');
-  assert.equal(achar(''), 'ceafbd');
+  assert.equal(achar(''), 'cegafbhd');
   // O filtro dos guardados neste aparelho, sozinho e com a busca.
   const guardados = new Set(['a', 'c']);
   assert.equal(achar('', { soGuardados: true, guardados }), 'ca');
@@ -197,11 +219,12 @@ test('o botão do painel abre a biblioteca por cima do quadro, com os livros por
     // No computador, o campo de busca já recebe o que for digitado.
     assert.equal(await pagina.evaluate(() => document.activeElement.className), 'tb-busca');
 
-    // Os livros por autor: a pasta de cada um, com o autor escrito no livro só quando difere dela.
+    // Os livros por autor: o que está escrito no livro ou, sem isso, a pasta com nome de gente; as duas
+    // grafias de Machado de Assis ficam num grupo só, e as pastas que são identificadores não viram grupo.
     assert.deepEqual(await linhas(pagina), [
       '# Ana Cristina Cesar (1)', 'Um avulso |  | 0,0 MB | EPUB',
       '# Clarice Lispector (2)', 'A hora da estrela |  | 0,0 MB | PDF', 'Laços de família |  | 0,0 MB | EPUB',
-      '# Machado de Assis (2)', 'Dom Casmurro |  | 0,0 MB | EPUB', 'Memórias póstumas de Brás Cubas | Assis, Machado de | 0,0 MB | EPUB',
+      '# Machado de Assis (2)', 'Dom Casmurro |  | 0,0 MB | EPUB', 'Memórias póstumas de Brás Cubas |  | 0,0 MB | EPUB',
       '# Sem autor (1)', 'Solto |  | 0,0 MB | PDF',
     ]);
     assert.equal(await pagina.textContent('#tela-biblioteca .tb-conta'), '6 livros');
@@ -209,6 +232,11 @@ test('o botão do painel abre a biblioteca por cima do quadro, com os livros por
     assert.equal(await pagina.getAttribute('#tela-biblioteca [data-acao="so-guardados"]', 'aria-pressed'), 'false');
     // Cada linha guarda o nome do arquivo, que o título pode não dizer.
     assert.equal(await pagina.getAttribute('#tela-biblioteca .tb-livro[data-arquivo="dc-1899.epub"]', 'title'), 'dc-1899.epub');
+    // Na ficha, o autor aparece na mesma grafia do grupo, e não na que está escrita naquele livro.
+    await pagina.click('#tela-biblioteca .tb-livro[data-arquivo="Memórias póstumas.epub"] [data-acao="ficha"]');
+    assert.equal(await pagina.textContent('#tela-biblioteca .tb-ficha-dados'), 'Machado de Assis · EPUB · 0,0 MB');
+    await pagina.click('#tela-biblioteca [data-acao="voltar"]');
+    await pagina.focus('#tela-biblioteca .tb-busca');
 
     // Com a tela aberta, as teclas não chegam aos atalhos do quadro: no campo de
     // busca, numa linha da lista e fora da tela; a roda do mouse também não.
@@ -291,7 +319,7 @@ test('a busca, a ordem e o filtro mudam a lista da tela, e a ordem e o filtro fi
     // A busca, pelo título, pelo autor, pela pasta e pelo nome do arquivo, sem acentos nem maiúsculas.
     assert.deepEqual(await buscar('memorias bras'), ['Memórias póstumas de Brás Cubas']);
     assert.equal(await pagina.textContent('#tela-biblioteca .tb-conta'), '1 de 6');
-    assert.deepEqual(await linhas(pagina), ['# Machado de Assis (1)', 'Memórias póstumas de Brás Cubas | Assis, Machado de | 0,0 MB | EPUB']);
+    assert.deepEqual(await linhas(pagina), ['# Machado de Assis (1)', 'Memórias póstumas de Brás Cubas |  | 0,0 MB | EPUB']);
     assert.deepEqual(await buscar('MACHADO'), ['Dom Casmurro', 'Memórias póstumas de Brás Cubas']);
     assert.deepEqual(await buscar('lacos'), ['Laços de família']);
     assert.deepEqual(await buscar('contos'), ['Laços de família']);
@@ -477,7 +505,7 @@ test('sem rede, a tela mostra a última lista recebida, abre os livros guardados
     assert.deepEqual(await linhas(pagina), [
       '# Ana Cristina Cesar (1)', 'Um avulso |  | 0,0 MB | EPUB',
       '# Clarice Lispector (2)', 'A hora da estrela |  | 0,0 MB | PDF', 'Laços de família |  | 0,0 MB | EPUB',
-      '# Machado de Assis (2)', 'Dom Casmurro |  | 0,0 MB | EPUB', 'Memórias póstumas de Brás Cubas | Assis, Machado de | 0,0 MB | EPUB',
+      '# Machado de Assis (2)', 'Dom Casmurro |  | 0,0 MB | EPUB', 'Memórias póstumas de Brás Cubas |  | 0,0 MB | EPUB',
       '# Sem autor (1)', 'Solto |  | guardado | PDF',
     ]);
     // Um livro que ainda não está no aparelho avisa, e a tela continua aberta.
@@ -505,7 +533,7 @@ test('com 500 livros, a tela abre e a busca responde em menos de um segundo; na 
       biblioteca.atualizar = async () => biblioteca.estado;
       const lista = Array.from({ length: 500 }, (_, i) => ({
         id: i.toString(16).padStart(32, '0'), nome: `arquivo-${i}.epub`, pasta: `Autora ${String(i % 50).padStart(2, '0')}`, tipo: 'application/epub+zip',
-        bytes: 1024 * 1024 + i, titulo: `Título número ${i} da coleção`, autor: i % 7 ? '' : `Outra pessoa ${i}`,
+        bytes: 1024 * 1024 + i, titulo: `Título número ${i} da coleção`, autor: `Autora ${String(i % 50).padStart(2, '0')}${i % 7 ? '' : `; Outra pessoa ${i}`}`,
       }));
       biblioteca._mudar({ situacao: 'atualizada', lista, guardados: new Set(lista.filter((_, i) => i % 3 === 0).map((l) => l.id)) });
       const tela = document.getElementById('tela-biblioteca');

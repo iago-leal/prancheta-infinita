@@ -4,8 +4,9 @@
 //
 // - Um livro por linha, com o título, o autor escrito nele quando difere do
 //   grupo, se está guardado neste aparelho, a porcentagem lida e o formato.
-// - A lista vem agrupada por autor, que é a primeira pasta do caminho no
-//   servidor, e pode ser ordenada pelo título ou pelos lidos por último. A
+// - A lista vem agrupada por autor, o que está escrito em cada livro ou, sem
+//   isso, a pasta com nome de gente, e pode ser ordenada pelo título ou pelos
+//   lidos por último. A
 //   busca olha o título, o autor, a pasta e o nome do arquivo, sem distinguir
 //   maiúsculas nem acentos, e um filtro deixa só os guardados neste aparelho.
 //   A organização é feita por BibliotecaPrancheta.organizar().
@@ -111,7 +112,7 @@
   function montar(biblioteca) {
     const existente = document.getElementById('tela-biblioteca');
     if (existente) return existente.telaDaBiblioteca;
-    const { organizar, tituloDe, grupoDe, situacaoDe, normalizar } = global.BibliotecaPrancheta;
+    const { organizar, tituloDe, autoresPorExtenso, nomesDosAutores, situacaoDe } = global.BibliotecaPrancheta;
     const estilo = document.createElement('style');
     estilo.textContent = ESTILO;
     document.head.appendChild(estilo);
@@ -229,7 +230,7 @@
       const naLista = estado.lista.some((l) => l.id === livro.id);
       const pedaco = document.createDocumentFragment();
       pedaco.appendChild(criar('h3', 'tb-ficha-titulo', tituloDe(livro) || 'Livro fora da biblioteca'));
-      const autores = [grupoDe(livro), livro.autor && normalizar(livro.autor) !== normalizar(grupoDe(livro)) ? livro.autor : ''].filter(Boolean).join(' · ');
+      const autores = autoresPorExtenso(livro, nomesDosAutores(estado.lista));
       const dados = [autores, FORMATOS[livro.tipo] || '', naLista ? situacaoDe(livro, estado, biblioteca.baixando) : 'fora da biblioteca'].filter(Boolean).join(' · ');
       pedaco.appendChild(criar('p', 'tb-ficha-dados', dados));
       const abrir = criar('button', 'tb-ficha-abrir', noLeitor(livro.id) ? 'Voltar ao livro' : estado.leituras.has(livro.id) ? 'Continuar a leitura' : 'Abrir o livro');
