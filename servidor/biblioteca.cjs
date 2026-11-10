@@ -19,7 +19,9 @@
 //   são lidos de dentro do arquivo, por servidor/epub.cjs, junto com o
 //   resumo; um PDF, e um EPUB sem esses dados ou que não pôde ser lido, ficam
 //   com o nome do arquivo, sem a extensão, como título, e com a primeira
-//   pasta do caminho, que na biblioteca do autor é a do autor da obra.
+//   pasta do caminho que tenha cara de nome como autor. Uma pasta com cara de
+//   identificador, como as que alguns leitores criam para cada livro, com o
+//   resumo dele no nome, não é nome de autor, e o livro fica sem autor.
 
 'use strict';
 
@@ -53,6 +55,20 @@ async function resumoDoKoreader(caminho) {
 }
 
 const oculto = (nome) => nome.startsWith('.') || nome.endsWith('.sdr');
+
+/**
+ * Diz se o nome de uma pasta parece um identificador, e não um nome de gente:
+ * sem nenhuma letra, só algarismos hexadecimais e hifens, como um resumo ou
+ * um UUID, ou uma sequência comprida, sem espaços, que mistura letras e algarismos.
+ */
+function pareceIdentificador(nome) {
+  if (!/\p{L}/u.test(nome)) return true;
+  if (/^[0-9a-f]{8}(-?[0-9a-f]{4}){3}-?[0-9a-f]{12}$/i.test(nome) || /^[0-9a-f]{16,}$/i.test(nome)) return true;
+  return nome.length >= 20 && /^[\w-]+$/.test(nome) && /\d/.test(nome);
+}
+
+/** A primeira pasta do caminho com cara de nome, para servir de autor, ou ''. */
+const pastaDoAutor = (relativa) => relativa.split('/').find((pasta) => pasta && !pareceIdentificador(pasta)) || '';
 
 class Biblioteca {
   /**
@@ -151,7 +167,7 @@ class Biblioteca {
           bytes: estado.size,
           modificadoEm: Math.round(estado.mtimeMs),
           titulo: resumo.dados.titulo || path.basename(entrada.name, path.extname(entrada.name)),
-          autor: resumo.dados.autor || relativa.split('/')[0],
+          autor: resumo.dados.autor || pastaDoAutor(relativa),
           caminho: completo,
         });
       }
@@ -197,4 +213,4 @@ class Biblioteca {
   }
 }
 
-module.exports = { Biblioteca, resumoDoKoreader, ID_DE_LIVRO, TIPOS };
+module.exports = { Biblioteca, resumoDoKoreader, pareceIdentificador, ID_DE_LIVRO, TIPOS };

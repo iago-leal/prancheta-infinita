@@ -12,7 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const { lerDadosDoEpub, dadosDoPacote, caminhoDoPacote } = require('../epub.cjs');
-const { Biblioteca } = require('../biblioteca.cjs');
+const { Biblioteca, pareceIdentificador } = require('../biblioteca.cjs');
 
 const temporaria = (nome) => fs.mkdtempSync(path.join(os.tmpdir(), `prancheta-${nome}-`));
 
@@ -110,9 +110,9 @@ test('o título e o autor de um EPUB são lidos de dentro do arquivo', async () 
     <dc:creator opf:role="aut" opf:file-as="Assis, Machado de"><![CDATA[Machado de Assis]]></dc:creator>`)),
   { titulo: 'Memórias póstumas de Br&aacute;s & <Cubas>', autor: 'Machado de Assis' });
 
-  // Vários autores: até três, sem repetidos, na ordem do arquivo.
+  // Vários autores: até três, sem repetidos, na ordem do arquivo, separados por ponto e vírgula, porque a vírgula aparece dentro de um nome.
   assert.deepEqual(await lerDe(criarEpub('<dc:title>Antologia</dc:title><dc:creator>Ana</dc:creator><dc:creator>Bia</dc:creator><dc:creator>Ana</dc:creator><dc:creator>Caio</dc:creator><dc:creator>Davi</dc:creator>')),
-    { titulo: 'Antologia', autor: 'Ana, Bia, Caio' });
+    { titulo: 'Antologia', autor: 'Ana; Bia; Caio' });
   // Só um dos dois, ou nenhum.
   assert.deepEqual(await lerDe(criarEpub('<dc:title>Sem autor</dc:title>')), { titulo: 'Sem autor' });
   assert.deepEqual(await lerDe(criarEpub('<dc:creator>Sem título</dc:creator><dc:title>  </dc:title>')), { autor: 'Sem título' });
@@ -185,6 +185,12 @@ test('a lista da biblioteca traz o título e o autor: do EPUB, ou o nome do arqu
   fs.writeFileSync(path.join(livros, 'Clarice Lispector', 'A hora da estrela.epub'), Buffer.from('um EPUB estragado, que não é um ZIP de verdade'));
   fs.writeFileSync(path.join(livros, 'Clarice Lispector', 'Sem dados.EPUB'), criarEpub(''));
   fs.writeFileSync(path.join(livros, 'Solto.pdf'), Buffer.from('%PDF-1.4 dois'));
+  // Pastas que são identificadores, como as que alguns leitores criam para cada livro, não são nomes de autor.
+  for (const pasta of ['9f2c1a7b4e5d6c3f8a1b2c3d4e5f6a7b', '550e8400-e29b-41d4-a716-446655440000/Guimarães Rosa/2001', '0042']) fs.mkdirSync(path.join(livros, pasta), { recursive: true });
+  fs.writeFileSync(path.join(livros, '9f2c1a7b4e5d6c3f8a1b2c3d4e5f6a7b', 'Sem autor escrito.pdf'), Buffer.from('%PDF-1.4 tres'));
+  fs.writeFileSync(path.join(livros, '9f2c1a7b4e5d6c3f8a1b2c3d4e5f6a7b', 'Com autor escrito.epub'), criarEpub('<dc:title>Com autor</dc:title><dc:creator>Carolina Maria de Jesus</dc:creator>'));
+  fs.writeFileSync(path.join(livros, '550e8400-e29b-41d4-a716-446655440000', 'Guimarães Rosa', '2001', 'Sagarana.pdf'), Buffer.from('%PDF-1.4 quatro'));
+  fs.writeFileSync(path.join(livros, '0042', 'Numerado.pdf'), Buffer.from('%PDF-1.4 cinco'));
   fs.writeFileSync(path.join(livros, 'Solto com dados.epub'), criarEpub('<dc:title>Um título</dc:title><dc:creator>Uma autora</dc:creator>'));
 
   const biblioteca = new Biblioteca(livros, { validade: 0 });
@@ -197,7 +203,19 @@ test('a lista da biblioteca traz o título e o autor: do EPUB, ou o nome do arqu
     'Sem dados.EPUB': ['Sem dados', 'Clarice Lispector'],
     'Solto.pdf': ['Solto', ''],
     'Solto com dados.epub': ['Um título', 'Uma autora'],
+    'Sem autor escrito.pdf': ['Sem autor escrito', ''],
+    'Com autor escrito.epub': ['Com autor', 'Carolina Maria de Jesus'],
+    // Depois de um identificador, vale a primeira pasta com nome de gente.
+    'Sagarana.pdf': ['Sagarana', 'Guimarães Rosa'],
+    'Numerado.pdf': ['Numerado', ''],
   });
+  // O que parece um identificador, e o que parece um nome.
+  for (const pasta of ['9f2c1a7b4e5d6c3f', '550e8400-e29b-41d4-a716-446655440000', '550e8400e29b41d4a716446655440000', '12345', '2024-01', 'aB3xYz91QwErTy77LmNo', '___']) {
+    assert.equal(pareceIdentificador(pasta), true, pasta);
+  }
+  for (const pasta of ['Machado de Assis', 'Tolkien', 'J. R. R. Tolkien', 'Romances', 'Ficção 2', 'abcdef', 'Deadbeef Cafe', 'García-Márquez', 'Coleção2024', 'umnomecompridosemespacoenemnumeros']) {
+    assert.equal(pareceIdentificador(pasta), false, pasta);
+  }
   // A lista continua sem o caminho na VPS, e cada livro só com os campos esperados.
   assert.deepEqual(Object.keys((await biblioteca.listar())[0]).sort(), ['autor', 'bytes', 'id', 'modificadoEm', 'nome', 'pasta', 'tipo', 'titulo']);
 
@@ -212,7 +230,7 @@ test('a lista da biblioteca traz o título e o autor: do EPUB, ou o nome do arqu
     await biblioteca.listar();
     assert.deepEqual(leituras, [], 'nada foi lido de novo');
     fs.writeFileSync(path.join(livros, 'Clarice Lispector', 'A hora da estrela.epub'), criarEpub('<dc:title>A hora da estrela</dc:title><dc:creator>Clarice Lispector</dc:creator><dc:creator>Outra pessoa</dc:creator>'));
-    assert.deepEqual((await dados())['A hora da estrela.epub'], ['A hora da estrela', 'Clarice Lispector, Outra pessoa']);
+    assert.deepEqual((await dados())['A hora da estrela.epub'], ['A hora da estrela', 'Clarice Lispector; Outra pessoa']);
     assert.ok(leituras.length >= 2 && leituras.every((nome) => nome === 'A hora da estrela.epub'), `só o arquivo trocado foi lido: ${leituras}`);
   } finally {
     fs.promises.open = original;

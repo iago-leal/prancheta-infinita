@@ -128,7 +128,8 @@ function dadosDoPacote(xml) {
   const autores = [...new Set(elementos(metadados[1], 'creator'))].slice(0, LIMITE_DE_AUTORES);
   const dados = {};
   if (titulo) dados.titulo = titulo;
-  if (autores.length) dados.autor = autores.join(', ').slice(0, LIMITE_DO_TEXTO);
+  // Mais de um autor: separados por ponto e vírgula, porque a vírgula aparece dentro de um nome, como em "Assis, Machado de".
+  if (autores.length) dados.autor = autores.join('; ').slice(0, LIMITE_DO_TEXTO);
   return Object.keys(dados).length ? dados : null;
 }
 
