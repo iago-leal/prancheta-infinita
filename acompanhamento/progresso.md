@@ -20,7 +20,7 @@ Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antiga
 
 ### Pendências
 
-- O autor aprovar os critérios do plano 008, que só então entra no repositório.
+- O autor aprovou os critérios das duas etapas do [plano 008](planos/008-biblioteca-organizada/plano.md), que entrou no repositório; falta implementá-las.
 - O autor ainda não testou nada com o KOReader: os critérios das etapas 01, 02 e 04 do plano 007 que dependem dele continuam abertos, assim como os testes do plano 006 no Boox.
 
 ## 2026-11-10 · Plano 007: o KOReader recebe a posição da Prancheta, e a página do livro nos e-books
