@@ -142,18 +142,29 @@ test('o painel do leitor entra nas áreas reservadas, para a tinta da Onyx não 
   await esperar(pagina, () => Boolean(window.leitorDaPrancheta && document.getElementById('leitor')));
   const reservado = ([x, y]) => window.__chamadas.filter((c) => c[0] === 'areasReservadas').at(-1)[1]
     .some((a) => x >= a.x && x <= a.x + a.largura && y >= a.y && y <= a.y + a.altura);
-  // O painel aberto lado a lado, sem livro, como logo ao abrir um.
+  // O painel aberto lado a lado, à esquerda, sem livro, como logo ao abrir um.
   await pagina.evaluate(() => {
-    document.body.classList.add('leitor-lado');
+    document.body.classList.add('leitor-lado', 'leitor-esquerda');
     document.getElementById('leitor').hidden = false;
   });
   const [x, y] = await centro(pagina, '#leitor');
+  assert.ok(x < TELA.width / 2 + 140, `o leitor fica à esquerda: ${x}`);
   await esperar(pagina, reservado, [x, y]);
-  // O lado do quadro continua livre para a caneta.
-  assert.ok(!(await pagina.evaluate(reservado, [450, 400])), 'o quadro ao lado do leitor não é área reservada');
+  // O quadro, à direita do leitor, continua livre para a caneta, e as ferramentas ficam sobre ele.
+  const direita = await pagina.evaluate(() => document.getElementById('leitor').getBoundingClientRect().right);
+  assert.ok(!(await pagina.evaluate(reservado, [direita + 150, 500])), 'o quadro ao lado do leitor não é área reservada');
+  // As ferramentas, na faixa do alto, não ficam debaixo do leitor.
+  const sobrepostas = await pagina.evaluate(() => {
+    const l = document.getElementById('leitor').getBoundingClientRect();
+    return [...document.querySelectorAll('#tools [data-t], #bMore, #bUndo')].filter((b) => {
+      const r = b.getBoundingClientRect();
+      return r.width > 0 && r.left < l.right && r.right > l.left && r.top < l.bottom && r.bottom > l.top;
+    }).map((b) => b.dataset.t || b.id);
+  });
+  assert.deepEqual(sobrepostas, [], 'nenhum controle do quadro fica debaixo do leitor');
   await pagina.evaluate(() => {
     document.getElementById('leitor').hidden = true;
-    document.body.classList.remove('leitor-lado');
+    document.body.classList.remove('leitor-lado', 'leitor-esquerda');
   });
   await esperar(pagina, (ponto) => !window.__chamadas.filter((c) => c[0] === 'areasReservadas').at(-1)[1]
     .some((a) => ponto[0] >= a.x && ponto[0] <= a.x + a.largura && ponto[1] >= a.y && ponto[1] <= a.y + a.altura), [x, y]);

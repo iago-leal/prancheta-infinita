@@ -86,6 +86,23 @@ const selecionarNoEpub = (pagina, id, de, ate) => pagina.evaluate(([alvo, inicio
 }, [id, de, ate]);
 
 // Os cartões do quadro aberto, com o texto e os endereços dos links.
+// O meio, na tela, dos caracteres [de, ate) de um parágrafo do EPUB aberto.
+const meioNoEpub = (pagina, id, de, ate) => pagina.evaluate(([alvo, inicio, fim]) => {
+  const quadro = document.querySelector('#leitor iframe');
+  const doc = quadro.contentDocument;
+  const intervalo = doc.createRange();
+  intervalo.setStart(doc.getElementById(alvo).firstChild, inicio);
+  intervalo.setEnd(doc.getElementById(alvo).firstChild, fim);
+  const r = intervalo.getBoundingClientRect();
+  const q = quadro.getBoundingClientRect();
+  return [q.left + r.left + r.width / 2, q.top + r.top + r.height / 2];
+}, [id, de, ate]);
+
+const marcasNoEpub = (pagina) => pagina.evaluate(() => ({
+  realces: document.querySelectorAll('#leitor g.lt-destaque').length,
+  sublinhados: document.querySelectorAll('#leitor g.lt-sublinhado').length,
+}));
+
 const cartoes = (pagina) => pagina.evaluate(() => [...S.items.values()].filter((i) => i.type === 'card')
   .map((i) => ({ id: i.id, texto: i.blocks.map((b) => b.h).join('\n') })));
 
@@ -130,9 +147,9 @@ test('o destaque e a posição vão ao quadro, e o link reabre o livro, também 
     // O cartão fica na parte do quadro que aparece ao lado do leitor.
     const lugar = await a.pagina.evaluate((id) => {
       const r = document.querySelector(`[data-id="${id}"]`).getBoundingClientRect();
-      return { esquerda: r.left, direita: r.right, painel: document.getElementById('side').getBoundingClientRect().right };
+      return { esquerda: r.left, direita: r.right, leitor: document.getElementById('leitor').getBoundingClientRect().right };
     }, doTrecho.id);
-    assert.ok(lugar.direita <= 600 && lugar.esquerda >= lugar.painel, `o cartão fica entre o painel dos quadros e o leitor: ${JSON.stringify(lugar)}`);
+    assert.ok(lugar.esquerda >= lugar.leitor && lugar.direita <= 1200, `o cartão fica na parte do quadro à direita do leitor: ${JSON.stringify(lugar)}`);
 
     // O link do cartão reabre o livro no trecho, mesmo depois de fechado e
     // de outra posição, sem abrir uma aba nova.
@@ -234,4 +251,142 @@ test('um endereço de link de volta malformado não abre nada', async () => {
     `https://prancheta.invalid/livro/${livro}/${Buffer.from('[1,2]').toString('base64url')}`,
     'https://exemplo.com/livro/x/y',
   ]) assert.equal(lerEndereco(ruim), null, ruim);
+});
+
+test('tocar num destaque do EPUB abre apagar, estilo e nota, e as mudanças chegam ao outro aparelho', async () => {
+  const vps = await subirComoNaVps();
+  const chaveDaCifra = globalThis.CifraPrancheta.gerarChave();
+  const contextoA = await navegador.newContext({ viewport: TELA });
+  const contextoB = await navegador.newContext({ viewport: TELA });
+  try {
+    const a = await abrirPrancheta(contextoA, vps.base, chaveDaCifra);
+    await a.pagina.locator('#biblioteca .bib-livro', { hasText: 'Livro de teste.epub' }).click();
+    await a.pagina.waitForFunction(() => /primeiro capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
+    await a.pagina.click('#leitor [data-acao="proxima"]');
+    await a.pagina.waitForFunction(() => /segundo capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
+    for (const [de, ate] of [[2, 18], [43, 52]]) {
+      await selecionarNoEpub(a.pagina, 'p2', de, ate);
+      await a.pagina.locator('#leitor .lt-selecao [data-acao="destacar"]').waitFor();
+      await a.pagina.click('#leitor .lt-selecao [data-acao="destacar"]');
+      await a.pagina.waitForFunction(() => document.querySelector('#leitor .lt-selecao').hidden);
+    }
+    await a.pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque').length === 2);
+    const livro = await a.pagina.evaluate(() => window.leitorDaPrancheta.livro.id);
+
+    // Tocar no primeiro destaque o abre na barra do leitor.
+    assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
+    await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 2, 18));
+    await a.pagina.locator('#leitor .lt-marca').waitFor();
+    assert.equal(await a.pagina.textContent('#leitor .lt-marca-trecho'), 'Destaque: “segundo capítulo”');
+    assert.equal(await a.pagina.textContent('#leitor [data-acao="marca-estilo"]'), 'Sublinhar');
+    // Tocar fora dos destaques não abre nada, e Fechar fecha a barra.
+    await a.pagina.click('#leitor [data-acao="marca-fechar"]');
+    assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
+    await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 22, 26));
+    await a.pagina.waitForTimeout(300);
+    assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
+
+    // Estilo: de realce para sublinhado, e o botão passa a oferecer a volta.
+    await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 2, 18));
+    await a.pagina.locator('#leitor .lt-marca').waitFor();
+    await a.pagina.click('#leitor [data-acao="marca-estilo"]');
+    await a.pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-sublinhado').length === 1);
+    assert.deepEqual(await marcasNoEpub(a.pagina), { realces: 1, sublinhados: 1 });
+    assert.equal(await a.pagina.textContent('#leitor [data-acao="marca-estilo"]'), 'Realçar');
+
+    // Nota: guardada com Enter, vai para o cartão levado ao quadro.
+    await a.pagina.fill('#leitor .lt-marca input[name="nota"]', 'Voltar a este ponto');
+    await a.pagina.press('#leitor .lt-marca input[name="nota"]', 'Enter');
+    await a.pagina.waitForFunction(() => document.querySelector('#leitor .lt-aviso').textContent === 'Nota guardada.');
+    await a.pagina.click('#leitor [data-acao="marca-levar"]');
+    const [cartao] = await cartoes(a.pagina);
+    assert.match(cartao.texto, /segundo capítulo\nVoltar a este ponto\n<i>Livro de teste\.epub<\/i>.*\[abrir no livro\]/);
+
+    // Apagar o segundo destaque: some do livro, fica marcado na lista, e o cartão continua.
+    await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 43, 52));
+    await a.pagina.waitForFunction(() => /destacada/.test(document.querySelector('#leitor .lt-marca-trecho').textContent));
+    assert.equal(await a.pagina.inputValue('#leitor .lt-marca input[name="nota"]'), '');
+    await a.pagina.click('#leitor [data-acao="marca-apagar"]');
+    await a.pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque').length === 0);
+    assert.deepEqual(await marcasNoEpub(a.pagina), { realces: 0, sublinhados: 1 });
+    assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
+    const naLista = await a.pagina.evaluate(async (id) => (await (await claude.use('db')).doc(`marcacoes/${id}`).get()).data().itens
+      .map((d) => ({ trecho: d.trecho, estilo: d.estilo, nota: d.nota || '', apagado: Boolean(d.apagadoEm) })), livro);
+    assert.deepEqual(naLista, [
+      { trecho: 'segundo capítulo', estilo: 'sublinhado', nota: 'Voltar a este ponto', apagado: false },
+      { trecho: 'destacada', estilo: 'realce', nota: '', apagado: true },
+    ]);
+    assert.equal((await cartoes(a.pagina)).length, 1);
+    await aguardarSincronizado(a.pagina);
+
+    // O outro aparelho abre o livro pelo link do cartão: um só destaque, sublinhado, com a nota.
+    const b = await abrirPrancheta(contextoB, vps.base, chaveDaCifra);
+    await b.pagina.locator(`[data-id="${cartao.id}"] a.lk[href^="https://prancheta.invalid/livro/"]`).click({ timeout: 20000 });
+    await b.pagina.waitForFunction(() => /segundo capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 20000 });
+    await b.pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-sublinhado').length === 1, null, { timeout: 10000 });
+    assert.deepEqual(await marcasNoEpub(b.pagina), { realces: 0, sublinhados: 1 });
+    await b.pagina.mouse.click(...await meioNoEpub(b.pagina, 'p2', 2, 18));
+    await b.pagina.locator('#leitor .lt-marca').waitFor();
+    assert.equal(await b.pagina.inputValue('#leitor .lt-marca input[name="nota"]'), 'Voltar a este ponto');
+
+    // Apagado no outro aparelho, o destaque some do primeiro, com o livro e a barra abertos.
+    await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 2, 18));
+    await a.pagina.locator('#leitor .lt-marca').waitFor();
+    await b.pagina.click('#leitor [data-acao="marca-apagar"]');
+    await b.pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-sublinhado').length === 0);
+    await a.pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-sublinhado').length === 0, null, { timeout: 20000 });
+    assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
+    assert.deepEqual(await a.pagina.evaluate((id) => window.marcacoesDaPrancheta.destaques(id), livro), []);
+    // O cartão continua nos dois, e o link ainda abre o livro.
+    assert.equal((await cartoes(b.pagina)).length, 1);
+    const noServidor = await vps.armazem.lerDocumento(`marcacoes/${livro}`);
+    assert.ok(chaveDoDocumento(noServidor.registro.dados));
+    for (const { pagina } of [a, b]) assert.deepEqual(await pagina.evaluate(() => window.__violacoes), []);
+    assert.deepEqual([...a.erros, ...b.erros], []);
+  } finally {
+    await contextoA.close();
+    await contextoB.close();
+    await vps.fechar();
+  }
+});
+
+test('tocar num destaque do PDF abre apagar, estilo e nota', async () => {
+  const vps = await subirComoNaVps();
+  const contexto = await navegador.newContext({ viewport: TELA });
+  try {
+    const { pagina, erros } = await abrirPrancheta(contexto, vps.base);
+    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Documento.pdf' }).click();
+    await pagina.waitForFunction(() => /Primeira pagina/.test(document.querySelector('#leitor .textLayer')?.textContent || ''), null, { timeout: 15000 });
+    await pagina.evaluate(() => {
+      const intervalo = document.createRange();
+      intervalo.selectNodeContents(document.querySelector('#leitor .textLayer'));
+      document.getSelection().removeAllRanges();
+      document.getSelection().addRange(intervalo);
+    });
+    await pagina.locator('#leitor .lt-selecao [data-acao="destacar"]').waitFor();
+    await pagina.click('#leitor .lt-selecao [data-acao="destacar"]');
+    await pagina.locator('#leitor .textLayer span.lt-destacado').first().waitFor();
+
+    await pagina.locator('#leitor .textLayer span.lt-destacado').first().click();
+    await pagina.locator('#leitor .lt-marca').waitFor();
+    assert.equal(await pagina.textContent('#leitor .lt-marca-trecho'), 'Destaque: “Primeira pagina do PDF”');
+    await pagina.click('#leitor [data-acao="marca-estilo"]');
+    await pagina.locator('#leitor .textLayer span.lt-sublinhado').first().waitFor();
+    assert.equal(await pagina.locator('#leitor .textLayer span.lt-destacado').count(), 0);
+    await pagina.fill('#leitor .lt-marca input[name="nota"]', 'Nota do PDF');
+    await pagina.click('#leitor [data-acao="marca-nota"]');
+    await pagina.waitForFunction(() => document.querySelector('#leitor .lt-aviso').textContent === 'Nota guardada.');
+    const livro = await pagina.evaluate(() => window.leitorDaPrancheta.livro.id);
+    const [destaque] = await pagina.evaluate((id) => window.marcacoesDaPrancheta.destaques(id), livro);
+    assert.deepEqual({ estilo: destaque.estilo, nota: destaque.nota }, { estilo: 'sublinhado', nota: 'Nota do PDF' });
+
+    await pagina.click('#leitor [data-acao="marca-apagar"]');
+    await pagina.waitForFunction(() => document.querySelectorAll('#leitor .textLayer span.lt-sublinhado, #leitor .textLayer span.lt-destacado').length === 0);
+    assert.equal(await pagina.isVisible('#leitor .lt-marca'), false);
+    assert.deepEqual(await pagina.evaluate((id) => window.marcacoesDaPrancheta.destaques(id), livro), []);
+    assert.deepEqual(erros, []);
+  } finally {
+    await contexto.close();
+    await vps.fechar();
+  }
 });
