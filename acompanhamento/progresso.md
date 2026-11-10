@@ -6,6 +6,24 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 006: leitura no e-ink
+
+### Feito
+
+- Mesclado o PR #42, da etapa 01. O autor aprovou os critérios da [etapa 02](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md), que está implementada: o toque no terço direito da página avança e no esquerdo volta, com as exceções do meio, dos destaques, dos links e das seleções; o sumário e a busca abrem num painel sobre o livro, e a busca percorre o livro inteiro sem distinguir maiúsculas nem acentos; na casca, o realce aparece invertido e o sublinhado em linha cheia. A barra do leitor passou a ter duas linhas. Casca 0.10.0.
+- O autor relatou, com foto, que arrastar a ponta da seleção para além da página deixava o EPUB cortado ao meio. O leitor passou a desfazer a rolagem que o navegador faz para mostrar a seleção.
+- Os testes novos acharam dois defeitos antigos do EPUB, corrigidos: os links internos do livro não funcionavam desde a retirada da tag base, e as marcas dos destaques ficavam 14 px acima do trecho na volta a um capítulo.
+- Um arquivo novo de testes, com 7 testes, e 39 mutações acusadas; a suíte da página tem 99 testes.
+
+### Decidido
+
+- **Realce invertido na casca.** O autor aprovou os critérios com o realce invertido, sem optar pelo cinza mais forte que a proposta oferecia como alternativa para o Boox colorido.
+- **Uma seleção não passa de uma página para a outra no EPUB.** É a consequência de desfazer a rolagem da seleção; o trecho que atravessa a página pede dois destaques.
+
+### Pendências
+
+- Mesclar e o autor testar no Boox as duas etapas do plano 006, com a casca 0.10.0.
+
 ## 2026-11-10 · Plano 006: leitor à esquerda e destaques editáveis
 
 ### Feito

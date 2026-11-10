@@ -9,6 +9,11 @@
 // apagar, a troca de estilo entre realce e sublinhado, a nota e levar ao
 // quadro, como no Readest, de que só o comportamento foi aproveitado.
 //
+// Leitura no e-ink, etapa 02 do plano 006: tocar no terço direito da página
+// avança, e no esquerdo volta, sem animação; o sumário e a busca abrem num
+// painel sobre o livro, e a busca não distingue maiúsculas nem acentos; na
+// casca, o realce aparece invertido, e o sublinhado, em linha cheia.
+//
 // - EPUB: pela epub.js, com a JSZip de que ela depende, entregues junto com a
 //   página, em vendor/, e carregadas só quando o primeiro EPUB é aberto. O
 //   livro é desenhado num iframe sem scripts, paginado, sem animação. A
@@ -83,6 +88,94 @@
     return pdfjs;
   }
 
+  // ---- Busca no texto ----
+
+  const LIMITE_DE_ACHADOS = 200;
+  const CONTEXTO_DO_ACHADO = 40;
+
+  // Sem acentos e em minúsculas, para comparar; pode devolver mais de um caractere, ou nenhum.
+  const semAcento = (c) => c.normalize('NFD').replace(/\p{M}+/gu, '').toLowerCase();
+
+  /**
+   * Procura a consulta numa sequência de textos, como os nós de texto de um
+   * capítulo ou os pedaços de uma página de PDF, lidos em ordem como um texto
+   * só: sem distinguir maiúsculas nem acentos, com cada série de espaços valendo
+   * um espaço, e achando também o que atravessa mais de um texto. Devolve, de
+   * cada ocorrência, o início e o fim, com o índice do texto e a posição nele,
+   * e o trecho ao redor.
+   */
+  function procurarNosTextos(textos, consulta, limite = LIMITE_DE_ACHADOS) {
+    let plano = '';
+    // De cada caractere do texto comparável: o texto de origem, a posição nele e o tamanho do caractere original.
+    const origem = [];
+    let espaco = true;
+    // A origem do último caractere comparável, para um acento escrito à parte entrar no caractere que ele acentua.
+    let ultima = null;
+    textos.forEach((texto, n) => {
+      for (let o = 0; o < texto.length;) {
+        const c = String.fromCodePoint(texto.codePointAt(o));
+        if (/\s/.test(c)) {
+          if (!espaco) {
+            plano += ' ';
+            ultima = [n, o, c.length];
+            origem.push(ultima);
+          }
+          espaco = true;
+        } else {
+          const comparavel = semAcento(c);
+          if (comparavel) {
+            ultima = [n, o, c.length];
+            for (let k = 0; k < comparavel.length; k++) origem.push(ultima);
+            plano += comparavel;
+            espaco = false;
+          } else if (ultima && ultima[0] === n && ultima[1] + ultima[2] === o && !espaco) {
+            ultima[2] += c.length;
+          }
+        }
+        o += c.length;
+      }
+    });
+    const alvo = procurarNosTextos.comparavel(consulta);
+    const achados = [];
+    if (!alvo) return achados;
+    // O texto original de um intervalo do texto comparável, com os espaços já reduzidos.
+    const original = (de, ate) => {
+      let saida = '';
+      let anterior = null;
+      for (let k = Math.max(0, de); k < Math.min(plano.length, ate); k++) {
+        const [n, o, tamanho] = origem[k];
+        if (anterior === origem[k]) continue;
+        anterior = origem[k];
+        saida += plano[k] === ' ' ? ' ' : textos[n].substr(o, tamanho);
+      }
+      return saida;
+    };
+    for (let i = plano.indexOf(alvo); i >= 0 && achados.length < limite; i = plano.indexOf(alvo, i + alvo.length)) {
+      const fim = i + alvo.length;
+      const [nInicio, oInicio] = origem[i];
+      const [nFim, oFim, tamanhoFim] = origem[fim - 1];
+      achados.push({
+        inicio: { texto: nInicio, posicao: oInicio },
+        fim: { texto: nFim, posicao: oFim + tamanhoFim },
+        antes: original(i - CONTEXTO_DO_ACHADO, i),
+        termo: original(i, fim),
+        depois: original(fim, fim + CONTEXTO_DO_ACHADO),
+      });
+    }
+    return achados;
+  }
+  procurarNosTextos.comparavel = (texto) => [...String(texto || '').trim().replace(/\s+/g, ' ')].map((c) => (c === ' ' ? ' ' : semAcento(c))).join('');
+
+  // Os elementos que separam o texto em blocos, entre os quais a busca põe um espaço.
+  const BLOCO = /^(address|article|aside|blockquote|dd|div|dl|dt|figcaption|figure|footer|h[1-6]|header|hr|li|main|nav|ol|p|pre|section|table|td|th|tr|ul)$/i;
+
+  // O trecho ao redor de um achado, em três partes, com reticências onde o texto continua.
+  const trechoDoAchado = (a) => ({
+    antes: `${a.antes.length >= CONTEXTO_DO_ACHADO ? '…' : ''}${a.antes}`.trimStart(),
+    termo: a.termo,
+    depois: `${a.depois}${a.depois.length >= CONTEXTO_DO_ACHADO ? '…' : ''}`.trimEnd(),
+  });
+
   const resumir = (texto, limite = 160) => {
     const limpo = String(texto || '').replace(/\s+/g, ' ').trim();
     return limpo.length > limite ? `${limpo.slice(0, limite - 1)}…` : limpo;
@@ -100,6 +193,10 @@
       this.percentual = '';
       // Os destaques desenhados: de cada CFI, o tipo da anotação e o id do destaque.
       this._marcados = new Map();
+      this._tocouMarcaEm = 0;
+      this._achado = null;
+      // A posição em que a epub.js deixou a rolagem do livro, depois de travada.
+      this._rolagem = null;
     }
 
     async abrir(blob, posicao) {
@@ -125,13 +222,32 @@
         this.rotulo = [page && total ? `${page}/${total}` : '', this.percentual].filter(Boolean).join(' · ');
         const item = this.livro.navigation && local.start.href ? this.livro.navigation.get(local.start.href) : null;
         this.capitulo = item && item.label ? item.label.trim() : '';
+        this._reposicionarMarcas();
         this.aoMudar({ tipo: 'posicao' });
       });
+      // Os links internos do livro: a epub.js os resolve pela tag base, que a
+      // política da página recusa, e sem ela não acha o capítulo; o leitor
+      // resolve o endereço pelo capítulo aberto e leva a ele.
+      this.vista.hooks.content.register((conteudo) => {
+        // Um toque que começa com um trecho selecionado só desfaz a seleção.
+        conteudo.document.addEventListener('pointerdown', () => {
+          this._haviaSelecao = !conteudo.window.getSelection().isCollapsed;
+        }, true);
+        conteudo.document.addEventListener('click', (e) => {
+          const elo = e.target.closest && e.target.closest('a[href]');
+          if (!elo) return;
+          e.preventDefault();
+          e.stopPropagation();
+          this._seguirLink(elo.getAttribute('href'), conteudo);
+        }, true);
+      });
+      this.vista.on('click', (e, conteudo) => this._clicou(e, conteudo));
       this.vista.on('selected', (cfiRange, conteudo) => {
         const texto = conteudo && conteudo.window ? conteudo.window.getSelection().toString() : '';
         this.aoMudar({ tipo: 'selecao', selecao: texto.trim() ? { texto: texto.trim(), posicao: { cfi: cfiRange } } : null });
       });
       await this.vista.display(posicao && posicao.cfi ? posicao.cfi : undefined);
+      this._travarRolagem();
       // As porcentagens vêm depois, sem atrasar a abertura.
       this.livro.ready.then(() => this.livro.locations.generate(1600)).then(() => {
         if (this.vista) this.vista.reportLocation();
@@ -169,8 +285,150 @@
       this._marcados = novos;
     }
 
+    // Na volta a um capítulo, a epub.js redesenha as marcas antes de o texto
+    // tomar o lugar definitivo, e elas ficavam acima do trecho; com a página
+    // no lugar, cada marca é posta de novo sobre o seu trecho.
+    _reposicionarMarcas() {
+      if (!this.vista) return;
+      this.vista.views().forEach((vista) => {
+        if (vista.pane) vista.pane.render();
+      });
+    }
+
+    // Só as viradas de página rolam o livro. Ao arrastar a ponta de uma seleção
+    // para além da página, o navegador rola o livro para mostrá-la, e a página
+    // ficava cortada ao meio; essa rolagem é desfeita antes de aparecer na tela.
+    _travarRolagem() {
+      const gerente = this.vista && this.vista.manager;
+      const recipiente = gerente && gerente.container;
+      if (!recipiente || this._rolagem) return;
+      const ler = () => [recipiente.scrollLeft, recipiente.scrollTop];
+      this._rolagem = ler();
+      // A epub.js rola o livro por estas duas funções; a posição que elas deixam é a que vale.
+      for (const nome of ['scrollTo', 'scrollBy']) {
+        const original = gerente[nome];
+        gerente[nome] = (...argumentos) => {
+          const saida = original.apply(gerente, argumentos);
+          this._rolagem = ler();
+          return saida;
+        };
+      }
+      recipiente.addEventListener('scroll', () => {
+        const [x, y] = this._rolagem;
+        if (Math.abs(recipiente.scrollLeft - x) > 1) recipiente.scrollLeft = x;
+        if (Math.abs(recipiente.scrollTop - y) > 1) recipiente.scrollTop = y;
+      });
+    }
+
+    // Leva ao capítulo e ao ponto de um link interno; um endereço de fora do
+    // livro não é aberto, porque o leitor não sai do livro.
+    _seguirLink(endereco, conteudo) {
+      if (!endereco || !this.vista || /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(endereco)) return;
+      const secao = this.livro.spine.get(conteudo.sectionIndex);
+      if (!secao) return;
+      let alvo;
+      try {
+        const resolvido = new URL(endereco, `http://livro.invalid/${secao.href}`);
+        alvo = decodeURIComponent(resolvido.pathname.slice(1)) + resolvido.hash;
+      } catch (e) {
+        return;
+      }
+      if (this.livro.spine.get(alvo)) Promise.resolve(this.vista.display(alvo)).catch(() => {});
+    }
+
+    // Um toque na página, fora de um link, de um destaque e de uma seleção,
+    // feita ou desfeita por ele, é avisado com a fração da largura em que caiu,
+    // para virar a página.
+    _clicou(e, conteudo) {
+      if (this._haviaSelecao || (e.target.closest && e.target.closest('a[href]'))) return;
+      const quadro = conteudo.document.defaultView.frameElement;
+      const x = (quadro ? quadro.getBoundingClientRect().left : 0) + e.clientX;
+      // O toque num destaque chega logo depois, pela camada das anotações.
+      setTimeout(() => {
+        if (!this.vista || Date.now() - this._tocouMarcaEm < 400) return;
+        if (conteudo.window && !conteudo.window.getSelection().isCollapsed) return;
+        const r = this.conteudo.getBoundingClientRect();
+        this.aoMudar({ tipo: 'toque', fracao: (x - r.left) / r.width });
+      }, 0);
+    }
+
+    /** Os itens do sumário do livro, com o nível de cada um. */
+    async sumario() {
+      const navegacao = await this.livro.loaded.navigation;
+      const itens = [];
+      const andar = (lista, nivel) => {
+        for (const item of lista || []) {
+          itens.push({ titulo: String(item.label || '').trim(), nivel, alvo: item.href });
+          andar(item.subitems, nivel + 1);
+        }
+      };
+      andar(navegacao && navegacao.toc, 0);
+      return itens;
+    }
+
+    irPara(alvo) {
+      return this.vista.display(alvo);
+    }
+
+    /** Procura no livro inteiro, capítulo a capítulo, numa cópia de cada um. */
+    async procurar(consulta, cancelada) {
+      const achados = [];
+      const navegacao = await this.livro.loaded.navigation;
+      for (const secao of this.livro.spine.spineItems) {
+        if (cancelada() || achados.length >= LIMITE_DE_ACHADOS) break;
+        let doc;
+        try {
+          doc = await this.livro.load(secao.url);
+        } catch (e) {
+          continue;
+        }
+        const raiz = doc && (doc.body || doc.documentElement);
+        if (!raiz) continue;
+        // Os nós de texto do capítulo, com null entre os de blocos diferentes,
+        // para o fim de um parágrafo não colar no começo do seguinte.
+        const nos = [];
+        const blocoDe = (no) => {
+          for (let pai = no.parentNode; pai && pai !== raiz; pai = pai.parentNode) if (BLOCO.test(pai.localName || '')) return pai;
+          return raiz;
+        };
+        const caminhante = doc.createTreeWalker(raiz, 5);
+        let anterior = null;
+        let quebra = false;
+        for (let no = caminhante.nextNode(); no; no = caminhante.nextNode()) {
+          if (no.nodeType === 1) {
+            if (no.localName === 'br') quebra = true;
+            continue;
+          }
+          if (/^(script|style)$/i.test(no.parentNode.nodeName)) continue;
+          const bloco = blocoDe(no);
+          if (nos.length && (quebra || bloco !== anterior)) nos.push(null);
+          nos.push(no);
+          anterior = bloco;
+          quebra = false;
+        }
+        const item = navegacao && secao.href ? navegacao.get(secao.href) : null;
+        const rotulo = item && item.label ? item.label.trim() : `Seção ${secao.index + 1}`;
+        for (const a of procurarNosTextos(nos.map((no) => (no ? no.nodeValue : ' ')), consulta, LIMITE_DE_ACHADOS - achados.length)) {
+          const intervalo = doc.createRange();
+          intervalo.setStart(nos[a.inicio.texto], a.inicio.posicao);
+          intervalo.setEnd(nos[a.fim.texto], a.fim.posicao);
+          achados.push({ trecho: trechoDoAchado(a), rotulo, alvo: secao.cfiFromRange(intervalo) });
+        }
+      }
+      return achados;
+    }
+
+    /** Leva a um resultado da busca e o marca, no lugar do anterior. */
+    async mostrarAchado(cfi) {
+      if (this._achado) this.vista.annotations.remove(this._achado, 'highlight');
+      this._achado = cfi;
+      await this.vista.display(cfi);
+      this.vista.annotations.highlight(cfi, {}, null, 'lt-achado', { fill: '#000', 'fill-opacity': '0.35' });
+    }
+
     // Um toque no destaque o abre; o fim de uma seleção sobre ele não.
     _tocouNoDestaque(cfi) {
+      this._tocouMarcaEm = Date.now();
       const marcado = this._marcados.get(cfi);
       if (!marcado || !this.vista) return;
       const selecionando = this.vista.getContents().some((c) => c.window && !c.window.getSelection().isCollapsed);
@@ -214,8 +472,14 @@
       this.total = 0;
       this.rotulo = '';
       this._destaques = [];
+      this._achado = null;
       this._aoSelecionar = () => this._selecionou();
       this._aoTocar = (e) => this._tocou(e);
+      // Um toque que começa com um trecho selecionado só desfaz a seleção.
+      this._aoBaixar = () => {
+        const selecao = document.getSelection();
+        this._haviaSelecao = Boolean(selecao && !selecao.isCollapsed);
+      };
     }
 
     async abrir(blob, posicao) {
@@ -227,14 +491,86 @@
       this.conteudo.classList.add('lt-pdf');
       document.addEventListener('selectionchange', this._aoSelecionar);
       this.conteudo.addEventListener('click', this._aoTocar);
+      this.conteudo.addEventListener('pointerdown', this._aoBaixar, true);
       await this._desenhar();
     }
 
-    // Um toque num pedaço destacado, sem seleção em andamento, abre o destaque.
+    // Um toque num pedaço destacado, sem seleção em andamento, abre o destaque;
+    // fora dele, e sem ter desfeito uma seleção, é avisado com a fração da
+    // largura em que caiu, para virar a página.
     _tocou(e) {
-      const pedaco = e.target.closest && e.target.closest('.textLayer span[data-destaque]');
       const selecao = document.getSelection();
-      if (pedaco && (!selecao || selecao.isCollapsed)) this.aoMudar({ tipo: 'destaque', id: pedaco.dataset.destaque });
+      if (this._haviaSelecao || (selecao && !selecao.isCollapsed)) return;
+      const pedaco = e.target.closest && e.target.closest('.textLayer span[data-destaque]');
+      if (pedaco) {
+        this.aoMudar({ tipo: 'destaque', id: pedaco.dataset.destaque });
+        return;
+      }
+      const r = this.conteudo.getBoundingClientRect();
+      this.aoMudar({ tipo: 'toque', fracao: (e.clientX - r.left) / r.width });
+    }
+
+    // Os textos de uma página, na ordem dos pedaços da camada de texto, cada
+    // um com a posição em que começa no texto da página; no fim de cada linha
+    // entra um espaço que não conta na posição, para as linhas não colarem.
+    async _textosDaPagina(numero) {
+      const pagina = await this.documento.getPage(numero);
+      const textos = [];
+      let posicao = 0;
+      for (const item of (await pagina.getTextContent()).items) {
+        if (typeof item.str !== 'string') continue;
+        textos.push({ texto: item.str, posicao });
+        posicao += item.str.length;
+        if (item.hasEOL) textos.push({ texto: ' ', posicao });
+      }
+      return textos;
+    }
+
+    /** Os marcadores do PDF que apontam para uma página, com o nível de cada um. */
+    async sumario() {
+      const itens = [];
+      const andar = async (lista, nivel) => {
+        for (const item of lista || []) {
+          let pagina = null;
+          try {
+            const destino = typeof item.dest === 'string' ? await this.documento.getDestination(item.dest) : item.dest;
+            if (Array.isArray(destino) && destino[0] != null) {
+              pagina = (typeof destino[0] === 'object' ? await this.documento.getPageIndex(destino[0]) : Number(destino[0])) + 1;
+            }
+          } catch (e) { /* um marcador sem destino válido fica de fora */ }
+          if (pagina) itens.push({ titulo: String(item.title || '').trim(), nivel, alvo: pagina });
+          await andar(item.items, nivel + 1);
+        }
+      };
+      await andar(await this.documento.getOutline(), 0);
+      return itens;
+    }
+
+    async irPara(pagina) {
+      this.pagina = Math.min(Math.max(1, Number(pagina) || 1), this.total);
+      await this._desenhar();
+    }
+
+    /** Procura no PDF inteiro, página a página. */
+    async procurar(consulta, cancelada) {
+      const achados = [];
+      for (let numero = 1; numero <= this.total; numero++) {
+        if (cancelada() || achados.length >= LIMITE_DE_ACHADOS) break;
+        const textos = await this._textosDaPagina(numero);
+        for (const a of procurarNosTextos(textos.map((t) => t.texto), consulta, LIMITE_DE_ACHADOS - achados.length)) {
+          achados.push({
+            trecho: trechoDoAchado(a), rotulo: `p. ${numero}`,
+            alvo: { pagina: numero, inicio: textos[a.inicio.texto].posicao + a.inicio.posicao, fim: textos[a.fim.texto].posicao + a.fim.posicao },
+          });
+        }
+      }
+      return achados;
+    }
+
+    /** Leva a um resultado da busca e o marca, no lugar do anterior. */
+    async mostrarAchado(alvo) {
+      this._achado = alvo;
+      await this.irPara(alvo.pagina);
     }
 
     async _desenhar() {
@@ -304,13 +640,29 @@
         .filter((d) => d.posicao && d.posicao.pagina === this.pagina && Number.isSafeInteger(d.posicao.inicio));
       let posicao = 0;
       for (const pedaco of camada.querySelectorAll('span')) {
-        if (pedaco.childElementCount) continue;
+        if (pedaco.childElementCount && !pedaco.querySelector(':scope > mark')) continue;
         const tamanho = pedaco.textContent.length;
         const destaque = daPagina.find((d) => posicao < d.posicao.fim && posicao + tamanho > d.posicao.inicio);
         pedaco.classList.toggle('lt-destacado', Boolean(destaque) && destaque.estilo !== 'sublinhado');
         pedaco.classList.toggle('lt-sublinhado', Boolean(destaque) && destaque.estilo === 'sublinhado');
         if (destaque) pedaco.dataset.destaque = destaque.id;
         else delete pedaco.dataset.destaque;
+        // O termo achado pela busca fica numa marca dentro do pedaço, só sobre as letras dele.
+        const marcado = pedaco.querySelector('mark');
+        const achado = this._achado && this._achado.pagina === this.pagina && posicao < this._achado.fim && posicao + tamanho > this._achado.inicio;
+        if (marcado || achado) {
+          const texto = pedaco.textContent;
+          if (achado) {
+            const de = Math.max(0, this._achado.inicio - posicao);
+            const ate = Math.min(tamanho, this._achado.fim - posicao);
+            const marca = document.createElement('mark');
+            marca.className = 'lt-achado';
+            marca.textContent = texto.slice(de, ate);
+            pedaco.replaceChildren(texto.slice(0, de), marca, texto.slice(ate));
+          } else {
+            pedaco.textContent = texto;
+          }
+        }
         posicao += tamanho;
       }
     }
@@ -342,6 +694,7 @@
     destruir() {
       document.removeEventListener('selectionchange', this._aoSelecionar);
       this.conteudo.removeEventListener('click', this._aoTocar);
+      this.conteudo.removeEventListener('pointerdown', this._aoBaixar, true);
       this.conteudo.classList.remove('lt-pdf');
       if (this.documento) this.documento.destroy().catch(() => {});
       this.documento = null;
@@ -371,11 +724,26 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
 #leitor .lt-titulo{flex:1;min-width:0;font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #leitor .lt-posicao{flex:none;font-size:12.5px;color:var(--muted,#7F7C76);font-variant-numeric:tabular-nums}
 #leitor .lt-barra button{flex:none;font:inherit;font-size:13px;min-width:34px;height:34px;padding:0 8px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
-#leitor .lt-conteudo{flex:1;min-height:0;position:relative;overflow:hidden}
+#leitor .lt-barra{flex-wrap:wrap}
+#leitor .lt-quebra{flex-basis:100%;height:0}
+#leitor .lt-posicao{min-width:64px;text-align:center}
+#leitor .lt-meio{flex:1;min-height:0;position:relative;display:flex}
+#leitor .lt-conteudo{flex:1;min-width:0;min-height:0;position:relative;overflow:hidden}
+#leitor .lt-painel{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--panel,#fff);overflow:auto;font-size:14px}
+#leitor .lt-painel-topo{display:flex;align-items:center;gap:8px}
+#leitor .lt-painel-topo b{flex:1;min-width:0}
+#leitor .lt-busca{display:flex;gap:8px}
+#leitor .lt-busca input{flex:1;min-width:0;font:inherit;height:38px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit}
+#leitor .lt-painel button{font:inherit;font-size:13px;min-height:38px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+#leitor .lt-painel-aviso{margin:0;font-size:13px;color:var(--muted,#7F7C76)}
+#leitor .lt-painel-aviso:empty{display:none}
+#leitor .lt-painel-lista{display:flex;flex-direction:column;gap:4px}
+#leitor .lt-painel-lista button{display:block;width:100%;text-align:left;padding:8px 10px;border-color:transparent;border-bottom-color:var(--line,#E3E1DD);border-radius:0;line-height:1.35}
+#leitor .lt-painel-lista button small{display:block;color:var(--muted,#7F7C76);font-size:12px}
 #leitor .lt-conteudo.lt-pdf{overflow:auto;padding:8px}
 #leitor .lt-folha{position:relative;margin:0 auto;background:#fff}
 #leitor .lt-folha canvas{display:block}
-#leitor .textLayer{position:absolute;inset:0;overflow:hidden;line-height:1;text-align:initial;-webkit-text-size-adjust:none;text-size-adjust:none;transform-origin:0 0;z-index:2}
+#leitor .textLayer{position:absolute;inset:0;overflow:hidden;line-height:1;text-align:initial;-webkit-text-size-adjust:none;text-size-adjust:none;transform-origin:0 0}
 #leitor .textLayer :is(span,br){color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%}
 #leitor .textLayer span.markedContent{top:0;height:0}
 #leitor .textLayer ::selection{background:rgba(0,0,0,.25)}
@@ -383,6 +751,13 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
 #leitor g.lt-sublinhado rect{stroke:none}
 #leitor g.lt-sublinhado line{stroke:#000;stroke-opacity:.9;stroke-width:1.5px}
 #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 rgba(0,0,0,.9);cursor:pointer}
+#leitor .textLayer mark.lt-achado{color:transparent;background:rgba(0,0,0,.22);outline:2px solid #000}
+html.casca #leitor .epub-view>svg{mix-blend-mode:difference}
+html.casca #leitor g.lt-destaque,html.casca #leitor g.lt-achado{fill:#fff;fill-opacity:1}
+html.casca #leitor g.lt-sublinhado line{stroke:#fff;stroke-opacity:1;stroke-width:2px}
+html.casca #leitor .textLayer span.lt-destacado{background:#fff;mix-blend-mode:difference}
+html.casca #leitor .textLayer mark.lt-achado{background:transparent}
+html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
 #leitor .lt-marca{flex:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--line,#E3E1DD);font-size:13px}
 #leitor .lt-marca .lt-marca-trecho{flex:1 1 100%;min-width:0}
 #leitor .lt-marca label{flex:1 1 180px;display:flex;align-items:center;gap:6px;min-width:0}
@@ -411,6 +786,10 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
       this.destaques = [];
       // O id do destaque aberto na barra do leitor, depois de um toque nele.
       this.destaqueAberto = null;
+      // O painel aberto sobre o livro, do sumário ou da busca, ou null.
+      this.painel = null;
+      this._achados = { consulta: '', itens: [], aviso: '' };
+      this._busca = 0;
       this._ouvintes = new Set();
     }
 
@@ -546,6 +925,69 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
       return cartao;
     }
 
+    /** Abre o sumário do livro num painel sobre ele. */
+    async abrirSumario() {
+      if (!this.vista) return;
+      const vista = this.vista;
+      const itens = await vista.sumario();
+      if (vista !== this.vista) return;
+      this.painel = {
+        tipo: 'sumario', titulo: 'Sumário', aviso: itens.length ? '' : 'Este livro não tem sumário.',
+        itens: itens.map((i) => ({ texto: i.titulo || '(sem título)', nivel: i.nivel, alvo: i.alvo })),
+      };
+      this._avisar();
+    }
+
+    /** Abre a busca no texto, com os resultados da última consulta neste livro. */
+    abrirBusca() {
+      if (!this.vista) return;
+      this.painel = { tipo: 'busca', titulo: 'Buscar no livro', ...this._achados };
+      this._avisar();
+    }
+
+    /** Procura um termo no livro inteiro, sem distinguir maiúsculas nem acentos. */
+    async procurar(consulta) {
+      if (!this.vista) return [];
+      const vista = this.vista;
+      const numero = ++this._busca;
+      const termo = String(consulta || '').trim();
+      const mostrar = (achados) => {
+        this._achados = achados;
+        if (this.painel && this.painel.tipo === 'busca') this.painel = { tipo: 'busca', titulo: 'Buscar no livro', ...achados };
+        this._avisar();
+      };
+      if (!termo) {
+        mostrar({ consulta: '', itens: [], aviso: '' });
+        return [];
+      }
+      mostrar({ consulta: termo, itens: [], aviso: 'Procurando…' });
+      const achados = await vista.procurar(termo, () => numero !== this._busca || vista !== this.vista);
+      if (numero !== this._busca || vista !== this.vista) return [];
+      const quantos = achados.length >= LIMITE_DE_ACHADOS ? `As primeiras ${LIMITE_DE_ACHADOS} ocorrências.`
+        : achados.length === 1 ? '1 ocorrência.' : `${achados.length} ocorrências.`;
+      mostrar({
+        consulta: termo, aviso: achados.length ? quantos : `Nada encontrado para “${termo}”.`,
+        itens: achados.map((a) => ({ trecho: a.trecho, sub: a.rotulo, alvo: a.alvo })),
+      });
+      return achados;
+    }
+
+    /** Leva ao item tocado no painel, um capítulo do sumário ou um resultado da busca, e fecha o painel. */
+    async irParaItem(indice) {
+      const painel = this.painel;
+      const item = painel && painel.itens[indice];
+      if (!item || !this.vista) return;
+      this.painel = null;
+      this._avisar();
+      if (painel.tipo === 'busca') await this.vista.mostrarAchado(item.alvo);
+      else await this.vista.irPara(item.alvo);
+    }
+
+    fecharPainel() {
+      this.painel = null;
+      this._avisar();
+    }
+
     /** Passa o leitor para o outro lado do quadro e guarda a escolha neste aparelho. */
     trocarLado() {
       this.lado = this.lado === 'esquerda' ? 'direita' : 'esquerda';
@@ -572,6 +1014,12 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
       }
       if (mudanca.tipo === 'destaque') {
         this.abrirDestaque(mudanca.id);
+        return;
+      }
+      // O terço esquerdo da página volta, e o direito avança; o meio não vira a página.
+      if (mudanca.tipo === 'toque') {
+        if (mudanca.fracao < 1 / 3) Promise.resolve(this.anterior()).catch(() => {});
+        else if (mudanca.fracao > 2 / 3) Promise.resolve(this.proxima()).catch(() => {});
         return;
       }
       if (mudanca.tipo === 'posicao' && this.livro) {
@@ -627,6 +1075,9 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
       this._pararMarcas = null;
       this.destaques = [];
       this.destaqueAberto = null;
+      this.painel = null;
+      this._achados = { consulta: '', itens: [], aviso: '' };
+      this._busca += 1;
       if (this.vista) this.vista.destruir();
       this.vista = null;
       this.livro = null;
@@ -652,14 +1103,25 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
 <div class="lt-barra">
   <button type="button" data-acao="fechar" title="Fechar o livro" aria-label="Fechar o livro">✕</button>
   <span class="lt-titulo"></span>
-  <span class="lt-posicao"></span>
+  <span class="lt-quebra"></span>
   <button type="button" data-acao="anterior" title="Página anterior" aria-label="Página anterior">‹</button>
+  <span class="lt-posicao"></span>
   <button type="button" data-acao="proxima" title="Próxima página" aria-label="Próxima página">›</button>
+  <button type="button" data-acao="sumario">Sumário</button>
+  <button type="button" data-acao="buscar">Buscar</button>
   <button type="button" data-acao="ao-quadro" title="Levar esta posição ao quadro, sem destacar">Ao quadro</button>
   <button type="button" data-acao="lado" title="Passar o leitor para o outro lado do quadro" aria-label="Passar o leitor para o outro lado do quadro">⇄</button>
   <button type="button" data-acao="modo"></button>
 </div>
-<div class="lt-conteudo"></div>
+<div class="lt-meio">
+  <div class="lt-conteudo"></div>
+  <div class="lt-painel" hidden>
+    <div class="lt-painel-topo"><b class="lt-painel-titulo"></b><button type="button" data-acao="painel-fechar">Fechar</button></div>
+    <form class="lt-busca" hidden><input name="busca" type="search" autocomplete="off" spellcheck="false" aria-label="Termo a procurar"><button type="submit">Procurar</button></form>
+    <p class="lt-painel-aviso" role="status"></p>
+    <div class="lt-painel-lista"></div>
+  </div>
+</div>
 <div class="lt-selecao" hidden><span class="lt-trecho"></span><button type="button" data-acao="destacar">Destacar</button><button type="button" data-acao="levar">Levar ao quadro</button></div>
 <div class="lt-marca" hidden>
   <span class="lt-marca-trecho"></span>
@@ -686,6 +1148,16 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
       const estiloDaMarca = painel.querySelector('[data-acao="marca-estilo"]');
       // O destaque cuja nota está no campo, para não sobrescrever o que o autor digita.
       let notaDe = null;
+      // O painel do sumário e da busca, sobre a página do livro.
+      const sobre = {
+        raiz: painel.querySelector('.lt-painel'),
+        titulo: painel.querySelector('.lt-painel-titulo'),
+        aviso: painel.querySelector('.lt-painel-aviso'),
+        busca: painel.querySelector('form.lt-busca'),
+        campo: painel.querySelector('input[name="busca"]'),
+        lista: painel.querySelector('.lt-painel-lista'),
+      };
+      let painelDesenhado = null;
       // No e-ink, cada troca de texto atualiza a região: só escreve o que mudou.
       const escrever = (elemento, texto) => {
         if (elemento.textContent !== texto) elemento.textContent = texto;
@@ -705,12 +1177,57 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
           if (notaDe !== aberto.id) nota.value = aberto.nota || '';
         }
         notaDe = aberto ? aberto.id : null;
+        // O painel só é redesenhado quando muda, para não piscar no e-ink.
+        if (this.painel !== painelDesenhado) {
+          const antes = painelDesenhado;
+          painelDesenhado = this.painel;
+          sobre.raiz.hidden = !this.painel;
+          if (this.painel) {
+            escrever(sobre.titulo, this.painel.titulo);
+            escrever(sobre.aviso, this.painel.aviso || '');
+            sobre.busca.hidden = this.painel.tipo !== 'busca';
+            if (this.painel.tipo === 'busca' && (!antes || antes.tipo !== 'busca')) {
+              sobre.campo.value = this.painel.consulta || '';
+              sobre.campo.focus();
+            }
+            sobre.lista.replaceChildren(...this.painel.itens.map((item, i) => {
+              const botao = document.createElement('button');
+              botao.type = 'button';
+              botao.dataset.item = String(i);
+              if (item.trecho) {
+                const termo = document.createElement('b');
+                termo.textContent = item.trecho.termo;
+                const texto = document.createElement('span');
+                texto.append(item.trecho.antes, termo, item.trecho.depois);
+                botao.appendChild(texto);
+              } else {
+                botao.textContent = item.texto;
+              }
+              if (item.nivel) botao.style.paddingLeft = `${10 + item.nivel * 16}px`;
+              if (item.sub) {
+                const sub = document.createElement('small');
+                sub.textContent = item.sub;
+                botao.appendChild(sub);
+              }
+              return botao;
+            }));
+          }
+        }
         selecao.hidden = !this.selecao;
         const onde = this.selecao && this.selecao.posicao.pagina ? ` (p. ${this.selecao.posicao.pagina})` : '';
         escrever(trecho, this.selecao ? `Selecionado: “${resumir(this.selecao.texto)}”${onde}` : '');
       });
       this.aviso = (texto) => escrever(aviso, texto || '');
+      sobre.busca.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.procurar(sobre.campo.value).catch((erroNaBusca) => this.aviso(`Não foi possível procurar: ${erroNaBusca.message}.`));
+      });
       painel.addEventListener('click', (e) => {
+        const item = e.target.closest && e.target.closest('.lt-painel-lista [data-item]');
+        if (item) {
+          this.irParaItem(Number(item.dataset.item)).catch(() => {});
+          return;
+        }
         const botao = e.target.closest && e.target.closest('[data-acao]');
         if (!botao) return;
         const acao = botao.dataset.acao;
@@ -720,6 +1237,9 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
         if (acao === 'modo') this.alternarModo();
         if (acao === 'ao-quadro') this.levarPosicaoAoQuadro();
         if (acao === 'lado') this.trocarLado();
+        if (acao === 'sumario') this.abrirSumario().catch(() => {});
+        if (acao === 'buscar') this.abrirBusca();
+        if (acao === 'painel-fechar') this.fecharPainel();
         if (acao === 'marca-fechar') this.fecharDestaque();
         if (acao === 'marca-levar') this.levarDestaqueAoQuadro();
         const falhou = (erroNaMarca) => this.aviso(`Não foi possível mudar o destaque: ${erroNaMarca.message}.`);
@@ -734,10 +1254,10 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
       });
       // As setas viram as páginas quando o foco está no leitor.
       painel.addEventListener('keydown', (e) => {
-        // No campo da nota, as teclas escrevem, e Enter guarda a nota.
-        if (e.target === nota) {
+        // Nos campos da nota e da busca, as teclas escrevem; Enter guarda a nota ou procura.
+        if (e.target === nota || e.target === sobre.campo) {
           e.stopPropagation();
-          if (e.key === 'Enter') this.anotarDestaque(nota.value).catch(() => {});
+          if (e.key === 'Enter' && e.target === nota) this.anotarDestaque(nota.value).catch(() => {});
           return;
         }
         if (e.key === 'ArrowRight' || e.key === 'PageDown') Promise.resolve(this.proxima()).catch(() => {});
@@ -765,5 +1285,5 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
     return leitor;
   }
 
-  global.LeitorPrancheta = Object.freeze({ Leitor, ligar, LARGURA_MINIMA_LADO_A_LADO });
+  global.LeitorPrancheta = Object.freeze({ Leitor, ligar, procurarNosTextos, LARGURA_MINIMA_LADO_A_LADO });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -282,7 +282,7 @@ test('tocar num destaque do EPUB abre apagar, estilo e nota, e as mudanças cheg
     // Tocar fora dos destaques não abre nada, e Fechar fecha a barra.
     await a.pagina.click('#leitor [data-acao="marca-fechar"]');
     assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
-    await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 22, 26));
+    await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 30, 33));
     await a.pagina.waitForTimeout(300);
     assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
 

@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-10
 fase: Melhorias do leitor
 plano_ativo: acompanhamento/planos/006-melhorias-do-leitor/plano.md
-etapa_atual: acompanhamento/planos/006-melhorias-do-leitor/etapas/01-leitor-a-esquerda-e-destaques.md
+etapa_atual: acompanhamento/planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md
 bloqueios: []
 ---
 
@@ -38,11 +38,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 006, melhorias do leitor, aberto em 2026-11-10 com a aprovação do autor: 01 leitor à esquerda e destaques editáveis ao toque, implementada, a testar no Boox; 02 leitura no e-ink, com destaques visíveis, toque nas laterais, sumário e busca, a detalhar. As funções seguem o comportamento do Readest, descrito em `acompanhamento/planos/006-melhorias-do-leitor/readest.md` e implementado sem copiar código, porque ele é AGPL. O plano 005, livros e PDFs, com rede privada e cifra, terminou em 2026-11-09, com a casca 0.8.0. Os planos 001 a 004 estão concluídos.
+Plano 006, melhorias do leitor, aberto em 2026-11-10 com a aprovação do autor. As duas etapas estão implementadas e esperam o teste dele no Boox: 01, leitor à esquerda e destaques editáveis ao toque, na casca 0.9.0; 02, leitura no e-ink, na casca 0.10.0, com o toque nas laterais para virar a página, o sumário, a busca no livro inteiro, sem distinguir maiúsculas nem acentos, e os destaques invertidos. A etapa 02 também corrigiu a página cortada ao arrastar a ponta de uma seleção, relatada pelo autor, os links internos dos EPUBs e as marcas fora do lugar na volta a um capítulo. As funções seguem o comportamento do Readest, descrito em `acompanhamento/planos/006-melhorias-do-leitor/readest.md` e implementado sem copiar código, porque ele é AGPL. O plano 005 terminou em 2026-11-09, com a casca 0.8.0. Os planos 001 a 004 estão concluídos.
 
 ## Próximo passo
 
-Mesclar a etapa 01 do plano 006, com a casca 0.9.0, e o autor testar no Boox o leitor à esquerda, a caneta no quadro à direita e o toque num destaque para apagá-lo e anotá-lo; depois, detalhar com ele a etapa 02, a leitura no e-ink. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar a etapa 02 do plano 006, com a casca 0.10.0, e o autor testar no Boox: da etapa 01, o leitor à esquerda, a caneta no quadro à direita e o toque num destaque, com o dedo e com a caneta; da etapa 02, se os destaques invertidos se enxergam bem, o toque nas laterais, o sumário, a busca e a seleção arrastada para além da página. Com a confirmação dele, concluir as duas etapas e o plano. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
