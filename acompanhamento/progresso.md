@@ -6,6 +6,23 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Etapa 03 do plano 007 concluída, e o pedido da biblioteca organizada
+
+### Feito
+
+- Mesclado o PR #47, com a etapa 04 do plano 007 e a página do livro nos e-books; a casca 0.14.0 e a versão nova do servidor foram publicadas.
+- O autor confirmou que testou a Prancheta no MacBook e no Boox e que a posição de leitura passou de um para o outro. Com isso, a [etapa 03 do plano 007](planos/007-progresso-do-koreader/etapas/03-posicao-entre-os-aparelhos.md) foi concluída.
+
+### Decidido
+
+- **O próximo plano é a biblioteca organizada, e não a escrita sobre o livro.** O autor disse que escrever à mão sobre a página não é uma necessidade tão grande, e que a lista de livros vai ficar grande demais para achar as obras. Ele quer abrir a biblioteca como uma biblioteca e ver quais quadros citam cada livro.
+- **Respostas do autor para o desenho do plano 008:** tela própria, por cima do quadro; lista com título e autor, sem capas; as pastas do servidor são por autor e bastam; os quadros que citam um livro aparecem na ficha dele e num botão do leitor.
+
+### Pendências
+
+- O autor aprovar os critérios do plano 008, que só então entra no repositório.
+- O autor ainda não testou nada com o KOReader: os critérios das etapas 01, 02 e 04 do plano 007 que dependem dele continuam abertos, assim como os testes do plano 006 no Boox.
+
 ## 2026-11-10 · Plano 007: o KOReader recebe a posição da Prancheta, e a página do livro nos e-books
 
 ### Feito

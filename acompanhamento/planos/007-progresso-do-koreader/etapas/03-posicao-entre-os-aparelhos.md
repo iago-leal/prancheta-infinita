@@ -3,10 +3,10 @@ tipo: etapa
 plano: "007"
 etapa: "03"
 titulo: "A Prancheta envia a posição dela para o outro aparelho"
-status: em_andamento
+status: concluida
 depende_de: ["02"]
 iniciada_em: 2026-11-10
-concluida_em:
+concluida_em: 2026-11-10
 ---
 
 # Etapa 03: a Prancheta envia a posição dela para o outro aparelho
@@ -22,7 +22,7 @@ Fazer o Boox e o computador compartilharem a posição de leitura: o leitor de u
 - [x] Abrir um livro sem virar página não grava nada, e o aparelho não recebe aviso da própria gravação.
 - [x] O progresso da Prancheta fica legível, junto do do KOReader.
 - [x] Os testes automáticos cobrem, com dois perfis, a gravação, o aviso e os casos sem gravação, e acusam mutações introduzidas.
-- [ ] O autor lê no Boox, abre no computador e continua de lá, e o contrário.
+- [x] O autor lê no Boox, abre no computador e continua de lá, e o contrário.
 
 ## Registro
 
@@ -39,5 +39,17 @@ Fazer o Boox e o computador compartilharem a posição de leitura: o leitor de u
 - Um achado sobre os testes: o relógio do servidor de teste ficava parado no início do teste, o que invertia a ordem dos horários; os testes passaram a usar o horário real, com desvio só onde o caso pede.
 - O detector da skill `impeccable` não apontou nada.
 - Falta, para o critério 6, o teste do autor no Boox e no computador, com a casca 0.13.0.
+- Depois da mescla do PR #47, o autor confirmou o critério 6: testou a Prancheta no MacBook e no Boox, e a sincronização da posição funcionou entre os dois. Ele esclareceu que ainda não testou nada com o KOReader; os critérios das etapas 01, 02 e 04 que dependem dele continuam abertos.
 
 ## Resultado
+
+O Boox e o computador compartilham a posição de leitura: o leitor grava no servidor a posição exata pouco depois da última virada de página e ao fechar o livro, e o outro aparelho mostra o aviso com o nome do aparelho e um botão que leva à mesma página.
+
+Como cada critério foi verificado:
+
+1. Gravação da posição ao virar páginas, sem atraso e sem erro sem rede: pelos testes do servidor e pelo teste da página com dois perfis.
+2. Aviso no outro aparelho, com o botão que leva à mesma página: pelo teste com dois perfis.
+3. Abrir sem virar página não grava, e a própria gravação não gera aviso: pelo teste com dois perfis.
+4. Progresso da Prancheta legível, junto do do KOReader: pelo teste do servidor, que confere os campos guardados.
+5. Testes com dois perfis e mutações: 26 mutações acusadas, 2 delas depois de os testes serem reforçados.
+6. Leitura no Boox continuada no computador, e o contrário: pelo autor, em 2026-11-10, no MacBook e no Boox.
