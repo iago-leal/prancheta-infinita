@@ -131,6 +131,22 @@
       }
     }
 
+    /**
+     * As posições de um EPUB, que dividem o livro inteiro em trechos de mesmo
+     * tamanho, calculadas pelo leitor na primeira abertura e guardadas para as
+     * seguintes; undefined se ainda não foram calculadas neste aparelho.
+     */
+    async lerLocais(id) {
+      const idb = await this._banco;
+      const r = await operar(idb, 'meta', 'readonly', (d) => d.get(`locais:${id}`));
+      return r && typeof r.locais === 'string' ? r.locais : undefined;
+    }
+
+    async gravarLocais(id, locais) {
+      const idb = await this._banco;
+      await operar(idb, 'meta', 'readwrite', (d) => d.put({ chave: `locais:${id}`, locais: String(locais), em: Date.now() }));
+    }
+
     /** O identificador deste aparelho, o mesmo da sincronização dos quadros. */
     get dispositivo() {
       return this.sincronizacao.banco.dispositivo;
@@ -138,14 +154,19 @@
 
     /**
      * Grava no servidor a posição a que o leitor deste aparelho chegou, com a
-     * porcentagem, para o outro aparelho continuar de lá. Devolve se gravou;
-     * sem rede ou sem servidor, não gravou, e nada falha.
+     * porcentagem, para o outro aparelho continuar de lá, e, num EPUB, com o
+     * caminho no formato do KOReader, para ele também. Devolve se gravou; sem
+     * rede ou sem servidor, não gravou, e nada falha.
      */
-    async gravarProgressoRemoto(id, { posicao, porcentagem }) {
+    async gravarProgressoRemoto(id, { posicao, porcentagem, caminho }) {
       const naCasca = typeof document !== 'undefined' && document.documentElement.classList.contains('casca');
       try {
         await this._pedir(`/sync/progresso/${id}`, {
-          metodo: 'PUT', corpo: { posicao, porcentagem, aparelho: naCasca ? 'Boox' : 'computador', dispositivo: this.dispositivo },
+          metodo: 'PUT',
+          corpo: {
+            posicao, porcentagem, aparelho: naCasca ? 'Boox' : 'computador', dispositivo: this.dispositivo,
+            ...(typeof caminho === 'string' && caminho ? { caminho } : {}),
+          },
         });
         return true;
       } catch (e) {

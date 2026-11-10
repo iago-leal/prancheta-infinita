@@ -137,7 +137,10 @@ O progresso de leitura para o leitor da Prancheta, pelas etapas 02 e 03 do plano
 ```
 
 - `posicao` é `{ "cfi": … }` num EPUB ou `{ "pagina": N }` num PDF; `porcentagem` vai de 0 a 1; `dispositivo` é o identificador do aparelho na sincronização. Fora do formato, `400`; acima de 16 KB, `413`.
-- A resposta é `200 { "timestamp": … }`. O KOReader ainda não recebe o que a Prancheta grava: a rota do KOSync continua devolvendo só o que ele mesmo gravou.
+- Num EPUB, o pedido pode levar `caminho`, a posição como o KOReader a descreve, até o parágrafo em que a página do leitor começa, por exemplo `/body/DocFragment[3]/body/p[12]/text().0`; o leitor da Prancheta o envia sempre que consegue montá-lo.
+- A resposta é `200 { "timestamp": … }`.
+
+Pela etapa 04, o KOReader recebe o que a Prancheta grava: `GET /sync/kosync/syncs/progress/<documento>` devolve o mais recente entre o que o KOReader gravou e o que um aparelho da Prancheta gravou no formato dele, que é o número da página, num PDF, ou o `caminho`, num EPUB, com o aparelho identificado como "Prancheta (Boox)" ou "Prancheta (computador)" e sem a posição exata. Uma posição da Prancheta sem `caminho` não é entregue ao KOReader, e, no mesmo segundo, vale a dele.
 
 Ao abrir um livro, e quando a tela volta com o livro aberto, o leitor consulta o progresso sem atrasar a leitura. Se ele é mais novo que a última vez em que o leitor virou a página neste aparelho, vem de outro aparelho e está fora da página à vista, o leitor mostra um aviso com um botão, e não pula sozinho. A posição de outro aparelho da Prancheta é usada como está. A do KOReader é convertida: num PDF, é o número da página; num EPUB, é um caminho como `/body/DocFragment[3]/body/p[12]/text().34`, com o número do capítulo, na ordem de leitura e a partir de 1, e os passos até o parágrafo; o leitor vai até o parágrafo, ou até o último elemento achado no caminho.
 
