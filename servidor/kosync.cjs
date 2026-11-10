@@ -18,8 +18,10 @@
 // Os aparelhos da Prancheta leem e gravam o progresso por outra rota, com a
 // chave de cada um, em servidor/servidor.cjs: leem o mais recente entre o do
 // KOReader e o dos aparelhos, e gravam a posição exata do leitor deles, que
-// fica em <dados>/kosync/+prancheta.json. O KOReader ainda não recebe o que a
-// Prancheta grava.
+// fica em <dados>/kosync/+prancheta.json. Quando essa posição é mais nova que a
+// do KOReader e vem no formato dele, a página de um PDF ou o caminho até o
+// parágrafo de um EPUB, o KOReader a recebe, com o aparelho identificado como
+// Prancheta.
 //
 // Exceção à cifra ponta a ponta, aceita pelo autor: o KOReader não conhece a
 // chave da cifra, e o progresso fica legível, em <dados>/kosync/<usuário>.json,
@@ -53,6 +55,8 @@ const LIMITE_DE_LIVROS = 5000;
 const DA_PRANCHETA = '+prancheta';
 const DISPOSITIVO = /^[0-9a-f]{8,64}$/;
 const CFI = /^epubcfi\([^\s()]{1,1000}\)$/;
+// O caminho com que o KOReader descreve um ponto de um EPUB, como /body/DocFragment[3]/body/p[12]/text().0.
+const CAMINHO = /^\/body\/DocFragment\[\d{1,6}\]\/body(\/[A-Za-z][\w:-]*(\[\d{1,6}\])?)*(\/text\(\))?\.\d{1,9}$/;
 
 const sha256 = (texto) => crypto.createHash('sha256').update(texto).digest();
 const md5 = (texto) => crypto.createHash('md5').update(texto).digest('hex');
@@ -130,8 +134,14 @@ function lerProgressoDaPrancheta(pedido) {
   if (typeof pedido.porcentagem !== 'number' || !(pedido.porcentagem >= 0 && pedido.porcentagem <= 1)) return null;
   if (typeof pedido.aparelho !== 'string' || pedido.aparelho === '' || pedido.aparelho.length > LIMITE_DO_APARELHO) return null;
   if (typeof pedido.dispositivo !== 'string' || !DISPOSITIVO.test(pedido.dispositivo)) return null;
+  // Num EPUB, o caminho no formato do KOReader é opcional; sem ele, o KOReader não recebe esta posição.
+  let caminho = '';
+  if (pedido.caminho !== undefined && pedido.caminho !== '') {
+    if (posicao.pagina || typeof pedido.caminho !== 'string' || pedido.caminho.length > LIMITE_DA_POSICAO || !CAMINHO.test(pedido.caminho)) return null;
+    caminho = pedido.caminho;
+  }
   return {
-    progress: posicao.pagina ? String(posicao.pagina) : '', percentage: pedido.porcentagem, device: pedido.aparelho, device_id: pedido.dispositivo, posicao,
+    progress: posicao.pagina ? String(posicao.pagina) : caminho, percentage: pedido.porcentagem, device: pedido.aparelho, device_id: pedido.dispositivo, posicao,
   };
 }
 
@@ -224,6 +234,22 @@ class Kosync {
     return this.gravar(DA_PRANCHETA, documento, progresso);
   }
 
+  /**
+   * O progresso que o KOReader recebe de um livro: o mais recente entre o que
+   * ele mesmo gravou e o que um aparelho da Prancheta gravou no formato dele,
+   * que é a página, num PDF, ou o caminho até o parágrafo, num EPUB. Uma
+   * posição da Prancheta sem esse formato fica de fora.
+   */
+  async paraOKoreader(usuario, documento) {
+    const dele = await this.progresso(usuario, documento);
+    const daPrancheta = await this.progresso(DA_PRANCHETA, documento);
+    if (!daPrancheta || !daPrancheta.progress || (dele && dele.timestamp >= daPrancheta.timestamp)) return dele;
+    return {
+      document: documento, progress: daPrancheta.progress, percentage: daPrancheta.percentage,
+      device: `Prancheta (${daPrancheta.device})`, device_id: daPrancheta.device_id, timestamp: daPrancheta.timestamp,
+    };
+  }
+
   /** Grava o progresso de um livro e devolve o horário, em segundos. */
   async gravar(usuario, documento, progresso) {
     const livros = await this._livrosDe(usuario);
@@ -268,7 +294,7 @@ class Kosync {
     const livro = caminho.match(/^\/syncs\/progress\/([^/]+)$/);
     if (metodo === 'GET' && livro) {
       if (!DOCUMENTO.test(livro[1])) return erro(2003);
-      return { status: 200, corpo: (await this.progresso(usuario, livro[1])) || {} };
+      return { status: 200, corpo: (await this.paraOKoreader(usuario, livro[1])) || {} };
     }
 
     return { status: 404, corpo: { code: 2003, message: ERROS[2003][1] } };

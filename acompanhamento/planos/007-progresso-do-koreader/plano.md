@@ -34,9 +34,9 @@ O plano 006 deixou o leitor confortável no Boox e só espera o teste do autor. 
 | [01](etapas/01-servidor-recebe-o-progresso.md) | O servidor recebe e devolve o progresso do KOReader | em_andamento |
 | [02](etapas/02-prancheta-abre-onde-o-koreader-parou.md) | A Prancheta abre o livro onde o KOReader parou | em_andamento |
 | [03](etapas/03-posicao-entre-os-aparelhos.md) | A Prancheta envia a posição dela para o outro aparelho | em_andamento |
-| 04 | O KOReader recebe a posição da Prancheta | pendente |
+| [04](etapas/04-koreader-recebe-a-posicao.md) | O KOReader recebe a posição da Prancheta | em_andamento |
 
-As etapas 01 a 03 estão implementadas e esperam o teste do autor. Em 2026-11-10, ele dividiu a etapa 03 prevista: a troca entre os aparelhos da Prancheta ficou nela, e o envio ao KOReader passou para a etapa 04, a detalhar depois de ele testar a etapa 02 com o KOReader de verdade, porque as duas conversões partem da mesma descrição do formato.
+As quatro etapas estão implementadas e esperam o teste do autor. Em 2026-11-10, ele dividiu a etapa 03 prevista: a troca entre os aparelhos da Prancheta ficou nela, e o envio ao KOReader passou para a etapa 04, que ele pediu no mesmo dia, depois de contar que a sincronização funcionou.
 
 ## Riscos
 

@@ -33,6 +33,7 @@ before(async () => {
   const livros = fs.mkdtempSync(path.join(os.tmpdir(), 'prancheta-leitura-'));
   fs.writeFileSync(path.join(livros, 'Livro rico.epub'), await criarEpub({ rico: true }));
   fs.writeFileSync(path.join(livros, 'Livro longo.epub'), await criarEpub({ titulo: 'Livro longo', longo: true }));
+  fs.writeFileSync(path.join(livros, 'Paginado.epub'), await criarEpub({ titulo: 'Paginado', longo: true, paginas: true }));
   fs.writeFileSync(path.join(livros, 'Sem sumario.epub'), await criarEpub({ titulo: 'Sem sumário', semSumario: true }));
   fs.writeFileSync(path.join(livros, 'Marcado.pdf'), criarPdf(['Primeira p\\341gina do PDF', 'Segunda P\\301GINA do PDF'], { marcadores: ['Parte um', 'Parte dois'] }));
   fs.writeFileSync(path.join(livros, 'Linhas.pdf'), criarPdf(['Uma linha do PDF\ncontinua na linha de baixo']));
@@ -77,7 +78,7 @@ async function abrirPrancheta({ naCasca = false } = {}) {
   await pagina.waitForFunction(() => window.__booted === true && navigator.serviceWorker.controller !== null, null, { timeout: 10000 });
   await pagina.waitForFunction(() => Boolean(window.marcacoesDaPrancheta && document.getElementById('leitor')), null, { timeout: 10000 });
   await pagina.evaluate(([endereco, chave]) => window.sincronizacaoDaPrancheta.configurar({ endereco, chave }), [vps.base, CHAVE]);
-  await pagina.waitForFunction(() => window.bibliotecaDaPrancheta.estado.lista.length === 6, null, { timeout: 10000 });
+  await pagina.waitForFunction(() => window.bibliotecaDaPrancheta.estado.lista.length === 7, null, { timeout: 10000 });
   return { contexto, pagina, erros };
 }
 
@@ -292,8 +293,8 @@ test('no EPUB, a rolagem que o navegador faz para mostrar a ponta de uma seleç�
     assert.ok(antes.largura > antes.pagina * 3, `o capítulo tem várias páginas: ${JSON.stringify(antes)}`);
     assert.equal(antes.x, antes.pagina, 'a segunda página começa numa página inteira');
     // A página no rótulo, sem a porcentagem, que chega depois.
-    const paginaNoRotulo = () => pagina.evaluate(() => document.querySelector('#leitor .lt-posicao').textContent.split(' ')[0]);
-    await pagina.waitForFunction(() => /^2\//.test(document.querySelector('#leitor .lt-posicao').textContent));
+    const paginaNoRotulo = () => pagina.evaluate(() => document.querySelector('#leitor .lt-posicao').dataset.noCapitulo);
+    await pagina.waitForFunction(() => /^2\//.test(document.querySelector('#leitor .lt-posicao').dataset.noCapitulo));
     const posicao = await paginaNoRotulo();
 
     // Como o Android faz com a ponta da seleção: mostrar um trecho de outra página rola o livro.
@@ -444,6 +445,91 @@ test('a barra da seleção flutua acima do trecho, só com os botões, e some ao
     await pagina.click('#leitor .lt-selecao [data-acao="copiar"]');
     await barraSome(pagina);
     assert.equal(await pagina.evaluate(() => navigator.clipboard.readText()), 'Primeira página do PDF');
+    assert.deepEqual(erros, []);
+  } finally {
+    await contexto.close();
+  }
+});
+
+test('nos e-books, o leitor mostra a página do livro, ou a posição no livro inteiro quando ele não traz as páginas', async () => {
+  const { contexto, pagina, erros } = await abrirPrancheta();
+  const rotulo = () => pagina.textContent('#leitor .lt-posicao');
+  const irAo = (id) => pagina.evaluate(async (alvo) => {
+    const vista = window.leitorDaPrancheta.vista;
+    const secao = vista.livro.spine.spineItems[2];
+    const doc = await vista.livro.load(secao.url);
+    await vista.irPara(secao.cfiFromElement(doc.querySelector(`#${alvo}`)));
+  }, id);
+  try {
+    // Sem páginas marcadas: a posição no livro inteiro e a porcentagem, depois de calculadas.
+    await abrirLivro(pagina, 'Livro longo.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    await pagina.waitForFunction(() => /^pos\. 1 de \d+ · 0%$/.test(document.querySelector('#leitor .lt-posicao').textContent), null, { timeout: 15000 });
+    const total = Number((await rotulo()).match(/de (\d+)/)[1]);
+    assert.ok(total >= 4, `o livro tem várias posições: ${await rotulo()}`);
+    // Mais adiante, a posição cresce, e a página dentro do capítulo fica na dica.
+    await irAo('l60');
+    await pagina.waitForFunction(() => /^pos\. (\d+) de/.test(document.querySelector('#leitor .lt-posicao').textContent) && !/^pos\. 1 de/.test(document.querySelector('#leitor .lt-posicao').textContent));
+    const [, posicao, deTotal, porcento] = (await rotulo()).match(/^pos\. (\d+) de (\d+) · (\d+)%$/);
+    assert.ok(Number(posicao) > 2 && Number(posicao) <= total && Number(deTotal) === total && Number(porcento) > 40, await rotulo());
+    assert.match(await pagina.getAttribute('#leitor .lt-posicao', 'title'), /^Página \d+ de \d+ do capítulo$/);
+    // A posição levada ao quadro vai com esse número.
+    await pagina.click('#leitor [data-acao="ao-quadro"]');
+    const cartao = await pagina.evaluate(() => [...S.items.values()].filter((i) => i.type === 'card').map((i) => i.blocks.map((b) => b.h).join(' ')).at(-1));
+    assert.match(cartao, new RegExp(`Capítulo longo, pos\\. ${posicao} ·`));
+
+    // As posições ficam guardadas no aparelho: na abertura seguinte, não são calculadas de novo.
+    const livro = await pagina.evaluate(() => window.leitorDaPrancheta.livro.id);
+    assert.equal(typeof await pagina.evaluate((id) => window.bibliotecaDaPrancheta.lerLocais(id), livro), 'string');
+    await pagina.evaluate(() => {
+      window.__gravadas = 0;
+      const biblioteca = window.bibliotecaDaPrancheta;
+      const original = biblioteca.gravarLocais.bind(biblioteca);
+      biblioteca.gravarLocais = (...a) => { window.__gravadas += 1; return original(...a); };
+    });
+    await pagina.click('#leitor [data-acao="fechar"]');
+    await abrirLivro(pagina, 'Livro longo.epub');
+    await pagina.waitForFunction((texto) => document.querySelector('#leitor .lt-posicao').textContent.startsWith(texto), `pos. ${posicao} de ${total}`, { timeout: 15000 });
+    await pausa(pagina);
+    assert.equal(await pagina.evaluate(() => window.__gravadas), 0, 'as posições guardadas foram aproveitadas');
+    // Posições guardadas estragadas são calculadas de novo.
+    await pagina.click('#leitor [data-acao="fechar"]');
+    await pagina.evaluate((id) => window.bibliotecaDaPrancheta.gravarLocais(id, '{isto não é uma lista'), livro);
+    await pagina.evaluate(() => { window.__gravadas = 0; });
+    await abrirLivro(pagina, 'Livro longo.epub');
+    await pagina.waitForFunction((texto) => document.querySelector('#leitor .lt-posicao').textContent.startsWith(texto), `pos. ${posicao} de ${total}`, { timeout: 15000 });
+    assert.equal(await pagina.evaluate(() => window.__gravadas), 1);
+
+    // Com as páginas marcadas pelo livro: a página em que a página à vista começa, e a última do livro.
+    await abrirLivro(pagina, 'Paginado.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    await pagina.waitForFunction(() => /^p\. 1 de 5 · 0%$/.test(document.querySelector('#leitor .lt-posicao').textContent), null, { timeout: 15000 });
+    // No segundo capítulo, que não tem marca, continua a página 1; o terceiro começa na 2.
+    await pagina.click('#leitor [data-acao="proxima"]');
+    await noCapitulo(pagina, /segundo capítulo/);
+    // O rótulo é conferido já com o capítulo novo, e não o que sobrou do anterior.
+    await pagina.waitForFunction(() => {
+      const vista = window.leitorDaPrancheta.vista;
+      return vista.capitulo === 'Capítulo dois' && /^p\. 1 de 5 · \d+%$/.test(vista.rotulo)
+        && document.querySelector('#leitor .lt-posicao').textContent === vista.rotulo;
+    }, null, { timeout: 15000 });
+    await pagina.click('#leitor [data-acao="proxima"]');
+    await noCapitulo(pagina, /Parágrafo 1 do capítulo longo/);
+    await pagina.waitForFunction(() => /^p\. 2 de 5 · /.test(document.querySelector('#leitor .lt-posicao').textContent));
+    // A marca da página 4 está no parágrafo 40: a página que começa nele é a 4; a anterior ainda é a 3.
+    await pagina.evaluate(async () => {
+      const vista = window.leitorDaPrancheta.vista;
+      const secao = vista.livro.spine.spineItems[2];
+      const doc = await vista.livro.load(secao.url);
+      await vista.irPara(secao.cfiFromElement(doc.querySelector('#l40')));
+    });
+    await pagina.waitForFunction(() => /^p\. [34] de 5 · /.test(document.querySelector('#leitor .lt-posicao').textContent));
+    const comeca = await pagina.evaluate(() => /\[l(\d+)\]/.exec(window.leitorDaPrancheta.posicaoAtual().cfi)[1]);
+    assert.equal(await rotulo().then((r) => r.slice(0, 9)), Number(comeca) >= 40 ? 'p. 4 de 5' : 'p. 3 de 5', `a página começa no parágrafo ${comeca}`);
+    await irAo('l75');
+    await pagina.waitForFunction(() => /^p\. 5 de 5 · /.test(document.querySelector('#leitor .lt-posicao').textContent));
+    await pagina.click('#leitor [data-acao="ao-quadro"]');
+    assert.match(await pagina.evaluate(() => [...S.items.values()].filter((i) => i.type === 'card').map((i) => i.blocks.map((b) => b.h).join(' ')).at(-1)), /Capítulo longo, p\. 5 ·/);
     assert.deepEqual(erros, []);
   } finally {
     await contexto.close();

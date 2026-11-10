@@ -404,3 +404,56 @@ test('um aparelho da Prancheta grava a posição exata dele, e o outro a lê; o 
     await ligado.fechar();
   }
 });
+
+test('o KOReader recebe a posição mais nova gravada pela Prancheta, no formato dele; sem esse formato, continua com a dele', async () => {
+  let agora = 1762740000000;
+  const s = await subir({ relogio: () => agora });
+  const gravar = (corpo, livro = LIVRO) => fetch(`${s.base}/sync/progresso/${livro}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${CHAVE}` }, body: JSON.stringify(corpo),
+  }).then(async (r) => [r.status, await r.json()]);
+  const noKoreader = async (livro = LIVRO) => (await pedir(s, 'GET', `/sync/kosync/syncs/progress/${livro}`)).json;
+  const doBoox = { posicao: { cfi: 'epubcfi(/6/8!/4/82[l40]/1:0)' }, porcentagem: 0.4, aparelho: 'Boox', dispositivo: 'aaaaaaaaaaaaaaaa' };
+  const caminho = '/body/DocFragment[4]/body/div/p[40]/text().0';
+  try {
+    // Um EPUB lido na Prancheta, com o caminho: o KOReader recebe o caminho, a porcentagem e o aparelho, e nada da posição exata.
+    assert.equal((await gravar({ ...doBoox, caminho }))[0], 200);
+    assert.deepEqual(await noKoreader(), { document: LIVRO, progress: caminho, percentage: 0.4, device: 'Prancheta (Boox)', device_id: 'aaaaaaaaaaaaaaaa', timestamp: 1762740000 });
+    // O aparelho da Prancheta continua lendo a posição exata.
+    const lido = await (await fetch(`${s.base}/sync/progresso/${LIVRO}`, { headers: { Authorization: `Bearer ${CHAVE}` } })).json();
+    assert.deepEqual([lido.progresso.posicao, lido.progresso.progress], [doBoox.posicao, caminho]);
+    // Num PDF, o KOReader recebe o número da página.
+    await gravar({ posicao: { pagina: 12 }, porcentagem: 0.5, aparelho: 'computador', dispositivo: 'bbbbbbbbbbbbbbbb' }, OUTRO);
+    assert.deepEqual(await noKoreader(OUTRO), { document: OUTRO, progress: '12', percentage: 0.5, device: 'Prancheta (computador)', device_id: 'bbbbbbbbbbbbbbbb', timestamp: 1762740000 });
+
+    // O que o KOReader gravar depois vale mais; o que a Prancheta gravar depois disso volta a valer.
+    agora += 60000;
+    await pedir(s, 'PUT', '/sync/kosync/syncs/progress', { corpo: progresso({ percentage: 0.7 }) });
+    assert.deepEqual([(await noKoreader()).percentage, (await noKoreader()).device], [0.7, 'boox']);
+    agora += 60000;
+    await gravar({ ...doBoox, porcentagem: 0.8, caminho: '/body/DocFragment[5]/body.0' });
+    assert.deepEqual([(await noKoreader()).progress, (await noKoreader()).device], ['/body/DocFragment[5]/body.0', 'Prancheta (Boox)']);
+    // No mesmo segundo, vale o do KOReader.
+    await pedir(s, 'PUT', '/sync/kosync/syncs/progress', { corpo: progresso({ percentage: 0.75 }) });
+    assert.equal((await noKoreader()).percentage, 0.75);
+
+    // Uma posição da Prancheta sem o caminho não é entregue ao KOReader, mesmo sendo a mais nova.
+    agora += 60000;
+    assert.equal((await gravar({ ...doBoox, porcentagem: 0.9 }))[0], 200);
+    assert.equal((await noKoreader()).percentage, 0.75);
+    // E um livro que só a Prancheta leu, sem caminho, aparece vazio para o KOReader.
+    const terceiro = 'c'.repeat(32);
+    await gravar(doBoox, terceiro);
+    assert.deepEqual(await noKoreader(terceiro), {});
+
+    // Um caminho fora do formato do KOReader, grande demais ou num PDF é recusado.
+    const recusados = [
+      { ...doBoox, caminho: 'xyz' }, { ...doBoox, caminho: '/body/DocFragment[4]/body/p[1]/text().0 <script>' }, { ...doBoox, caminho: '/body/DocFragment[4]/corpo/p.0' },
+      { ...doBoox, caminho: '/body/DocFragment/body/p.0' }, { ...doBoox, caminho: 7 }, { ...doBoox, caminho: `/body/DocFragment[4]/body${'/div'.repeat(600)}.0` },
+      { posicao: { pagina: 3 }, porcentagem: 0.5, aparelho: 'Boox', dispositivo: 'aaaaaaaaaaaaaaaa', caminho },
+    ];
+    for (const corpo of recusados) assert.deepEqual(await gravar(corpo), [400, { erro: 'progresso_invalido' }], JSON.stringify(corpo).slice(0, 100));
+    assert.equal((await noKoreader()).percentage, 0.75);
+  } finally {
+    await s.fechar();
+  }
+});

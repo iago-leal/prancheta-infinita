@@ -6,6 +6,27 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 007: o KOReader recebe a posição da Prancheta, e a página do livro nos e-books
+
+### Feito
+
+- Mesclado o PR #46, com a etapa 03 do plano 007 e o menu do Android escondido no leitor; casca 0.13.0.
+- O autor contou que fez os testes e que a sincronização funcionou, pediu a etapa 04 e disse que, nos e-books, faltava a página ou a posição no livro.
+- Implementada a [etapa 04 do plano 007](planos/007-progresso-do-koreader/etapas/04-koreader-recebe-a-posicao.md), com a casca 0.14.0: ao gravar a posição de um EPUB, o leitor grava também o caminho do parágrafo em que a página começa, no formato do KOReader, e o servidor entrega ao KOReader o progresso mais recente entre o dele e o da Prancheta, com o aparelho identificado como Prancheta.
+- Nos e-books, o leitor passou a mostrar a página do livro, quando ele traz as páginas marcadas, ou a posição, contada em trechos de 1.600 caracteres, ao lado da porcentagem; as posições ficam guardadas no aparelho depois da primeira abertura. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+- 27 mutações, todas acusadas depois de um reforço no teste da página do livro. A suíte da página tem 108 testes, e a do servidor, 46.
+
+### Decidido
+
+- **No mesmo segundo, vale o progresso do KOReader**, e uma posição da Prancheta sem caminho não chega a ele, para o KOReader nunca receber o que não sabe ler.
+- **O caminho aponta o começo do parágrafo**, e não a linha, para depender menos de como cada leitor divide o texto; o KOReader pode abrir até uma página antes.
+
+### Pendências
+
+- O autor dizer quais critérios das etapas 01 a 03 ele confirma com os testes que fez; nenhum critério que depende dele foi marcado.
+- O teste da etapa 04 com o KOReader de verdade, num EPUB e num PDF: o caminho foi montado pela descrição do formato.
+- Os testes do plano 006 no Boox, inclusive o menu do Android dentro do leitor.
+
 ## 2026-11-10 · Plano 007: posição entre os aparelhos, e o menu do Android no leitor
 
 ### Feito

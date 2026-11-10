@@ -4,7 +4,8 @@
 // executar. Com a opção rico, o EPUB ganha um trecho com acentos, itálico e
 // espaços a mais, para a busca, links internos e um sumário com um subitem;
 // com semSumario, fica sem o documento de navegação; com longo, ganha um
-// terceiro capítulo, de várias páginas. O PDF aceita marcadores,
+// terceiro capítulo, de várias páginas; com paginas, que pede longo, traz
+// as páginas do livro marcadas, de 1 a 5. O PDF aceita marcadores,
 // um por página, letras acentuadas, escritas em octal, como \\341 para o á, e
 // mais de uma linha por página, separadas por \\n.
 
@@ -18,7 +19,7 @@ const xhtml = (titulo, corpo) => `<?xml version="1.0" encoding="UTF-8"?>
 <body>${corpo}</body>
 </html>`;
 
-async function criarEpub({ titulo = 'Livro de teste', rico = false, semSumario = false, longo = false } = {}) {
+async function criarEpub({ titulo = 'Livro de teste', rico = false, semSumario = false, longo = false, paginas = false } = {}) {
   const zip = new JSZip();
   zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
   zip.file('META-INF/container.xml', `<?xml version="1.0"?>
@@ -42,7 +43,10 @@ async function criarEpub({ titulo = 'Livro de teste', rico = false, semSumario =
   <spine><itemref idref="c1"/><itemref idref="c2"/>${longo ? '<itemref idref="c3"/>' : ''}</spine>
 </package>`);
   zip.file('OEBPS/nav.xhtml', xhtml('Sumário', `<nav epub:type="toc"><ol>
-<li><a href="c1.xhtml">Capítulo um</a></li><li><a href="c2.xhtml">Capítulo dois</a>${rico ? '<ol><li><a href="c2.xhtml#p2">A frase</a></li></ol>' : ''}</li>${longo ? '<li><a href="c3.xhtml">Capítulo longo</a></li>' : ''}</ol></nav>`));
+<li><a href="c1.xhtml">Capítulo um</a></li><li><a href="c2.xhtml">Capítulo dois</a>${rico ? '<ol><li><a href="c2.xhtml#p2">A frase</a></li></ol>' : ''}</li>${longo ? '<li><a href="c3.xhtml">Capítulo longo</a></li>' : ''}</ol></nav>
+${paginas ? `<nav epub:type="page-list"><ol>
+<li><a href="c1.xhtml#p1">1</a></li><li><a href="c3.xhtml">2</a></li><li><a href="c3.xhtml#l20">3</a></li>
+<li><a href="c3.xhtml#l40">4</a></li><li><a href="c3.xhtml#l60">5</a></li></ol></nav>` : ''}`));
   zip.file('OEBPS/c1.xhtml', xhtml('Capítulo um', `<h1>Capítulo um</h1>
 <p id="p1">Texto do primeiro capítulo, que fala de cartas e de quadros.</p>
 ${rico ? '<p id="p3">Um <em>cora</em>ção de papel e a AÇÃO   do\nvento.</p><p id="p6"><a id="adiante" href="c2.xhtml#p5">Ver o fim</a></p>' : ''}

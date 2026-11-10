@@ -93,6 +93,9 @@
     return pdfjs;
   }
 
+  // Quantos caracteres do livro cabem em cada posição de um EPUB sem páginas marcadas.
+  const CARACTERES_POR_POSICAO = 1600;
+
   // ---- Busca no texto ----
 
   const LIMITE_DE_ACHADOS = 200;
@@ -224,7 +227,7 @@
    * o parágrafo. Devolve null se o texto não tem essa forma.
    */
   function lerCaminhoDoKoreader(texto) {
-    const lido = /^\/body\/DocFragment(?:\[(\d+)\])?\/body((?:\/[^/]+)*)$/.exec(String(texto || '').trim());
+    const lido = /^\/body\/DocFragment(?:\[(\d+)\])?\/body(?:\.\d+)?((?:\/[^/]+)*)$/.exec(String(texto || '').trim());
     if (!lido) return null;
     const fragmento = Number(lido[1] || 1);
     if (!Number.isSafeInteger(fragmento) || fragmento < 1) return null;
@@ -243,6 +246,26 @@
 
   // Quanto o leitor espera, depois da última virada de página, para gravar a posição no servidor.
   const ESPERA_DO_ENVIO = 2000;
+
+  /**
+   * Monta, no formato do KOReader, o caminho até o bloco de texto, como um
+   * parágrafo ou um título, que contém o nó dado: o capítulo, na ordem de
+   * leitura e a partir de 1, e os passos desde o corpo dele, cada um com o
+   * nome do elemento e, quando há irmãos de mesmo nome, a ordem entre eles.
+   * É o inverso de lerCaminhoDoKoreader. Devolve '' se o nó está fora do corpo.
+   */
+  function montarCaminhoDoKoreader(no, corpo, fragmento) {
+    let elemento = no && (no.nodeType === 1 ? no : no.parentElement);
+    while (elemento && elemento !== corpo && !BLOCO.test(elemento.localName)) elemento = elemento.parentElement;
+    if (!elemento || !corpo || !corpo.contains(elemento)) return '';
+    const passos = [];
+    for (let e = elemento; e !== corpo; e = e.parentElement) {
+      const irmaos = [...e.parentElement.children].filter((f) => f.localName === e.localName);
+      passos.unshift(irmaos.length > 1 ? `${e.localName}[${irmaos.indexOf(e) + 1}]` : e.localName);
+    }
+    const temTexto = [...elemento.childNodes].some((f) => f.nodeType === 3 && f.nodeValue.trim() !== '');
+    return `/body/DocFragment[${fragmento}]/body${passos.map((passo) => `/${passo}`).join('')}${temTexto ? '/text()' : ''}.0`;
+  }
 
   // O horário de um progresso, para o aviso: a hora, se foi hoje; senão, o dia e a hora.
   function quandoFoi(ms, agora = Date.now()) {
@@ -285,6 +308,14 @@
       this.rotulo = '';
       this.capitulo = '';
       this.percentual = '';
+      // A página do livro, pelas marcas de página dele, ou a posição no livro
+      // inteiro, quando ele não as tem; e a página dentro do capítulo.
+      this.lugar = '';
+      this.noCapitulo = '';
+      // As marcas de página do livro: de cada uma, o capítulo, o id do elemento e o número.
+      this._marcasDePagina = [];
+      // Se as posições do livro inteiro já foram lidas ou calculadas.
+      this._posicoesProntas = false;
       // Os destaques desenhados: de cada CFI, o tipo da anotação e o id do destaque.
       this._marcados = new Map();
       this._tocouMarcaEm = 0;
@@ -294,7 +325,7 @@
 
     }
 
-    async abrir(blob, posicao) {
+    async abrir(blob, posicao, { locais } = {}) {
       const ePub = await carregarEpub();
       this._ePub = ePub;
       this.livro = ePub(await blob.arrayBuffer());
@@ -314,8 +345,18 @@
       this.vista.on('relocated', (local) => {
         this.cfi = local.start.cfi;
         const { page, total } = local.start.displayed || {};
-        this.percentual = this.livro.locations.length() ? `${Math.round(local.start.percentage * 100)}%` : '';
-        this.rotulo = [page && total ? `${page}/${total}` : '', this.percentual].filter(Boolean).join(' · ');
+        // Durante o cálculo, a lista de posições cresce capítulo a capítulo, e só vale quando está completa.
+        const posicoes = this._posicoesProntas ? this.livro.locations.length() : 0;
+        this.percentual = posicoes ? `${Math.round(local.start.percentage * 100)}%` : '';
+        this.noCapitulo = page && total ? `${page}/${total}` : '';
+        // No rótulo, a página do livro, se ele traz as páginas marcadas; sem
+        // elas, a posição no livro inteiro; enquanto as posições são
+        // calculadas, na primeira abertura, só a página dentro do capítulo.
+        const paginaDoLivro = this._paginaDoLivro(local);
+        if (paginaDoLivro) this.lugar = `p. ${paginaDoLivro.pagina} de ${paginaDoLivro.total}`;
+        else if (posicoes && local.start.location >= 0) this.lugar = `pos. ${local.start.location + 1} de ${posicoes}`;
+        else this.lugar = '';
+        this.rotulo = [this.lugar || (this.noCapitulo && `${this.noCapitulo} no capítulo`), this.percentual].filter(Boolean).join(' · ');
         const item = this.livro.navigation && local.start.href ? this.livro.navigation.get(local.start.href) : null;
         this.capitulo = item && item.label ? item.label.trim() : '';
         this._reposicionarMarcas();
@@ -352,10 +393,79 @@
       });
       await this.vista.display(posicao && posicao.cfi ? posicao.cfi : undefined);
       this._travarRolagem();
-      // As porcentagens vêm depois, sem atrasar a abertura.
-      this.livro.ready.then(() => this.livro.locations.generate(1600)).then(() => {
+      // As posições e as porcentagens vêm depois, sem atrasar a abertura: as
+      // guardadas da primeira vez, ou calculadas agora, capítulo a capítulo, e
+      // entregues para serem guardadas.
+      this.livro.ready.then(async () => {
+        this._lerMarcasDePagina();
+        let guardadas = false;
+        if (locais) {
+          try {
+            this.livro.locations.load(locais);
+            guardadas = this.livro.locations.length() > 0;
+          } catch (e) { /* posições guardadas estragadas: são calculadas de novo */ }
+        }
+        if (!guardadas) {
+          await this.livro.locations.generate(CARACTERES_POR_POSICAO);
+          if (this.vista) this.aoMudar({ tipo: 'locais', locais: this.livro.locations.save() });
+        }
+        this._posicoesProntas = true;
         if (this.vista) this.vista.reportLocation();
       }).catch(() => {});
+    }
+
+    // As marcas de página que o livro traz, do documento de navegação dele:
+    // cada uma aponta para um elemento de um capítulo e tem o número da página.
+    _lerMarcasDePagina() {
+      const lista = this.livro.pageList && Array.isArray(this.livro.pageList.pageList) ? this.livro.pageList.pageList : [];
+      const navegacao = (this.livro.packaging && this.livro.packaging.navPath) || '';
+      const marcas = [];
+      for (const item of lista) {
+        const pagina = Number(item && item.page);
+        if (!Number.isSafeInteger(pagina) || pagina < 1 || typeof item.href !== 'string') continue;
+        let caminho;
+        let id;
+        try {
+          // O endereço é relativo ao documento de navegação.
+          const resolvido = new URL(item.href, `http://livro.invalid/${navegacao}`);
+          caminho = decodeURIComponent(resolvido.pathname.slice(1));
+          id = decodeURIComponent(resolvido.hash.slice(1));
+        } catch (e) {
+          continue;
+        }
+        const secao = this.livro.spine.get(caminho);
+        if (secao) marcas.push({ secao: secao.index, id, pagina });
+      }
+      this._marcasDePagina = marcas;
+    }
+
+    // A página do livro em que a página à vista começa: a última marca de
+    // página até o começo dela; antes da primeira marca do livro, a primeira
+    // que aparece na página à vista. Devolve também o número da última página
+    // do livro; null se o livro não traz as páginas marcadas ou se nenhuma
+    // marca foi alcançada.
+    _paginaDoLivro(local) {
+      const marcas = this._marcasDePagina;
+      if (!marcas.length || !local || !local.start) return null;
+      const indice = local.start.index;
+      let pagina = 0;
+      let naVista = 0;
+      for (const marca of marcas) if (marca.secao < indice) pagina = Math.max(pagina, marca.pagina);
+      const secao = this.livro.spine.get(indice);
+      const conteudo = this.vista.getContents().find((c) => c.sectionIndex === indice);
+      if (secao && conteudo && conteudo.document) {
+        const comparar = new this._ePub.CFI();
+        for (const marca of marcas) {
+          if (marca.secao !== indice) continue;
+          const elemento = marca.id ? conteudo.document.getElementById(marca.id) : conteudo.document.body;
+          if (!elemento) continue;
+          const onde = secao.cfiFromElement(elemento);
+          if (comparar.compare(onde, local.start.cfi) <= 0) pagina = Math.max(pagina, marca.pagina);
+          else if (comparar.compare(onde, local.end.cfi) <= 0) naVista = naVista ? Math.min(naVista, marca.pagina) : marca.pagina;
+        }
+      }
+      pagina = pagina || naVista;
+      return pagina ? { pagina, total: Math.max(...marcas.map((m) => m.pagina)) } : null;
     }
 
     // A página à vista agora; o último aviso da epub.js pode ser de um
@@ -370,7 +480,7 @@
 
     // O que vai no cartão para dizer onde está o trecho ou a posição.
     rotuloParaCartao() {
-      return [this.capitulo, this.percentual].filter(Boolean).join(', ');
+      return [this.capitulo, this.lugar.replace(/ de \d+$/, '') || this.percentual].filter(Boolean).join(', ');
     }
 
     /** Mostra os destaques do livro, no estilo de cada um, tirando os que saíram. */
@@ -484,11 +594,28 @@
       return { alvo, mesmoLugar };
     }
 
+    /**
+     * O caminho, no formato do KOReader, até o parágrafo em que a página à
+     * vista começa, para o KOReader continuar de lá; '' se não dá para montar.
+     */
+    caminhoDoKoreader() {
+      try {
+        const local = this.vista && this.vista.currentLocation();
+        if (!local || !local.start) return '';
+        const conteudo = this.vista.getContents().find((c) => c.sectionIndex === local.start.index);
+        const intervalo = conteudo && conteudo.range(local.start.cfi);
+        if (!intervalo) return '';
+        return montarCaminhoDoKoreader(intervalo.startContainer, conteudo.document.body, local.start.index + 1);
+      } catch (e) {
+        return '';
+      }
+    }
+
     /** Até onde o livro foi lido, de 0 a 1: pelas porcentagens do livro, ou pelo capítulo e pela página nele. */
     porcentagem() {
       const local = this.vista && this.vista.currentLocation();
       if (!local || !local.start) return 0;
-      if (this.livro.locations.length() && local.start.percentage >= 0) return Math.min(1, local.start.percentage);
+      if (this._posicoesProntas && this.livro.locations.length() && local.start.percentage >= 0) return Math.min(1, local.start.percentage);
       const visto = local.start.displayed || {};
       const noCapitulo = visto.total ? (visto.page - 1) / visto.total : 0;
       return Math.min(1, (local.start.index + noCapitulo) / (this.livro.spine.spineItems.length || 1));
@@ -1097,7 +1224,8 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const vista = new Vista(this._conteudo(), (mudanca) => this._mudou(vista, mudanca));
       this.vista = vista;
       try {
-        await vista.abrir(registro.blob, ondeParou);
+        const locais = Vista === VistaEpub ? await biblioteca.lerLocais(id).catch(() => undefined) : undefined;
+        await vista.abrir(registro.blob, ondeParou, { locais });
       } catch (e) {
         if (this.vista === vista) this.fechar();
         throw e;
@@ -1166,7 +1294,9 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const marca = JSON.stringify(posicao);
       if (!posicao || marca === this._enviada) return;
       this._enviada = marca;
-      this.biblioteca.gravarProgressoRemoto(this.livro.id, { posicao, porcentagem: this.vista.porcentagem() }).then((gravou) => {
+      // Num EPUB, vai junto o caminho no formato do KOReader, para ele continuar de lá.
+      const caminho = typeof this.vista.caminhoDoKoreader === 'function' ? this.vista.caminhoDoKoreader() : '';
+      this.biblioteca.gravarProgressoRemoto(this.livro.id, { posicao, porcentagem: this.vista.porcentagem(), caminho }).then((gravou) => {
         if (!gravou && this._enviada === marca) this._enviada = null;
       }, () => {});
     }
@@ -1382,6 +1512,11 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       }
       if (mudanca.tipo === 'salto') {
         this._leu = true;
+        return;
+      }
+      // As posições do livro, calculadas na primeira abertura, ficam guardadas neste aparelho.
+      if (mudanca.tipo === 'locais') {
+        if (this.livro && typeof mudanca.locais === 'string') this.biblioteca.gravarLocais(this.livro.id, mudanca.locais).catch(() => {});
         return;
       }
       if (mudanca.tipo === 'posicao' && this.livro) {
@@ -1603,6 +1738,12 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this.aoMudar(() => {
         escrever(titulo, this.livro ? this.livro.nome : '');
         escrever(posicao, this.vista ? this.vista.rotulo : '');
+        // A página dentro do capítulo fica à mão, para a dica do computador.
+        const noCapitulo = (this.vista && this.vista.noCapitulo) || '';
+        if (posicao.dataset.noCapitulo !== noCapitulo) {
+          posicao.dataset.noCapitulo = noCapitulo;
+          posicao.title = noCapitulo ? `Página ${noCapitulo.replace('/', ' de ')} do capítulo` : '';
+        }
         const estreita = global.innerWidth < LARGURA_MINIMA_LADO_A_LADO;
         modo.hidden = estreita;
         if (this.modo === 'tela') rotular(modo, 'dividida', 'Lado a lado');
@@ -1749,5 +1890,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
     return leitor;
   }
 
-  global.LeitorPrancheta = Object.freeze({ Leitor, ligar, procurarNosTextos, lerCaminhoDoKoreader, quandoFoi, LARGURA_MINIMA_LADO_A_LADO });
+  global.LeitorPrancheta = Object.freeze({
+    Leitor, ligar, procurarNosTextos, lerCaminhoDoKoreader, montarCaminhoDoKoreader, quandoFoi, LARGURA_MINIMA_LADO_A_LADO,
+  });
 })(typeof window !== 'undefined' ? window : globalThis);

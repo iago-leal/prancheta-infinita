@@ -169,6 +169,9 @@ test('a posição do KOReader num EPUB é lida até o parágrafo, e o horário d
   assert.deepEqual(lerCaminhoDoKoreader('/body/DocFragment/body/P/text()[2].5'), { fragmento: 1, passos: [{ nome: 'p', indice: 1 }] });
   assert.deepEqual(lerCaminhoDoKoreader('/body/DocFragment[20]/body/p[22]/img.0'), { fragmento: 20, passos: [{ nome: 'p', indice: 22 }, { nome: 'img', indice: 1 }] });
   assert.deepEqual(lerCaminhoDoKoreader(' /body/DocFragment[2]/body '), { fragmento: 2, passos: [] });
+  // O começo de um capítulo, como a Prancheta o grava quando a página começa fora de um parágrafo.
+  assert.deepEqual(lerCaminhoDoKoreader('/body/DocFragment[5]/body.0'), { fragmento: 5, passos: [] });
+  assert.deepEqual(lerCaminhoDoKoreader('/body/DocFragment[5]/body/p[3].0'), { fragmento: 5, passos: [{ nome: 'p', indice: 3 }] });
   for (const estranho of ['42', '', null, 'xyz', '/body/DocFragment[0]/body', '/body/DocFragment[2]/body/p[x]', '/body/DocFragment[2]/corpo/p', '/body/DocFragment[-1]/body', '/body/DocFragment[2]/body/<p>']) {
     assert.equal(lerCaminhoDoKoreader(estranho), null, String(estranho));
   }
@@ -467,13 +470,13 @@ test('o leitor grava a posição no servidor ao virar páginas, e o outro aparel
     await noCapitulo(boox.pagina, /Parágrafo 1 do capítulo longo/);
     await boox.pagina.click('#leitor [data-acao="proxima"]');
     await boox.pagina.click('#leitor [data-acao="proxima"]');
-    await boox.pagina.waitForFunction(() => /^3\//.test(document.querySelector('#leitor .lt-posicao').textContent));
+    await boox.pagina.waitForFunction(() => /^3\//.test(document.querySelector('#leitor .lt-posicao').dataset.noCapitulo));
     await esperarGravacao(boox, 1);
     const posicaoNoBoox = await boox.pagina.evaluate(() => window.leitorDaPrancheta.posicaoAtual());
     const [gravada] = boox.gravacoes;
     assert.deepEqual(gravada.posicao, { cfi: posicaoNoBoox.cfi });
     assert.deepEqual([gravada.aparelho, typeof gravada.dispositivo, gravada.porcentagem > 0 && gravada.porcentagem < 1], ['Boox', 'string', true]);
-    assert.deepEqual(Object.keys(gravada).sort(), ['aparelho', 'dispositivo', 'porcentagem', 'posicao']);
+    assert.deepEqual(Object.keys(gravada).sort(), ['aparelho', 'caminho', 'dispositivo', 'porcentagem', 'posicao']);
     // Parado na mesma página, o leitor não grava de novo, nem quando a gravação é pedida outra vez.
     await boox.pagina.waitForTimeout(2600);
     await boox.pagina.evaluate(() => window.leitorDaPrancheta._enviarProgresso());
@@ -599,6 +602,86 @@ test('o leitor grava a posição no servidor ao virar páginas, e o outro aparel
   } finally {
     await boox.contexto.close();
     await computador.contexto.close();
+    await vps.fechar();
+  }
+});
+
+test('o caminho que a Prancheta grava para o KOReader aponta o parágrafo em que a página começa, e o KOReader o recebe', async () => {
+  const vps = await subirComoNaVps();
+  const p = await abrirPrancheta(vps);
+  const { pagina } = p;
+  // O caminho montado, o que a conversão da etapa 02 faz com ele, e o parágrafo em que a página à vista começa.
+  const idaEVolta = () => pagina.evaluate(async () => {
+    const vista = window.leitorDaPrancheta.vista;
+    const caminho = vista.caminhoDoKoreader();
+    const lugar = await vista.lugarDoKoreader({ progress: caminho });
+    const local = vista.vista.currentLocation();
+    const conteudo = vista.vista.getContents().find((c) => c.sectionIndex === local.start.index);
+    let bloco = conteudo.range(local.start.cfi).startContainer;
+    while (bloco.nodeType !== 1 || !/^(p|h1)$/.test(bloco.localName)) bloco = bloco.parentNode;
+    return { caminho, lugar, comeco: bloco.id || bloco.localName, capitulo: local.start.index + 1 };
+  });
+  const irAo = (indice, seletor) => pagina.evaluate(async ([i, alvo]) => {
+    const vista = window.leitorDaPrancheta.vista;
+    const secao = vista.livro.spine.spineItems[i];
+    const doc = await vista.livro.load(secao.url);
+    await vista.irPara(secao.cfiFromElement(doc.querySelector(alvo)));
+    await new Promise((pronto) => setTimeout(pronto, 700));
+  }, [indice, seletor]);
+  try {
+    await abrirLivro(p, vps, 'Livro longo.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    await pagina.waitForTimeout(700);
+    // No começo do primeiro capítulo, a página começa no título.
+    let r = await idaEVolta();
+    assert.deepEqual([r.caminho, r.comeco, r.lugar.mesmoLugar], ['/body/DocFragment[1]/body/h1/text().0', 'h1', true]);
+    // No capítulo longo, em três pontos: o caminho aponta o parágrafo em que a página começa, com a ordem
+    // dele entre os parágrafos, e a conversão de volta cai nesse mesmo parágrafo, na página à vista.
+    for (const alvo of ['#l1', '#l40', '#l75']) {
+      await irAo(2, alvo);
+      r = await idaEVolta();
+      const esperado = r.comeco === 'h1' ? '/body/DocFragment[3]/body/h1/text().0' : `/body/DocFragment[3]/body/p[${r.comeco.slice(1)}]/text().0`;
+      assert.equal(r.caminho, esperado, `página que começa em ${r.comeco}`);
+      assert.equal(r.lugar.mesmoLugar, true, `ida e volta em ${alvo}`);
+      assert.match(r.lugar.alvo, r.comeco === 'h1' ? /!\/4\/2\)$/ : new RegExp(`\\[${r.comeco}\\]\\)$`), 'a volta cai no mesmo parágrafo');
+    }
+    // Num parágrafo que começa com itálico, o caminho vai até o parágrafo, e não até o itálico.
+    assert.equal(await pagina.evaluate(() => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      return window.LeitorPrancheta.montarCaminhoDoKoreader(doc.querySelector('#l5').firstChild, doc.body, 3);
+    }), '/body/DocFragment[3]/body/p[5]/text().0');
+    await irAo(0, '#p3');
+    assert.deepEqual(await pagina.evaluate(() => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      const montar = window.LeitorPrancheta.montarCaminhoDoKoreader;
+      const solto = doc.createElement('p');
+      return [montar(doc.querySelector('#p3 em').firstChild, doc.body, 1), montar(doc.querySelector('#elo, #adiante').firstChild, doc.body, 1), montar(doc.body, doc.body, 1), montar(solto, doc.body, 1)];
+    }), ['/body/DocFragment[1]/body/p[2]/text().0', '/body/DocFragment[1]/body/p[3].0', '/body/DocFragment[1]/body.0', '']);
+
+    // Ao virar a página, a gravação leva o caminho, e o KOReader o recebe, com o aparelho identificado como Prancheta.
+    await irAo(2, '#l40');
+    await pagina.click('#leitor [data-acao="proxima"]');
+    await pagina.waitForTimeout(700);
+    r = await idaEVolta();
+    await esperarGravacao(p, 1);
+    assert.equal(p.gravacoes[0].caminho, r.caminho);
+    assert.match(p.gravacoes[0].caminho, /^\/body\/DocFragment\[3\]\/body\/p\[\d+\]\/text\(\)\.0$/);
+    const doKoreader = async (nome) => (await fetch(`${vps.base}/sync/kosync/syncs/progress/${vps.ids[nome]}`, { headers: { 'x-auth-user': USUARIO, 'x-auth-key': md5(SENHA) } })).json();
+    const recebido = await doKoreader('Livro longo.epub');
+    assert.deepEqual([recebido.progress, recebido.device, recebido.percentage], [r.caminho, 'Prancheta (computador)', p.gravacoes[0].porcentagem]);
+    assert.equal('posicao' in recebido, false);
+
+    // Num PDF, não há caminho na gravação, e o KOReader recebe o número da página.
+    await abrirLivro(p, vps, 'Tres paginas.pdf');
+    await pagina.click('#leitor [data-acao="proxima"]');
+    await pagina.waitForFunction(() => document.querySelector('#leitor .lt-posicao').textContent === 'p. 2 de 3');
+    const antes = p.gravacoes.length;
+    await esperarGravacao(p, antes + 1);
+    assert.equal('caminho' in p.gravacoes.at(-1), false);
+    assert.deepEqual([(await doKoreader('Tres paginas.pdf')).progress, (await doKoreader('Tres paginas.pdf')).device], ['2', 'Prancheta (computador)']);
+    assert.deepEqual(p.erros, []);
+  } finally {
+    await p.contexto.close();
     await vps.fechar();
   }
 });
