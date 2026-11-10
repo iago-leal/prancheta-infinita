@@ -95,6 +95,8 @@
 
   // Quantos caracteres do livro cabem em cada posição de um EPUB sem páginas marcadas.
   const CARACTERES_POR_POSICAO = 1600;
+  // Com a ponta de uma seleção fora da página, o tempo mínimo entre uma virada de página e a seguinte.
+  const ESPERA_ENTRE_VIRADAS_DA_SELECAO = 900;
 
   // ---- Busca no texto ----
 
@@ -372,9 +374,19 @@
           avisarCascaDoToque(true);
           this._haviaSelecao = !conteudo.window.getSelection().isCollapsed;
         }, true);
+        // Um arrasto em andamento, com o mouse ou o dedo: é ele que estende uma seleção para além da página.
+        let arrasto = null;
+        conteudo.document.addEventListener('pointerdown', (e) => {
+          arrasto = { x: e.clientX, y: e.clientY, moveu: false };
+        }, true);
+        conteudo.document.addEventListener('pointermove', (e) => {
+          if (arrasto && e.buttons && Math.hypot(e.clientX - arrasto.x, e.clientY - arrasto.y) > 6) arrasto.moveu = true;
+        }, true);
+        for (const fim of ['pointerup', 'pointercancel']) conteudo.document.addEventListener(fim, () => { arrasto = null; }, true);
         // A epub.js só avisa de uma seleção feita; a desfeita, por um toque fora dela, é avisada aqui.
         conteudo.document.addEventListener('selectionchange', () => {
           if (conteudo.window.getSelection().isCollapsed) this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
+          else if (arrasto && arrasto.moveu) this._seguirPontaDaSelecao(conteudo);
         });
         conteudo.document.addEventListener('click', (e) => {
           const elo = e.target.closest && e.target.closest('a[href]');
@@ -392,6 +404,7 @@
           selecao: texto.trim() ? { texto: texto.trim(), posicao: { cfi: cfiRange }, retangulo: this._retanguloDaSelecao(conteudo) } : null,
         });
       });
+      this._seguiuEm = 0;
       await this.vista.display(posicao && posicao.cfi ? posicao.cfi : undefined);
       this._travarRolagem();
       // As posições e as porcentagens vêm depois, sem atrasar a abertura: as
@@ -519,6 +532,8 @@
     // Só as viradas de página rolam o livro. Ao arrastar a ponta de uma seleção
     // para além da página, o navegador rola o livro para mostrá-la, e a página
     // ficava cortada ao meio; essa rolagem é desfeita antes de aparecer na tela.
+    // Com um trecho selecionado, ela vira uma virada de página inteira, para a
+    // seleção continuar na página seguinte: ver _seguirSelecao.
     _travarRolagem() {
       const gerente = this.vista && this.vista.manager;
       const recipiente = gerente && gerente.container;
@@ -536,9 +551,71 @@
       }
       recipiente.addEventListener('scroll', () => {
         const [x, y] = this._rolagem;
-        if (Math.abs(recipiente.scrollLeft - x) > 1) recipiente.scrollLeft = x;
+        const desvio = recipiente.scrollLeft - x;
+        if (Math.abs(desvio) > 1) {
+          recipiente.scrollLeft = x;
+          this._seguirSelecao(desvio > 0 ? 1 : -1);
+        }
         if (Math.abs(recipiente.scrollTop - y) > 1) recipiente.scrollTop = y;
       });
+    }
+
+    // Num arrasto com o mouse, o navegador não rola o livro: a ponta da seleção
+    // vai, sem aparecer, para o texto da página ao lado, que está logo depois
+    // da borda. Quando ela passa da borda, o livro vira a página para mostrá-la.
+    _seguirPontaDaSelecao(conteudo) {
+      const selecao = conteudo.window.getSelection();
+      const recipiente = this.vista && this.vista.manager && this.vista.manager.container;
+      const quadro = conteudo.document.defaultView.frameElement;
+      if (!recipiente || !quadro || !selecao.focusNode) return;
+      const ponta = conteudo.document.createRange();
+      try {
+        ponta.setStart(selecao.focusNode, selecao.focusOffset);
+      } catch (e) {
+        return;
+      }
+      const r = ponta.getClientRects()[0] || ponta.getBoundingClientRect();
+      if (!r || (!r.height && !r.width && !r.left && !r.top)) return;
+      const x = quadro.getBoundingClientRect().left + r.left;
+      const pagina = recipiente.getBoundingClientRect();
+      if (x >= pagina.right - 1) this._seguirSelecao(1);
+      else if (x < pagina.left - 1) this._seguirSelecao(-1);
+    }
+
+    // A seleção que chega ao fim da página segue para a página ao lado. O
+    // navegador tenta rolar o livro para mostrar a ponta da seleção; com um
+    // trecho selecionado, essa tentativa vira uma virada de página inteira,
+    // no sentido dela, e a seleção fica de pé, porque as páginas de um
+    // capítulo são o mesmo documento. Entre uma virada e a seguinte passa um
+    // tempo, porque o navegador insiste enquanto a ponta está fora da página,
+    // e sem a espera o livro correria até o fim do capítulo. No fim e no
+    // começo do capítulo, a seleção para ali.
+    _seguirSelecao(sentido) {
+      const gerente = this.vista && this.vista.manager;
+      const recipiente = gerente && gerente.container;
+      if (!recipiente || !this.temSelecao()) return false;
+      const agora = Date.now();
+      if (agora - this._seguiuEm < ESPERA_ENTRE_VIRADAS_DA_SELECAO) return false;
+      const passo = gerente.layout && gerente.layout.delta;
+      const [x] = this._rolagem;
+      if (!(passo > 0)) return false;
+      if (sentido > 0 ? x + recipiente.offsetWidth + passo > recipiente.scrollWidth + 1 : x - passo < -1) return false;
+      this._seguiuEm = agora;
+      gerente.scrollBy(sentido * passo, 0, true);
+      this.aoMudar({ tipo: 'salto' });
+      this.vista.reportLocation();
+      // A barra da seleção acompanha a parte do trecho que está na página nova.
+      const conteudo = this.vista.getContents().find((c) => c.window && !c.window.getSelection().isCollapsed);
+      if (conteudo) {
+        const selecao = conteudo.window.getSelection();
+        const texto = selecao.toString().trim();
+        let cfi = '';
+        try {
+          cfi = conteudo.cfiFromRange(selecao.getRangeAt(0));
+        } catch (e) { /* sem endereço, a seleção fica sem a barra até mudar de novo */ }
+        if (texto && cfi) this.aoMudar({ tipo: 'selecao', selecao: { texto, posicao: { cfi }, retangulo: this._retanguloDaSelecao(conteudo) } });
+      }
+      return true;
     }
 
     // Onde a seleção está na área do livro, para a barra dela aparecer acima do trecho.
@@ -1697,7 +1774,8 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       // depois das alças da seleção, quando a tela é de toque.
       const posicionarBarra = (r) => {
         const area = meio.getBoundingClientRect();
-        const alvo = r || { esquerda: area.width / 2, direita: area.width / 2, topo: area.height / 2, base: area.height / 2 };
+        // Sem nenhuma parte do trecho à vista, como logo depois de a seleção seguir para a página ao lado, a barra fica no alto, fora do caminho.
+        const alvo = r || { esquerda: area.width / 2, direita: area.width / 2, topo: 0, base: 0 };
         const largura = selecao.offsetWidth;
         const altura = selecao.offsetHeight;
         const abaixo = global.matchMedia && global.matchMedia('(pointer: coarse)').matches ? 34 : 10;

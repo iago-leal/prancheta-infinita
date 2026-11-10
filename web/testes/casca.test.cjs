@@ -797,6 +797,50 @@ test('o que o laço seleciona pode ser movido, copiado e apagado como numa sele�
   await pagina.mouse.up();
   await esperar(pagina, () => S.sel.size === 2);
   const posicoes = () => pagina.evaluate((ids) => { const a = S.items.get(ids.a), c = S.items.get(ids.c); return { a: [a.ox, a.oy], c: [c.x, c.y], k: S.view.k }; }, ids);
+  // A seleção do laço mostra a barra flutuante da seleção comum, com os mesmos botões, perto dos itens e dentro da tela.
+  const barra = () => pagina.evaluate(() => {
+    const el = document.getElementById('selbar');
+    const r = el.getBoundingClientRect();
+    const caixa = document.querySelector('#over .selbox')?.getBoundingClientRect();
+    return {
+      visivel: !el.hidden && getComputedStyle(el).display !== 'none' && r.width > 0,
+      botoes: [...el.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')),
+      naTela: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+      meio: Math.round(r.left + r.width / 2),
+      foraDaSelecao: caixa ? r.bottom <= caixa.top || r.top >= caixa.bottom : null,
+      meioDaSelecao: caixa ? Math.round(caixa.left + caixa.width / 2) : null,
+      ferramenta: S.tool,
+    };
+  });
+  const comOLaco = await barra();
+  assert.equal(comOLaco.visivel, true, 'a barra aparece com a seleção do laço');
+  assert.equal(comOLaco.ferramenta, 'lasso');
+  assert.ok(comOLaco.botoes.includes('Duplicar') && comOLaco.botoes.includes('Excluir') && comOLaco.botoes.length > 4, `a barra traz as cores e as ações: ${comOLaco.botoes}`);
+  assert.ok(comOLaco.naTela && comOLaco.foraDaSelecao && Math.abs(comOLaco.meio - comOLaco.meioDaSelecao) <= 2, `a barra fica junto da seleção, sem cobri-la: ${JSON.stringify(comOLaco)}`);
+  // São os mesmos botões que a seleção comum mostra para os mesmos itens.
+  const comum = await pagina.evaluate((ids) => {
+    setTool('select');
+    select([ids.a, ids.c]);
+    const botoes = [...document.querySelectorAll('#selbar button')].map((b) => b.getAttribute('aria-label'));
+    setTool('lasso');
+    return { botoes, selecaoDesfeita: S.sel.size === 0, barraEscondida: document.getElementById('selbar').hidden };
+  }, ids);
+  assert.deepEqual(comOLaco.botoes, comum.botoes);
+  // Trocar para o laço desfaz a seleção, e a barra some com ela; com o laço escolhido e nada selecionado, não há barra.
+  assert.deepEqual([comum.selecaoDesfeita, comum.barraEscondida], [true, true]);
+  // Enquanto um laço novo é desenhado, a barra continua escondida; ao soltar, ela volta.
+  await pagina.mouse.move(pts[0][0], pts[0][1]);
+  await pagina.mouse.down();
+  for (const [x, y] of pts.slice(1, 4)) await pagina.mouse.move(x, y);
+  assert.equal((await barra()).visivel, false, 'sem barra durante o laço');
+  for (const [x, y] of pts.slice(4)) await pagina.mouse.move(x, y);
+  await pagina.mouse.up();
+  await esperar(pagina, () => S.sel.size === 2);
+  assert.equal((await barra()).visivel, true);
+  // Um botão da barra age sobre os itens do laço, e a ferramenta continua o laço: a cor, aqui.
+  const cor = await pagina.evaluate(() => [...document.querySelectorAll('#selbar [data-color]')].map((b) => b.dataset.color).find((c) => c !== 'none' && c !== 'ink'));
+  await pagina.locator(`#selbar [data-color="${cor}"]`).click();
+  assert.deepEqual(await pagina.evaluate((ids) => [S.items.get(ids.a).c, S.items.get(ids.c).c, S.tool, S.sel.size], ids), [cor, cor, 'lasso', 2]);
   const antes = await posicoes();
   // Arrastar de dentro da seleção, com o laço ativo, move os itens em vez de começar outro laço.
   await pagina.mouse.move(600, 450);
@@ -808,9 +852,20 @@ test('o que o laço seleciona pode ser movido, copiado e apagado como numa sele�
   assert.ok(Math.abs(depois.c[0] - antes.c[0] - dx) < 2 && Math.abs(depois.c[1] - antes.c[1] - dy) < 2, `o cartão se moveu: ${JSON.stringify([antes, depois])}`);
   assert.ok(Math.abs(depois.a[0] - antes.a[0] - dx) < 2 && Math.abs(depois.a[1] - antes.a[1] - dy) < 2, `o traço se moveu: ${JSON.stringify([antes, depois])}`);
   assert.deepEqual((await pagina.evaluate(() => [...S.sel])).sort(), [ids.a, ids.c].sort(), 'a seleção continua');
-  // Copiar e apagar.
+  // A barra acompanha os itens movidos.
+  const movida = await barra();
+  assert.ok(movida.visivel && movida.naTela && Math.abs(movida.meio - comOLaco.meio - 100) <= 3, `a barra foi junto: ${JSON.stringify([comOLaco.meio, movida.meio])}`);
+  // Copiar e apagar, pelos botões da barra.
   const total = () => pagina.evaluate(() => S.items.size);
   const n = await total();
+  await pagina.locator('#selbar [data-a="dup"]').click();
+  await esperar(pagina, (n) => S.items.size === n + 2, n);
+  assert.equal((await barra()).visivel, true, 'a barra continua, agora com as cópias');
+  await pagina.locator('#selbar [data-a="del"]').click();
+  await esperar(pagina, (n) => S.items.size === n, n);
+  assert.deepEqual(await pagina.evaluate(() => [document.getElementById('selbar').hidden, S.tool]), [true, 'lasso'], 'sem seleção, a barra some, e o laço continua');
+  // E pelo teclado.
+  await pagina.evaluate((ids) => select([ids.a, ids.c]), ids);
   await pagina.keyboard.press('Control+d');
   await esperar(pagina, (n) => S.items.size === n + 2, n);
   await pagina.keyboard.press('Delete');

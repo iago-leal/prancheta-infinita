@@ -3,10 +3,10 @@ tipo: etapa
 plano: "008"
 etapa: "01"
 titulo: "A tela da biblioteca, com título, autor, busca e ordenação"
-status: em_andamento
+status: concluida
 depende_de: []
 iniciada_em: 2026-11-10
-concluida_em:
+concluida_em: 2026-11-10
 ---
 
 # Etapa 01: a tela da biblioteca, com título, autor, busca e ordenação
@@ -25,7 +25,7 @@ Trocar a lista do painel lateral por uma tela própria da biblioteca, em que cad
 - [x] No painel lateral, a seção Biblioteca fica só com o botão que abre a tela e com os livros lidos por último, até cinco.
 - [x] Com 500 livros, a tela abre e a busca responde em menos de um segundo no teste; na casca, a tela não tem sombras, animações nem transparências.
 - [x] Os testes automáticos cobrem a leitura do título e do autor, a tela, a busca, a ordenação, o filtro e o uso sem rede, e acusam mutações introduzidas.
-- [ ] O autor confirma no Boox que abre a biblioteca, acha um livro pela busca e pelo autor e o abre.
+- [x] O autor confirma no Boox que abre a biblioteca, acha um livro pela busca e pelo autor e o abre.
 
 ## Registro
 
@@ -58,5 +58,21 @@ Trocar a lista do painel lateral por uma tela própria da biblioteca, em que cad
   - Vários autores no mesmo livro passam a vir separados por ponto e vírgula, porque a vírgula aparece dentro de um nome. O livro fica no grupo do primeiro autor, e os outros aparecem na linha dele.
   - Limite: os PDFs não trazem o autor lido de dentro do arquivo; numa biblioteca com pastas que são identificadores, eles ficam todos em "Sem autor".
   - Testes: o teste de unidade do agrupamento foi refeito com pastas que são identificadores, a biblioteca do teste no navegador ganhou duas dessas pastas, e o do servidor confere 7 identificadores, 10 nomes e a pasta com nome depois de um identificador. As 21 mutações desta correção foram acusadas, e a execução de controle passou. A suíte da página tem 118 testes, e a do servidor, 50, todos passando.
+- Mesclado o PR #50, com a correção; casca 0.17.0. O autor confirmou no Boox que o agrupamento por autores deu certo. O critério 9 continua aberto até ele dizer se também achou um livro pela busca e o abriu.
+- Critério 9 verificado: o autor confirmou no Boox que, além do agrupamento por autores, achou um livro pela busca e o abriu.
 
 ## Resultado
+
+A biblioteca abre numa tela própria, por cima do quadro, com um livro por linha, o título e o autor lidos de dentro dos EPUBs, os livros agrupados pelo autor, a busca sem acentos, três ordens, o filtro dos guardados neste aparelho e a porcentagem lida. No painel lateral ficaram o botão que abre a tela e os cinco livros lidos por último.
+
+Como cada critério foi verificado:
+
+1. Título e autor de cada EPUB entregues pelo servidor, com o nome do arquivo e a pasta de reserva: pelos testes do servidor. O trecho "a pasta como autor" só vale para pastas com nome de gente, como registrado acima.
+2. Tela própria, aberta pelo botão do painel e fechada pelo botão e pelo Esc, com o quadro como estava: pelo teste da tela no Chromium.
+3. Lista agrupada por autor, com o título, o formato, a marca de guardado e a porcentagem lida: pelos testes da tela, e pelo autor, no Boox, depois da correção do agrupamento.
+4. Busca sem maiúsculas nem acentos, três ordens e filtro dos guardados: pelo teste de unidade da organização e pelo teste da tela.
+5. Tocar num livro o abre e fecha a biblioteca, com o download à vista, e o uso sem rede: pelos testes da tela.
+6. Painel lateral com o botão e os cinco lidos por último: pelo teste da tela.
+7. Com 500 livros, abrir e buscar em menos de um segundo, e a tela sem sombras, animações nem transparências na casca: pelo teste na casca simulada, com a tela aberta em 59 ms.
+8. Testes e mutações: 88 mutações da etapa e 21 da correção do agrupamento, todas acusadas.
+9. Abrir a biblioteca, achar um livro pela busca e pelo autor e abri-lo: pelo autor, no Boox, em 2026-11-10.
