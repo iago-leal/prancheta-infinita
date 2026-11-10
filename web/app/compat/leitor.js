@@ -97,6 +97,8 @@
   const CARACTERES_POR_POSICAO = 1600;
   // Com a ponta de uma seleção fora da página, o tempo mínimo entre uma virada de página e a seguinte.
   const ESPERA_ENTRE_VIRADAS_DA_SELECAO = 900;
+  // De quanto em quanto tempo o leitor confere, por fora, a seleção feita na página de um e-book: ver _conferirSelecao.
+  const INTERVALO_DA_VIGIA_DA_SELECAO = 300;
 
   // ---- Busca no texto ----
 
@@ -325,7 +327,10 @@
       this._achado = null;
       // A posição em que a epub.js deixou a rolagem do livro, depois de travada.
       this._rolagem = null;
-
+      // A vigia da seleção: o endereço do trecho na última leitura e o do último trecho avisado.
+      this._vigia = null;
+      this._selecaoLida = '';
+      this._selecaoAvisada = '';
     }
 
     async abrir(blob, posicao, { locais } = {}) {
@@ -385,8 +390,10 @@
         for (const fim of ['pointerup', 'pointercancel']) conteudo.document.addEventListener(fim, () => { arrasto = null; }, true);
         // A epub.js só avisa de uma seleção feita; a desfeita, por um toque fora dela, é avisada aqui.
         conteudo.document.addEventListener('selectionchange', () => {
-          if (conteudo.window.getSelection().isCollapsed) this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
-          else if (arrasto && arrasto.moveu) this._seguirPontaDaSelecao(conteudo);
+          if (conteudo.window.getSelection().isCollapsed) {
+            this._selecaoAvisada = '';
+            this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
+          } else if (arrasto && arrasto.moveu) this._seguirPontaDaSelecao(conteudo);
         });
         conteudo.document.addEventListener('click', (e) => {
           const elo = e.target.closest && e.target.closest('a[href]');
@@ -399,6 +406,7 @@
       this.vista.on('click', (e, conteudo) => this._clicou(e, conteudo));
       this.vista.on('selected', (cfiRange, conteudo) => {
         const texto = conteudo && conteudo.window ? conteudo.window.getSelection().toString() : '';
+        this._selecaoAvisada = texto.trim() ? cfiRange : '';
         this.aoMudar({
           tipo: 'selecao',
           selecao: texto.trim() ? { texto: texto.trim(), posicao: { cfi: cfiRange }, retangulo: this._retanguloDaSelecao(conteudo) } : null,
@@ -407,6 +415,7 @@
       this._seguiuEm = 0;
       await this.vista.display(posicao && posicao.cfi ? posicao.cfi : undefined);
       this._travarRolagem();
+      this._vigia = setInterval(() => this._conferirSelecao(), INTERVALO_DA_VIGIA_DA_SELECAO);
       // As posições e as porcentagens vêm depois, sem atrasar a abertura: as
       // guardadas da primeira vez, ou calculadas agora, capítulo a capítulo, e
       // entregues para serem guardadas.
@@ -605,17 +614,51 @@
       this.aoMudar({ tipo: 'salto' });
       this.vista.reportLocation();
       // A barra da seleção acompanha a parte do trecho que está na página nova.
-      const conteudo = this.vista.getContents().find((c) => c.window && !c.window.getSelection().isCollapsed);
-      if (conteudo) {
-        const selecao = conteudo.window.getSelection();
-        const texto = selecao.toString().trim();
-        let cfi = '';
-        try {
-          cfi = conteudo.cfiFromRange(selecao.getRangeAt(0));
-        } catch (e) { /* sem endereço, a seleção fica sem a barra até mudar de novo */ }
-        if (texto && cfi) this.aoMudar({ tipo: 'selecao', selecao: { texto, posicao: { cfi }, retangulo: this._retanguloDaSelecao(conteudo) } });
-      }
+      const atual = this._selecaoAtual();
+      if (atual) this._avisarSelecao(atual);
       return true;
+    }
+
+    // O trecho selecionado no livro, com o endereço dele e a página em que está, ou null.
+    _selecaoAtual() {
+      const conteudo = this.vista ? this.vista.getContents().find((c) => c.window && !c.window.getSelection().isCollapsed) : null;
+      if (!conteudo) return null;
+      const selecao = conteudo.window.getSelection();
+      const texto = selecao.toString().trim();
+      let cfi = '';
+      try {
+        cfi = conteudo.cfiFromRange(selecao.getRangeAt(0));
+      } catch (e) { /* sem endereço, a seleção fica sem a barra até mudar de novo */ }
+      return texto && cfi ? { conteudo, texto, cfi } : null;
+    }
+
+    _avisarSelecao(atual) {
+      this._selecaoAvisada = atual.cfi;
+      this.aoMudar({ tipo: 'selecao', selecao: { texto: atual.texto, posicao: { cfi: atual.cfi }, retangulo: this._retanguloDaSelecao(atual.conteudo) } });
+    }
+
+    // A seleção é avisada pela página do livro, por eventos dela. No Safari, e
+    // em todo navegador do iPad e do iPhone, a página do livro não avisa de
+    // nada: ela fica num quadro em que nenhum código roda, para o livro não
+    // alcançar os dados da Prancheta, e lá isso cala também os avisos pedidos
+    // pelo leitor. Por isso o leitor confere a seleção por fora, de tempo em
+    // tempo, e avisa do trecho quando ele para de mudar, com duas leituras
+    // iguais, e da seleção desfeita. Onde a página avisa, o aviso dela chega
+    // antes, e o trecho já avisado não é avisado de novo.
+    _conferirSelecao() {
+      if (!this.vista || document.hidden) return;
+      const atual = this._selecaoAtual();
+      const endereco = atual ? atual.cfi : '';
+      if (endereco !== this._selecaoLida) {
+        this._selecaoLida = endereco;
+        return;
+      }
+      if (endereco === this._selecaoAvisada) return;
+      if (atual) this._avisarSelecao(atual);
+      else {
+        this._selecaoAvisada = '';
+        this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
+      }
     }
 
     // Onde a seleção está na área do livro, para a barra dela aparecer acima do trecho.
@@ -857,6 +900,8 @@
     }
 
     destruir() {
+      clearInterval(this._vigia);
+      this._vigia = null;
       try {
         if (this.livro) this.livro.destroy();
       } catch (e) { /* o livro já estava fechado */ }
@@ -1771,16 +1816,22 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const textoDoRemoto = painel.querySelector('.lt-remoto-texto');
       const meio = painel.querySelector('.lt-meio');
       // A barra da seleção fica acima do trecho; sem espaço ali, abaixo dele,
-      // depois das alças da seleção, quando a tela é de toque.
+      // depois das alças da seleção, quando a tela é de toque. Num navegador
+      // de tela de toque, fora da casca, é o contrário: o menu de seleção do
+      // sistema aparece acima do trecho e não pode ser escondido pela página,
+      // e a barra vai para baixo, para não ficar por baixo dele.
       const posicionarBarra = (r) => {
         const area = meio.getBoundingClientRect();
         // Sem nenhuma parte do trecho à vista, como logo depois de a seleção seguir para a página ao lado, a barra fica no alto, fora do caminho.
         const alvo = r || { esquerda: area.width / 2, direita: area.width / 2, topo: 0, base: 0 };
         const largura = selecao.offsetWidth;
         const altura = selecao.offsetHeight;
-        const abaixo = global.matchMedia && global.matchMedia('(pointer: coarse)').matches ? 34 : 10;
+        const toque = Boolean(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
+        const abaixo = toque ? 34 : 10;
         let topo = alvo.topo - altura - 10;
-        if (topo < 4) topo = Math.min(alvo.base + abaixo, area.height - altura - 4);
+        if (toque && !global.Casca && r) {
+          if (alvo.base + abaixo + altura <= area.height - 4) topo = alvo.base + abaixo;
+        } else if (topo < 4) topo = Math.min(alvo.base + abaixo, area.height - altura - 4);
         const esquerda = Math.min(Math.max(4, (alvo.esquerda + alvo.direita) / 2 - largura / 2), area.width - largura - 4);
         // No e-ink, cada mudança de posição atualiza a região: só escreve o que mudou.
         const lugar = { left: `${Math.round(esquerda)}px`, top: `${Math.round(Math.max(4, topo))}px` };

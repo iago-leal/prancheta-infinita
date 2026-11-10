@@ -53,9 +53,38 @@ after(async () => {
   await vps?.fechar();
 });
 
-// Abre a Prancheta, ligada ao servidor; com naCasca, dentro de uma casca simulada, com tela de toque.
-async function abrirPrancheta({ naCasca = false } = {}) {
-  const contexto = await navegador.newContext({ viewport: TELA, hasTouch: naCasca, permissions: ['clipboard-read', 'clipboard-write'] });
+// Abre a Prancheta, ligada ao servidor; com naCasca, dentro de uma casca
+// simulada, com tela de toque; com toque, num navegador de tela de toque, fora
+// da casca; com livroCalado, num navegador em que a página do livro não avisa
+// de nada, como o Safari do iPad e do iPhone.
+async function abrirPrancheta({ naCasca = false, toque = false, livroCalado = false } = {}) {
+  const contexto = await navegador.newContext({ viewport: TELA, hasTouch: naCasca || toque, permissions: ['clipboard-read', 'clipboard-write'] });
+  if (livroCalado) {
+    // No WebKit, um quadro em que nenhum código roda também não chama os
+    // ouvintes postos de fora nele. Aqui, cada vez que o leitor alcança a
+    // página do livro, os pedidos de aviso feitos a ela passam a não fazer nada.
+    await contexto.addInitScript(() => {
+      if (window.top !== window) return;
+      const calar = (janela) => {
+        const alvos = janela && janela.EventTarget && janela.EventTarget.prototype;
+        if (alvos && !alvos.__calado) {
+          alvos.addEventListener = function calado() {};
+          alvos.__calado = true;
+        }
+      };
+      for (const nome of ['contentWindow', 'contentDocument']) {
+        const original = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, nome);
+        Object.defineProperty(HTMLIFrameElement.prototype, nome, {
+          ...original,
+          get() {
+            const saida = original.get.call(this);
+            if (this.closest('#leitor')) calar(nome === 'contentWindow' ? saida : saida && saida.defaultView);
+            return saida;
+          },
+        });
+      }
+    });
+  }
   if (naCasca) {
     await contexto.addInitScript(() => {
       const nada = () => {};
@@ -681,6 +710,122 @@ test('a barra da seleção flutua acima do trecho, só com os botões, e some ao
     assert.deepEqual(erros, []);
   } finally {
     await contexto.close();
+  }
+});
+
+// Anota os avisos de seleção que a página do livro aberto manda ao leitor.
+const anotarAvisosDeSelecao = (pagina) => pagina.evaluate(() => {
+  window.__avisos = [];
+  const vista = window.leitorDaPrancheta.vista;
+  if (vista.__anotada) return;
+  vista.__anotada = true;
+  const original = vista.aoMudar;
+  vista.aoMudar = (mudanca) => {
+    if (mudanca.tipo === 'selecao') window.__avisos.push(mudanca.selecao ? mudanca.selecao.texto : (mudanca.desfeita ? 'desfeita' : null));
+    return original(mudanca);
+  };
+});
+const avisosDeSelecao = (pagina) => pagina.evaluate(() => window.__avisos);
+
+test('onde a página do livro não avisa de nada, como no Safari do iPad, a barra da seleção aparece assim mesmo, destaca o trecho e some com a seleção', async () => {
+  const { contexto, pagina, erros } = await abrirPrancheta({ livroCalado: true });
+  try {
+    await abrirLivro(pagina, 'Livro rico.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    // A simulação vale: o toque no terço direito, que a página do livro avisaria, não vira a página.
+    await pagina.mouse.click(...await pontoNoLivro(pagina, 0.9));
+    await pagina.waitForTimeout(700);
+    assert.match(await textoDoEpub(pagina), /primeiro capítulo/);
+
+    // O trecho selecionado ganha a barra, com o texto e o endereço dele.
+    await anotarAvisosDeSelecao(pagina);
+    await selecionarNoEpub(pagina, 'p1', 9, 26);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    const selecao = await pagina.evaluate(() => window.leitorDaPrancheta.selecao);
+    assert.equal(selecao.texto, await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().toString()));
+    assert.match(selecao.posicao.cfi, /^epubcfi\(/);
+    let m = await barraDaSelecao(pagina);
+    assert.ok(m.barra.base <= m.trecho.topo && m.trecho.topo - m.barra.base < 24, `a barra fica logo acima do trecho: ${JSON.stringify(m)}`);
+    // A seleção desfeita tira a barra.
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await barraSome(pagina);
+    assert.equal(await pagina.evaluate(() => window.leitorDaPrancheta.selecao), null);
+    assert.deepEqual(await avisosDeSelecao(pagina), [selecao.texto, 'desfeita']);
+
+    // Enquanto a seleção muda, como no arrasto de uma alça, nada é avisado; só o trecho em que ela para.
+    await anotarAvisosDeSelecao(pagina);
+    for (const fim of [12, 15, 18, 21, 24]) {
+      await selecionarNoEpub(pagina, 'p1', 9, fim);
+      await pagina.waitForTimeout(120);
+    }
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    await pagina.waitForTimeout(700);
+    const final = await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().toString());
+    assert.deepEqual(await avisosDeSelecao(pagina), [final], 'um aviso só, do trecho final');
+    // O botão da barra destaca o trecho, e a barra some com a seleção.
+    // Os destaques deste livro feitos pelos outros testes chegam pelo servidor: conta só o deste trecho.
+    const destacados = () => pagina.evaluate((trecho) => window.marcacoesDaPrancheta.destaques(window.leitorDaPrancheta.livro.id).then((lista) => lista.filter((d) => d.trecho === trecho).length), final.trim());
+    const antes = await destacados();
+    await pagina.click('#leitor .lt-selecao [data-acao="destacar"]');
+    await barraSome(pagina);
+    assert.equal(await destacados(), antes + 1);
+    await pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque').length >= 1);
+
+    // Fechado o livro, a vigia para: nada mais é lido da página dele.
+    const vista = await pagina.evaluateHandle(() => window.leitorDaPrancheta.vista);
+    await pagina.click('#leitor [data-acao="fechar"]');
+    assert.equal(await vista.evaluate((v) => v._vigia), null);
+    assert.deepEqual(erros, []);
+  } finally {
+    await contexto.close();
+  }
+});
+
+test('onde a página do livro avisa, cada seleção é avisada uma vez só; numa tela de toque fora da casca, a barra fica abaixo do trecho, longe do menu do sistema', async () => {
+  const normal = await abrirPrancheta();
+  try {
+    await abrirLivro(normal.pagina, 'Livro rico.epub');
+    await noCapitulo(normal.pagina, /primeiro capítulo/);
+    await anotarAvisosDeSelecao(normal.pagina);
+    await selecionarNoEpub(normal.pagina, 'p1', 9, 26);
+    await normal.pagina.locator('#leitor .lt-selecao').waitFor();
+    await normal.pagina.waitForTimeout(1200);
+    const texto = await normal.pagina.evaluate(() => window.leitorDaPrancheta.selecao.texto);
+    assert.deepEqual(await avisosDeSelecao(normal.pagina), [texto]);
+    await normal.pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await barraSome(normal.pagina);
+    await normal.pagina.waitForTimeout(1200);
+    assert.deepEqual(await avisosDeSelecao(normal.pagina), [texto, 'desfeita']);
+    assert.deepEqual(normal.erros, []);
+  } finally {
+    await normal.contexto.close();
+  }
+
+  const deToque = await abrirPrancheta({ toque: true });
+  try {
+    assert.equal(await deToque.pagina.evaluate(() => matchMedia('(pointer: coarse)').matches && !window.Casca), true);
+    await abrirLivro(deToque.pagina, 'Livro rico.epub');
+    await noCapitulo(deToque.pagina, /primeiro capítulo/);
+    await selecionarNoEpub(deToque.pagina, 'p1', 9, 26);
+    await deToque.pagina.locator('#leitor .lt-selecao').waitFor();
+    let m = await barraDaSelecao(deToque.pagina);
+    assert.ok(m.barra.topo - m.trecho.base >= 30 && m.barra.topo - m.trecho.base < 48, `a barra fica abaixo do trecho, depois das alças: ${JSON.stringify(m)}`);
+    assert.ok(m.dentro, 'a barra fica sobre o livro');
+    assert.deepEqual(deToque.erros, []);
+  } finally {
+    await deToque.contexto.close();
+  }
+  // Na casca, que esconde o menu do Android, a barra continua acima do trecho.
+  const casca = await abrirPrancheta({ naCasca: true });
+  try {
+    await abrirLivro(casca.pagina, 'Livro rico.epub');
+    await noCapitulo(casca.pagina, /primeiro capítulo/);
+    await selecionarNoEpub(casca.pagina, 'p1', 9, 26);
+    await casca.pagina.locator('#leitor .lt-selecao').waitFor();
+    const m = await barraDaSelecao(casca.pagina);
+    assert.ok(m.barra.base <= m.trecho.topo, `na casca, a barra fica acima do trecho: ${JSON.stringify(m)}`);
+  } finally {
+    await casca.contexto.close();
   }
 });
 
