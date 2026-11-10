@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 006: leitor à esquerda e destaques editáveis
+
+### Feito
+
+- Mesclado o PR #41, que concluiu o plano 005. O levantamento do Readest mostrou que ele é AGPL-3.0-or-later e ficou em [readest.md](planos/006-melhorias-do-leitor/readest.md), só com a descrição do comportamento.
+- O autor aprovou o [plano 006](planos/006-melhorias-do-leitor/plano.md), de melhorias do leitor, e os critérios da etapa 01. A [etapa 01](planos/006-melhorias-do-leitor/etapas/01-leitor-a-esquerda-e-destaques.md) está implementada: o leitor abre à esquerda do quadro, com um botão que troca o lado, e tocar num destaque abre apagar, estilo, nota e levar ao quadro, com a exclusão marcada para sincronizar. Casca 0.9.0.
+
+### Decidido
+
+- **Funções de outros leitores só pela especificação.** O Readest e o KOReader são AGPL; a Prancheta aproveita o comportamento descrito em palavras, sem copiar código, e mantém a epub.js em vez da foliate-js.
+- **Leitor à esquerda por padrão.** A decisão anterior, do plano 005, punha o leitor à direita do quadro; o autor, destro, pediu a esquerda, com a troca de lado guardada em cada aparelho.
+
+### Pendências
+
+- Mesclar, testar no Boox o toque nos destaques e detalhar a etapa 02, a leitura no e-ink.
+
 ## 2026-11-09 · Plano 005 concluído
 
 ### Feito

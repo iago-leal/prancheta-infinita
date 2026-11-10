@@ -6,6 +6,10 @@
 //   livro>, no banco dos quadros, numa lista em que cada destaque tem o seu
 //   id. Assim, eles sobem cifrados como os quadros, e a sincronização combina
 //   os destaques feitos nos dois aparelhos, item a item.
+// - Cada destaque tem o trecho, a posição, o estilo, realce ou sublinhado, e
+//   uma nota. Um destaque apagado continua na lista, marcado com a data em
+//   apagadoEm, para que a exclusão chegue aos outros aparelhos; o cartão que
+//   ele já tenha no quadro não é tocado.
 // - Um destaque, ou só a posição atual do livro, vai ao quadro aberto como um
 //   cartão: o trecho, quando há, o nome do livro, a posição e o link "abrir no
 //   livro", escrito no formato de link dos cartões, [rótulo](endereço).
@@ -23,6 +27,10 @@
   const COLECAO = 'marcacoes';
   const ENDERECO = 'https://prancheta.invalid/livro/';
   const ID_DE_LIVRO = /^[0-9a-f]{32}$/;
+
+  const ESTILOS = new Set(['realce', 'sublinhado']);
+  const LIMITE_DO_TEXTO = 4000;
+  const visiveis = (itens) => itens.filter((d) => d && !d.apagadoEm);
 
   const novoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   const escapar = (texto) => String(texto).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -75,46 +83,82 @@
       return this.banco.doc(`${COLECAO}/${livro}`);
     }
 
-    /** Os destaques de um livro, na ordem em que foram feitos. */
-    async destaques(livro) {
+    // O documento do livro, com todos os itens, inclusive os apagados.
+    async _ler(livro) {
       const instantaneo = await this._documento(livro).get();
       const dados = instantaneo.exists ? instantaneo.data() : null;
-      return dados && Array.isArray(dados.itens) ? dados.itens : [];
+      return dados && Array.isArray(dados.itens) ? dados : { livro, itens: [] };
+    }
+
+    /** Os destaques de um livro, sem os apagados, na ordem em que foram feitos. */
+    async destaques(livro) {
+      return visiveis((await this._ler(livro)).itens);
     }
 
     /** Avisa a cada mudança nos destaques do livro, inclusive as que chegam de outro aparelho. */
     acompanhar(livro, aoMudar) {
       return this._documento(livro).onSnapshot((instantaneo) => {
         const dados = instantaneo.exists ? instantaneo.data() : null;
-        aoMudar(dados && Array.isArray(dados.itens) ? dados.itens : []);
+        aoMudar(visiveis(dados && Array.isArray(dados.itens) ? dados.itens : []));
       }, () => {});
     }
 
     /** Guarda um destaque do livro aberto e o devolve. */
     async destacar({ livro, nome, tipo }, { texto, posicao, rotulo }) {
-      const destaque = { id: novoId(), trecho: String(texto).slice(0, 4000), posicao, rotulo: rotulo || '', criadoEm: Date.now() };
-      const documento = this._documento(livro);
-      const atual = await documento.get();
-      const dados = atual.exists ? atual.data() : null;
-      const itens = dados && Array.isArray(dados.itens) ? dados.itens : [];
-      await documento.set({ livro, nome, tipo, itens: [...itens, destaque] });
+      const destaque = {
+        id: novoId(), trecho: String(texto).slice(0, LIMITE_DO_TEXTO), posicao, rotulo: rotulo || '', estilo: 'realce', criadoEm: Date.now(),
+      };
+      const dados = await this._ler(livro);
+      await this._documento(livro).set({ ...dados, livro, nome, tipo, itens: [...dados.itens, destaque] });
       return destaque;
+    }
+
+    // Troca campos de um destaque que ainda existe; devolve o destaque mudado, ou null.
+    async _mudar(livro, id, mudanca) {
+      const dados = await this._ler(livro);
+      const atual = dados.itens.find((d) => d.id === id && !d.apagadoEm);
+      if (!atual) return null;
+      const mudado = { ...atual, ...mudanca, mudadoEm: Date.now() };
+      await this._documento(livro).set({ ...dados, itens: dados.itens.map((d) => (d.id === id ? mudado : d)) });
+      return mudado;
+    }
+
+    /** Troca o estilo de um destaque, entre realce e sublinhado. */
+    trocarEstilo(livro, id, estilo) {
+      if (!ESTILOS.has(estilo)) throw new Error('estilo de destaque desconhecido');
+      return this._mudar(livro, id, { estilo });
+    }
+
+    /** Guarda a nota de um destaque; uma nota vazia a tira. */
+    anotar(livro, id, nota) {
+      return this._mudar(livro, id, { nota: String(nota || '').trim().slice(0, LIMITE_DO_TEXTO) });
+    }
+
+    /** Apaga um destaque: ele continua na lista, marcado, para a exclusão sincronizar. */
+    apagar(livro, id) {
+      return this._mudar(livro, id, { apagadoEm: Date.now() });
     }
 
     /**
      * Cria no quadro aberto um cartão com o trecho, se houver, o nome do
      * livro, a posição e o link de volta, no meio da parte visível do quadro.
      */
-    levarAoQuadro({ livro, nome }, { trecho, posicao, rotulo }) {
+    levarAoQuadro({ livro, nome }, { trecho, posicao, rotulo, nota }) {
       const blocos = [];
       if (trecho) blocos.push({ k: 'quote', h: escapar(semMarcasDeLink(trecho)) });
+      if (nota) blocos.push({ h: escapar(semMarcasDeLink(nota)) });
       const onde = rotulo ? `, ${escapar(semMarcasDeLink(rotulo))}` : '';
       blocos.push({ h: `<i>${escapar(semMarcasDeLink(nome))}</i>${onde} · [abrir no livro](${enderecoDe(livro, posicao)})` });
-      // A parte visível do quadro fica entre o painel dos quadros, se aberto, e o leitor, se ao lado.
+      // A parte visível do quadro: o que sobra do painel dos quadros, se aberto,
+      // e do leitor, se ao lado, à esquerda ou à direita.
       const lateral = document.getElementById('side');
-      const esquerda = lateral && !lateral.hidden && getComputedStyle(lateral).display !== 'none' ? lateral.getBoundingClientRect().right : 0;
-      const direita = document.body.classList.contains('leitor-lado')
-        ? document.getElementById('leitor').getBoundingClientRect().left : global.innerWidth;
+      let esquerda = lateral && !lateral.hidden && getComputedStyle(lateral).display !== 'none' ? lateral.getBoundingClientRect().right : 0;
+      let direita = global.innerWidth;
+      if (document.body.classList.contains('leitor-lado')) {
+        const leitor = document.getElementById('leitor').getBoundingClientRect();
+        if (document.body.classList.contains('leitor-esquerda')) esquerda = Math.max(esquerda, leitor.right);
+        else direita = leitor.left;
+      }
       const centro = global.toWorld((esquerda + direita) / 2, global.innerHeight / 2);
       global.begin();
       const cartao = global.add({

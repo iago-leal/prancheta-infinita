@@ -1,9 +1,9 @@
 ---
 tipo: estado
-atualizado_em: 2026-11-09
-fase: Entre planos, depois dos livros e PDFs
-plano_ativo:
-etapa_atual:
+atualizado_em: 2026-11-10
+fase: Melhorias do leitor
+plano_ativo: acompanhamento/planos/006-melhorias-do-leitor/plano.md
+etapa_atual: acompanhamento/planos/006-melhorias-do-leitor/etapas/01-leitor-a-esquerda-e-destaques.md
 bloqueios: []
 ---
 
@@ -32,22 +32,22 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` envia a página e o servidor a cada mudança deles na `main`, por uma conta sem privilégios e sem acesso ao Docker, que só troca a versão em uso e confere na própria VPS que ela entrou no ar; as ações de administrador ficam num roteiro executado pelo autor, e nenhum endereço da Prancheta entra no repositório.
 - Segurança, conforme o debate de 2026-11-08: os quadros só respondem com a chave de cada aparelho; arquivos isolados da página, versão nova só quando o autor pede, histórico de 30 dias e cópia puxada pelo computador; rede privada e cifra no aparelho antes dos livros. Desde 2026-11-09, a Prancheta só responde pela rede privada do Tailscale, com o endereço público fechado, e o Boox precisa do Tailscale sempre ligado.
 - Cifra ponta a ponta, por decisão do autor: uma chave aleatória de 256 bits, criada no primeiro aparelho, guardada só no Bitwarden e informada nos outros; o servidor não a conhece e, depois da primeira gravação cifrada, recusa o legível e outra chave. Sem o Bitwarden e sem os aparelhos, a cópia da VPS fica ilegível; o banco local continua legível.
-- Livros: o servidor da Prancheta lê a subpasta de livros do WebDAV, montada só para leitura, com uma permissão extra de leitura para a conta `prancheta`, reaplicada a cada 5 minutos para os livros novos, e a entrega com a chave de cada aparelho; cada livro aberto fica guardado no aparelho, num banco separado dos quadros, e é identificado como no KOReader.
+- Livros: funções de outros leitores entram pela especificação do comportamento, nunca por cópia de código, porque o Readest e o KOReader são AGPL. O servidor da Prancheta lê a subpasta de livros do WebDAV, montada só para leitura, com uma permissão extra de leitura para a conta `prancheta`, reaplicada a cada 5 minutos para os livros novos, e a entrega com a chave de cada aparelho; cada livro aberto fica guardado no aparelho, num banco separado dos quadros, e é identificado como no KOReader.
 - Servidor de sincronização em Node puro, sem dependências e com os dados em arquivos: numera as mudanças, devolve os conflitos para o aparelho combinar e só atende com a chave; a única exceção, aceita pelo autor, é a consulta prévia do navegador vinda da casca, que não recebe dados.
 - Sincronização no próprio banco local, em segundo plano: combina item a item, pelo id; no mesmo campo mudado nos dois aparelhos, prevalece a gravação mais recente; a gravação da página também é combinada com o que chegou do servidor desde a anterior; endereço e chave ficam no banco de cada aparelho.
 
 ## Em andamento
 
-Nenhum plano ativo. O plano 005, livros e PDFs, com rede privada e cifra, terminou em 2026-11-09, com as quatro etapas no mesmo dia: rede privada do Tailscale com o endereço público fechado; cifra ponta a ponta, com a VPS só com dados cifrados; biblioteca do WebDAV, com 13 livros; e leitor de EPUB e PDF, com destaques e cartões que reabrem o livro, na casca 0.8.0. Depois do teste, o autor pediu o leitor à esquerda do quadro, apagar um destaque tocando nele e um estudo do Readest para aproveitar funções dele. Os planos 001 a 004 estão concluídos.
+Plano 006, melhorias do leitor, aberto em 2026-11-10 com a aprovação do autor: 01 leitor à esquerda e destaques editáveis ao toque, implementada, a testar no Boox; 02 leitura no e-ink, com destaques visíveis, toque nas laterais, sumário e busca, a detalhar. As funções seguem o comportamento do Readest, descrito em `acompanhamento/planos/006-melhorias-do-leitor/readest.md` e implementado sem copiar código, porque ele é AGPL. O plano 005, livros e PDFs, com rede privada e cifra, terminou em 2026-11-09, com a casca 0.8.0. Os planos 001 a 004 estão concluídos.
 
 ## Próximo passo
 
-Trazer ao autor o levantamento do Readest, com a licença e as funções que cabem na Prancheta, e abrir com ele o plano seguinte, de melhorias do leitor: o leitor à esquerda, apagar um destaque tocando nele e as funções escolhidas do Readest, implementadas a partir das especificações. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar a etapa 01 do plano 006, com a casca 0.9.0, e o autor testar no Boox o leitor à esquerda, a caneta no quadro à direita e o toque num destaque para apagá-lo e anotá-lo; depois, detalhar com ele a etapa 02, a leitura no e-ink. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
 1. 001 a 005, concluídos: experimento da casca Android, Prancheta independente do claude.ai, Prancheta no Boox e sincronização com a VPS, modo e-ink, e livros e PDFs, com rede privada e cifra.
-2. Melhorias do leitor, a detalhar com o autor: leitor à esquerda, apagar destaques e funções do Readest, a partir das especificações e conforme a licença.
+2. 006: melhorias do leitor, ativo. A decidir depois dele: receber no servidor o progresso de leitura do KOReader, e escrever à mão sobre a página do livro.
 3. Publicação no catálogo de aplicativos de código aberto da Hostinger, com o botão "Implantar no Hostinger" no LEIA-ME e comissão sobre as hospedagens compradas por ele, pedida pelo autor para depois do 005; exige uma licença de código aberto e uma implantação genérica, sem o Tailscale e sem nada da VPS do autor.
 
 ## Ambiente de nuvem
