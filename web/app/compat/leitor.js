@@ -303,6 +303,134 @@
     return limpo.length > limite ? `${limpo.slice(0, limite - 1)}…` : limpo;
   };
 
+  // ---- O código dos livros ----
+  //
+  // A página de um e-book fica num quadro que deixa código rodar, porque no
+  // Safari, e em todo navegador do iPad e do iPhone, um quadro sem código
+  // também não chama os avisos que o leitor pede a ele: o toque que vira a
+  // página, o link, o destaque tocado. O código do próprio livro é barrado por
+  // duas travas independentes. A primeira limpa cada capítulo antes de ele ser
+  // mostrado. A segunda é uma regra do navegador, posta no começo do
+  // capítulo, que proíbe qualquer código na página dele, venha de onde vier;
+  // o capítulo que não começar exatamente por essa regra não é mostrado.
+
+  const POLITICA_DO_LIVRO = "script-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'";
+  const XHTML = 'http://www.w3.org/1999/xhtml';
+  const SVG = 'http://www.w3.org/2000/svg';
+  const MATHML = 'http://www.w3.org/1998/Math/MathML';
+  // Os elementos que rodam código, ou que trazem outra página para dentro do livro.
+  const ELEMENTOS_PROIBIDOS = new Set(['script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'portal', 'base', 'template']);
+  const ANIMACOES = new Set(['animate', 'set', 'animatetransform', 'animatemotion']);
+  const ENDERECO_COM_CODIGO = /^(?:javascript:|vbscript:|data:(?:text\/html|text\/xml|application\/xml|application\/xhtml))/;
+  const nomeDe = (no) => String(no.localName || no.nodeName || '').toLowerCase();
+
+  function limparAtributos(elemento) {
+    for (const atributo of [...elemento.attributes]) {
+      const nome = String(atributo.name).toLowerCase();
+      const local = nomeDe(atributo);
+      // Um endereço é lido pelo navegador sem os espaços e os caracteres de controle no meio dele.
+      const valor = String(atributo.value).replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+      if (nome.startsWith('on') || local.startsWith('on') || local === 'srcdoc' || ENDERECO_COM_CODIGO.test(valor)) elemento.removeAttributeNode(atributo);
+    }
+  }
+
+  /**
+   * Limpa um capítulo, no próprio documento dele: tira o que roda código e
+   * põe, antes de tudo, a regra que proíbe código. Fora do elemento raiz não
+   * fica nada, porque o tipo do documento, um comentário ou uma instrução
+   * podem esconder código de quem lê o capítulo como XML e entregá-lo a quem o
+   * lê como HTML, que é como ele é mostrado. No corpo, o que sai deixa um
+   * elemento vazio no lugar, e um comentário fica vazio, para os endereços dos
+   * destaques já feitos continuarem valendo.
+   */
+  function limparCapitulo(doc) {
+    let raiz = doc.documentElement;
+    for (const no of [...doc.childNodes]) if (no !== raiz) doc.removeChild(no);
+    if (!raiz || nomeDe(raiz) !== 'html') {
+      const html = doc.createElementNS(XHTML, 'html');
+      const corpo = html.appendChild(doc.createElementNS(XHTML, 'body'));
+      if (raiz) corpo.appendChild(doc.removeChild(raiz));
+      doc.appendChild(html);
+      raiz = html;
+    }
+    limparAtributos(raiz);
+    const noCorpo = (no) => {
+      for (let pai = no; pai && pai !== raiz; pai = pai.parentNode) if (pai.nodeType === 1 && nomeDe(pai) === 'body') return true;
+      return false;
+    };
+    // O elemento vazio que fica no lugar do que saiu, do mesmo tipo dos vizinhos, para a leitura como HTML não mudar a árvore.
+    const vazio = (pai) => {
+      if (pai.namespaceURI === SVG && !/^(foreignobject|desc|title)$/.test(nomeDe(pai))) return doc.createElementNS(SVG, 'g');
+      if (pai.namespaceURI === MATHML) return doc.createElementNS(MATHML, 'mrow');
+      const marcador = doc.createElementNS(XHTML, 'span');
+      marcador.setAttribute('hidden', 'hidden');
+      return marcador;
+    };
+    const pilha = [raiz];
+    while (pilha.length) {
+      const pai = pilha.pop();
+      const dentro = noCorpo(pai);
+      for (const no of [...pai.childNodes]) {
+        if (no.nodeType === 3) continue;
+        if (no.nodeType === 4) {
+          pai.replaceChild(doc.createTextNode(no.nodeValue), no);
+          continue;
+        }
+        if (no.nodeType !== 1) {
+          if (dentro) pai.replaceChild(doc.createComment(''), no);
+          else pai.removeChild(no);
+          continue;
+        }
+        const nome = nomeDe(no);
+        const regraDoLivro = nome === 'meta' && [...no.attributes].some((a) => nomeDe(a) === 'http-equiv');
+        const animacao = ANIMACOES.has(nome) && /^(on|.*href$)/i.test(no.getAttribute('attributeName') || '');
+        if (ELEMENTOS_PROIBIDOS.has(nome) || regraDoLivro || animacao) {
+          if (dentro) pai.replaceChild(vazio(pai), no);
+          else pai.removeChild(no);
+          continue;
+        }
+        // Com código permitido no quadro, o navegador esconderia o que o livro reserva a quem não roda código: passa a texto comum.
+        if (nome === 'noscript') {
+          if (dentro) {
+            const comum = doc.createElementNS(XHTML, 'span');
+            while (no.firstChild) comum.appendChild(no.firstChild);
+            pai.replaceChild(comum, no);
+            pilha.push(comum);
+          } else pai.removeChild(no);
+          continue;
+        }
+        limparAtributos(no);
+        pilha.push(no);
+      }
+    }
+    let cabeca = [...raiz.childNodes].find((f) => f.nodeType === 1 && nomeDe(f) === 'head');
+    if (!cabeca) cabeca = doc.createElementNS(XHTML, 'head');
+    raiz.insertBefore(cabeca, raiz.firstChild);
+    const regra = doc.createElementNS(XHTML, 'meta');
+    regra.setAttribute('http-equiv', 'Content-Security-Policy');
+    regra.setAttribute('content', POLITICA_DO_LIVRO);
+    cabeca.insertBefore(regra, cabeca.firstChild);
+    return doc;
+  }
+
+  const CAPITULO_RECUSADO = `<html xmlns="${XHTML}"><head><meta http-equiv="Content-Security-Policy" content="${POLITICA_DO_LIVRO}"/><title></title></head><body><p>Este capítulo não pôde ser mostrado.</p></body></html>`;
+  // O começo de um capítulo pronto para ser mostrado: a raiz, a cabeça e a regra, sem nada entre elas.
+  const COMECO_DO_CAPITULO = /^<html(?:\s[^<>]*)?>\s*<head(?:\s[^<>]*)?>\s*(<meta\s[^<>]*>)/;
+
+  /**
+   * Confere o texto de um capítulo, pronto para ir à tela: ele só é mostrado
+   * se começa pela raiz, pela cabeça e pela regra que proíbe código, sem nada
+   * antes nem no meio. Qualquer outro começo dá no lugar um capítulo vazio,
+   * com a mesma regra. A declaração de XML, que não é HTML, sai.
+   */
+  function conferirCapitulo(saida) {
+    const texto = typeof saida === 'string' ? saida.replace(/^\uFEFF?\s*(?:<\?xml\s[^<>]*\?>)?\s*/, '') : '';
+    const lido = COMECO_DO_CAPITULO.exec(texto);
+    const regra = lido ? lido[1].replace(/&(?:apos|#39|#x27);/gi, "'") : '';
+    const vale = regra.includes(' http-equiv="Content-Security-Policy"') && regra.includes(` content="${POLITICA_DO_LIVRO}"`);
+    return vale ? texto : CAPITULO_RECUSADO;
+  }
+
   // ---- EPUB ----
 
   class VistaEpub {
@@ -343,8 +471,10 @@
       for (const ganchos of [this.livro.spine.hooks.content, this.livro.spine.hooks.serialize]) {
         if (ganchos && Array.isArray(ganchos.hooks)) ganchos.hooks = ganchos.hooks.filter((f) => !String(f).includes('createElement("base")'));
       }
+      this._barrarCodigoDoLivro();
+      // O quadro do livro deixa código rodar, para os avisos dele chegarem ao leitor também no Safari; o código do livro é barrado antes.
       this.vista = this.livro.renderTo(this.conteudo, {
-        width: '100%', height: '100%', flow: 'paginated', spread: 'none', allowScriptedContent: false,
+        width: '100%', height: '100%', flow: 'paginated', spread: 'none', allowScriptedContent: true,
       });
       this.vista.themes.default({
         body: { 'line-height': '1.5', margin: '0', padding: '0 4px' },
@@ -435,6 +565,22 @@
         this._posicoesProntas = true;
         if (this.vista) this.vista.reportLocation();
       }).catch(() => {});
+    }
+
+    // As duas travas contra o código do livro valem depois de tudo o que a
+    // epub.js faz com o capítulo: a limpeza, depois dos ganchos do documento,
+    // e a conferência, depois dos que mexem no texto pronto, como a troca dos
+    // endereços das figuras, seja qual for a ordem em que foram registrados.
+    _barrarCodigoDoLivro() {
+      const { content: documento, serialize: texto } = this.livro.spine.hooks;
+      const dispararDocumento = documento.trigger.bind(documento);
+      documento.trigger = (doc, ...resto) => Promise.resolve(dispararDocumento(doc, ...resto)).then(() => {
+        limparCapitulo(doc);
+      });
+      const dispararTexto = texto.trigger.bind(texto);
+      texto.trigger = (saida, secao, ...resto) => Promise.resolve(dispararTexto(saida, secao, ...resto)).then(() => {
+        secao.output = conferirCapitulo(secao.output);
+      });
     }
 
     // As marcas de página que o livro traz, do documento de navegação dele:
@@ -637,14 +783,13 @@
       this.aoMudar({ tipo: 'selecao', selecao: { texto: atual.texto, posicao: { cfi: atual.cfi }, retangulo: this._retanguloDaSelecao(atual.conteudo) } });
     }
 
-    // A seleção é avisada pela página do livro, por eventos dela. No Safari, e
-    // em todo navegador do iPad e do iPhone, a página do livro não avisa de
-    // nada: ela fica num quadro em que nenhum código roda, para o livro não
-    // alcançar os dados da Prancheta, e lá isso cala também os avisos pedidos
-    // pelo leitor. Por isso o leitor confere a seleção por fora, de tempo em
-    // tempo, e avisa do trecho quando ele para de mudar, com duas leituras
-    // iguais, e da seleção desfeita. Onde a página avisa, o aviso dela chega
-    // antes, e o trecho já avisado não é avisado de novo.
+    // A seleção é avisada pela página do livro, por eventos dela. Num
+    // navegador em que a página do livro não avise, como acontecia no Safari
+    // enquanto o quadro dela não deixava código rodar, a barra da seleção não
+    // apareceria. Por garantia, o leitor também confere a seleção por fora,
+    // de tempo em tempo, e avisa do trecho quando ele para de mudar, com duas
+    // leituras iguais, e da seleção desfeita. Onde a página avisa, o aviso
+    // dela chega antes, e o trecho já avisado não é avisado de novo.
     _conferirSelecao() {
       if (!this.vista || document.hidden) return;
       const atual = this._selecaoAtual();
@@ -2029,6 +2174,6 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
   }
 
   global.LeitorPrancheta = Object.freeze({
-    Leitor, ligar, procurarNosTextos, lerCaminhoDoKoreader, montarCaminhoDoKoreader, quandoFoi, LARGURA_MINIMA_LADO_A_LADO,
+    Leitor, ligar, procurarNosTextos, limparCapitulo, conferirCapitulo, POLITICA_DO_LIVRO, lerCaminhoDoKoreader, montarCaminhoDoKoreader, quandoFoi, LARGURA_MINIMA_LADO_A_LADO,
   });
 })(typeof window !== 'undefined' ? window : globalThis);

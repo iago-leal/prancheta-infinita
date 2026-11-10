@@ -6,7 +6,10 @@
 // com semSumario, fica sem o documento de navegação; com longo, ganha um
 // terceiro capítulo, de várias páginas; com paginas, que pede longo, traz
 // as páginas do livro marcadas, de 1 a 5; com autor, traz o autor escrito
-// no livro. O PDF aceita marcadores,
+// no livro; com malicioso, o primeiro capítulo tenta rodar código de todas
+// as formas que o leitor barra, cada uma anotando o nome dela em
+// parent.__invasao, e o segundo tem a raiz com prefixo, que o leitor recusa.
+// O PDF aceita marcadores,
 // um por página, letras acentuadas, escritas em octal, como \\341 para o á, e
 // mais de uma linha por página, separadas por \\n.
 
@@ -20,7 +23,50 @@ const xhtml = (titulo, corpo) => `<?xml version="1.0" encoding="UTF-8"?>
 <body>${corpo}</body>
 </html>`;
 
-async function criarEpub({ titulo = 'Livro de teste', autor = '', rico = false, semSumario = false, longo = false, paginas = false } = {}) {
+// Um capítulo que tenta rodar código. Cada tentativa anota o nome dela na
+// página da Prancheta. Várias só viram código quando o capítulo, escrito como
+// XML, é lido como HTML: o comentário e a instrução que começam por ">", o
+// trecho literal e os nomes em maiúsculas. Uma entidade do tipo do
+// documento também traz um script.
+const invadir = (nome) => `parent.__invasao.push('${nome}')`;
+const CAPITULO_MALICIOSO = `<?xml version="1.0" encoding="UTF-8"?>
+<?alvo ><script>${invadir('instrucao-antes')}</script>?>
+<!--><script>${invadir('comentario-antes')}</script>-->
+<!DOCTYPE html [ <!ENTITY codigo "<script xmlns='http://www.w3.org/1999/xhtml'>${invadir('entidade')}</script>"> ]>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="pt" onclick="${invadir('raiz')}"><!--><script>${invadir('comentario-na-raiz')}</script>-->
+<head onclick="${invadir('cabeca')}"><title>Capítulo um</title>
+<meta http-equiv="refresh" content="0;url=javascript:${invadir('recarga')}"/>
+<meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline' *"/>
+<base href="https://exemplo.invalid/"/>
+<script>${invadir('script-na-cabeca')}</script>
+<noscript><link rel="stylesheet" href="nada.css"/></noscript>
+</head>
+<body onload="${invadir('ao-carregar')}">
+<h1>Capítulo um</h1>
+<p id="antes">Antes de tudo.&codigo;</p>
+<script>${invadir('script')}</script>
+<SCRIPT xmlns="">${invadir('maiusculas')}</SCRIPT>
+<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><script>${invadir('svg')}</script><a><set attributeName="href" to="javascript:${invadir('animacao')}"/><rect width="10" height="10"/></a></svg>
+<img src="nao-existe.png" alt="" onerror="${invadir('ao-falhar')}" ONLOAD="${invadir('ao-carregar-figura')}"/>
+<p><![CDATA[><script>${invadir('trecho-literal')}</script>]]></p>
+<p>um<!--><script>${invadir('comentario')}</script>-->dois</p>
+<p><?alvo ><script>${invadir('instrucao')}</script>?></p>
+<iframe srcdoc="&lt;script&gt;parent.${invadir('quadro')}&lt;/script&gt;"></iframe>
+<object data="data:text/html,&lt;script&gt;parent.${invadir('objeto')}&lt;/script&gt;"></object>
+<embed src="data:text/html,&lt;script&gt;parent.${invadir('embutido')}&lt;/script&gt;"/>
+<a id="elo-com-codigo" href="javascript:${invadir('link')}">Um link</a>
+<a id="elo-disfarcado" href=" JaVa&#9;ScRiPt:${invadir('link-disfarcado')}">Outro link</a>
+<noscript><p id="sem-codigo">Texto para quem não roda código.</p></noscript>
+<details open="open" ontoggle="${invadir('ao-abrir')}"><summary>Detalhe</summary></details>
+<input autofocus="autofocus" onfocus="${invadir('ao-focar')}"/>
+<p id="p1">Texto do primeiro capítulo, que fala de cartas e de quadros.</p>
+</body>
+</html>`;
+const CAPITULO_COM_PREFIXO = `<?xml version="1.0" encoding="UTF-8"?>
+<h:html xmlns:h="http://www.w3.org/1999/xhtml"><h:head><h:title>Capítulo dois</h:title></h:head>
+<h:body><h:p id="p2">O segundo capítulo tem a raiz com prefixo.</h:p><h:script>${invadir('prefixo')}</h:script></h:body></h:html>`;
+
+async function criarEpub({ titulo = 'Livro de teste', autor = '', rico = false, semSumario = false, longo = false, paginas = false, malicioso = false } = {}) {
   const zip = new JSZip();
   zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
   zip.file('META-INF/container.xml', `<?xml version="1.0"?>
@@ -56,6 +102,10 @@ ${rico ? '<p id="p3">Um <em>cora</em>ção de papel e a AÇÃO   do\nvento.</p><
   zip.file('OEBPS/c2.xhtml', xhtml('Capítulo dois', `<h1>Capítulo dois</h1>
 <p id="p2">O segundo capítulo guarda a frase que será destacada.</p>
 ${rico ? '<p id="p4"><a id="elo" href="c2.xhtml#p2">Ir à frase</a></p><p id="p5">No fim, o CORAÇÃO volta ao papel.</p>' : ''}`));
+  if (malicioso) {
+    zip.file('OEBPS/c1.xhtml', CAPITULO_MALICIOSO);
+    zip.file('OEBPS/c2.xhtml', CAPITULO_COM_PREFIXO);
+  }
   if (longo) {
     const paragrafos = Array.from({ length: 80 }, (_, i) => `<p id="l${i + 1}">Parágrafo ${i + 1} do capítulo longo, com texto bastante para ocupar mais de uma linha da página do leitor.</p>`);
     zip.file('OEBPS/c3.xhtml', xhtml('Capítulo longo', `<h1>Capítulo longo</h1>\n${paragrafos.join('\n')}`));
@@ -100,4 +150,4 @@ function criarPdf(paginas = ['Primeira pagina do PDF', 'Segunda pagina do PDF'],
   return Buffer.from(corpo, 'latin1');
 }
 
-module.exports = { criarEpub, criarPdf };
+module.exports = { CAPITULO_MALICIOSO, CAPITULO_COM_PREFIXO, criarEpub, criarPdf };

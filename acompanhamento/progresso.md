@@ -6,6 +6,24 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · O quadro do livro deixa código rodar, com duas travas contra o código do livro
+
+### Feito
+
+- O autor decidiu, com um "faça", a saída completa para o iPad e o iPhone: o quadro em que a página do e-book fica passa a deixar código rodar, para os avisos pedidos pelo leitor chegarem também no Safari, e o código do próprio livro é barrado por duas travas independentes. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+- A limpeza de cada capítulo e a regra do navegador no começo dele, com a recusa de mostrar o capítulo que não começa por ela. Um livro de teste tenta rodar código de 24 formas: com qualquer uma das travas sozinha, nenhuma rodou; sem as duas, 14 rodaram.
+- 32 mutações, todas acusadas depois de o teste ser reforçado em 2 pontos. A suíte da página tem 123 testes. A mudança vai no mesmo PR #52, na casca 0.19.0.
+
+### Decidido
+
+- **A página de um e-book fica num quadro que deixa código rodar**, por decisão do autor. Revê a decisão registrada na entrada abaixo, de manter o quadro sem código. O risco aceito: se as duas travas falhassem juntas, um livro malicioso alcançaria os dados e as chaves guardados no aparelho.
+- **O que sai do corpo de um capítulo deixa um elemento vazio no lugar**, para os endereços dos destaques já feitos não mudarem.
+
+### Pendências
+
+- O teste do autor no iPad e no iPhone: a barra abaixo do trecho selecionado, o toque nos terços da página, um link do livro e o toque num destaque. Nada disso pôde ser visto aqui, que não tem o motor do Safari.
+- Os testes no Boox da casca 0.19.0, que traz a mudança do quadro, além dos pendentes da 0.18.0, o da ficha do livro, os do KOReader e os do plano 006; a exclusão do ramo antigo, pelo autor.
+
 ## 2026-11-10 · A barra de destaque no iPad
 
 ### Feito
