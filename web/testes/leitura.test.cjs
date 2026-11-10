@@ -17,10 +17,10 @@ const { Armazem } = require('../../servidor/armazem.cjs');
 const { criarServidor } = require('../../servidor/servidor.cjs');
 const { criarServidorDaPagina } = require('../../servidor/pagina.cjs');
 const { Biblioteca } = require('../../servidor/biblioteca.cjs');
-const { criarEpub, criarPdf } = require('./apoio/livros.cjs');
+const { criarEpub, criarPdf, CAPITULO_MALICIOSO, CAPITULO_COM_PREFIXO } = require('./apoio/livros.cjs');
 
 require('../app/compat/leitor.js');
-const { procurarNosTextos } = globalThis.LeitorPrancheta;
+const { procurarNosTextos, conferirCapitulo, POLITICA_DO_LIVRO } = globalThis.LeitorPrancheta;
 
 const CHAVE = 'chave-de-teste-da-leitura-0123456789abcdef';
 const TELA = { width: 1200, height: 800 };
@@ -35,6 +35,7 @@ before(async () => {
   fs.writeFileSync(path.join(livros, 'Livro longo.epub'), await criarEpub({ titulo: 'Livro longo', longo: true }));
   fs.writeFileSync(path.join(livros, 'Paginado.epub'), await criarEpub({ titulo: 'Paginado', longo: true, paginas: true }));
   fs.writeFileSync(path.join(livros, 'Sem sumario.epub'), await criarEpub({ titulo: 'Sem sumário', semSumario: true }));
+  fs.writeFileSync(path.join(livros, 'Malicioso.epub'), await criarEpub({ titulo: 'Malicioso', malicioso: true }));
   fs.writeFileSync(path.join(livros, 'Marcado.pdf'), criarPdf(['Primeira p\\341gina do PDF', 'Segunda P\\301GINA do PDF'], { marcadores: ['Parte um', 'Parte dois'] }));
   fs.writeFileSync(path.join(livros, 'Linhas.pdf'), criarPdf(['Uma linha do PDF\ncontinua na linha de baixo']));
   fs.writeFileSync(path.join(livros, 'Documento.pdf'), criarPdf());
@@ -53,9 +54,38 @@ after(async () => {
   await vps?.fechar();
 });
 
-// Abre a Prancheta, ligada ao servidor; com naCasca, dentro de uma casca simulada, com tela de toque.
-async function abrirPrancheta({ naCasca = false } = {}) {
-  const contexto = await navegador.newContext({ viewport: TELA, hasTouch: naCasca, permissions: ['clipboard-read', 'clipboard-write'] });
+// Abre a Prancheta, ligada ao servidor; com naCasca, dentro de uma casca
+// simulada, com tela de toque; com toque, num navegador de tela de toque, fora
+// da casca; com livroCalado, num navegador em que a página do livro não avisa
+// de nada, como o Safari do iPad e do iPhone.
+async function abrirPrancheta({ naCasca = false, toque = false, livroCalado = false } = {}) {
+  const contexto = await navegador.newContext({ viewport: TELA, hasTouch: naCasca || toque, permissions: ['clipboard-read', 'clipboard-write'] });
+  if (livroCalado) {
+    // No WebKit, um quadro em que nenhum código roda também não chama os
+    // ouvintes postos de fora nele. Aqui, cada vez que o leitor alcança a
+    // página do livro, os pedidos de aviso feitos a ela passam a não fazer nada.
+    await contexto.addInitScript(() => {
+      if (window.top !== window) return;
+      const calar = (janela) => {
+        const alvos = janela && janela.EventTarget && janela.EventTarget.prototype;
+        if (alvos && !alvos.__calado) {
+          alvos.addEventListener = function calado() {};
+          alvos.__calado = true;
+        }
+      };
+      for (const nome of ['contentWindow', 'contentDocument']) {
+        const original = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, nome);
+        Object.defineProperty(HTMLIFrameElement.prototype, nome, {
+          ...original,
+          get() {
+            const saida = original.get.call(this);
+            if (this.closest('#leitor')) calar(nome === 'contentWindow' ? saida : saida && saida.defaultView);
+            return saida;
+          },
+        });
+      }
+    });
+  }
   if (naCasca) {
     await contexto.addInitScript(() => {
       const nada = () => {};
@@ -72,13 +102,15 @@ async function abrirPrancheta({ naCasca = false } = {}) {
   pagina.on('pageerror', (e) => erros.push(e.message));
   await pagina.addInitScript(() => {
     window.__violacoes = [];
+    // Onde o código de um livro malicioso anotaria que rodou.
+    window.__invasao = [];
     document.addEventListener('securitypolicyviolation', (e) => window.__violacoes.push(`${e.violatedDirective} ${e.blockedURI}`));
   });
   await pagina.goto(`${vps.base}/`);
   await pagina.waitForFunction(() => window.__booted === true && navigator.serviceWorker.controller !== null, null, { timeout: 10000 });
   await pagina.waitForFunction(() => Boolean(window.marcacoesDaPrancheta && document.getElementById('leitor')), null, { timeout: 10000 });
   await pagina.evaluate(([endereco, chave]) => window.sincronizacaoDaPrancheta.configurar({ endereco, chave }), [vps.base, CHAVE]);
-  await pagina.waitForFunction(() => window.bibliotecaDaPrancheta.estado.lista.length === 7, null, { timeout: 10000 });
+  await pagina.waitForFunction(() => window.bibliotecaDaPrancheta.estado.lista.length === 8, null, { timeout: 10000 });
   return { contexto, pagina, erros };
 }
 
@@ -681,6 +713,269 @@ test('a barra da seleção flutua acima do trecho, só com os botões, e some ao
     assert.deepEqual(erros, []);
   } finally {
     await contexto.close();
+  }
+});
+
+test('o capítulo só vai à tela se começa pela raiz, pela cabeça e pela regra que proíbe código, sem nada antes nem no meio', () => {
+  const regra = `<meta http-equiv="Content-Security-Policy" content="${POLITICA_DO_LIVRO}"/>`;
+  const certo = `<html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head>${regra}<title>t</title></head><body><p>Texto.</p></body></html>`;
+  const recusado = conferirCapitulo('');
+  assert.match(recusado, /^<html[^<>]*><head><meta http-equiv="Content-Security-Policy" content="script-src 'none'; [^"<>]*"\/>/);
+  assert.match(recusado, /não pôde ser mostrado/);
+  assert.match(POLITICA_DO_LIVRO, /^script-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'$/);
+  // O capítulo certo passa como veio; a declaração de XML sai, e a regra pode trazer o espaço de nomes e o apóstrofo escrito por extenso.
+  assert.equal(conferirCapitulo(certo), certo);
+  assert.equal(conferirCapitulo(`<?xml version="1.0" encoding="UTF-8"?>\n${certo}`), certo);
+  const comNomes = certo.replace('<meta ', '<meta xmlns="http://www.w3.org/1999/xhtml" ').replace(/'none'/g, '&apos;none&apos;').replace('"/>', '" />');
+  assert.equal(conferirCapitulo(comNomes), comNomes);
+  const recusados = {
+    'nada': undefined,
+    'código antes da raiz': `<script>parent.x = 1</script>${certo}`,
+    'instrução antes da raiz': `<?alvo ><script>parent.x = 1</script>?>${certo}`,
+    'duas declarações': `<?xml version="1.0"?><?xml ><script>parent.x = 1</script>?>${certo}`,
+    'comentário antes da raiz': `<!--><script>parent.x = 1</script>-->${certo}`,
+    'tipo do documento antes da raiz': `<!DOCTYPE html SYSTEM '"><script>parent.x = 1</script>'>${certo}`,
+    'texto antes da raiz': `oi${certo}`,
+    'comentário entre a raiz e a cabeça': certo.replace('<head>', '<!--><script>parent.x = 1</script>--><head>'),
+    'código entre a cabeça e a regra': certo.replace('<head>', '<head><script>parent.x = 1</script>'),
+    'título antes da regra': certo.replace(`${regra}<title>t</title>`, `<title>t</title>${regra}`),
+    'sem a regra': certo.replace(regra, ''),
+    'regra mais frouxa': certo.replace("script-src 'none'", "script-src 'unsafe-inline'"),
+    'regra com um endereço no lugar do nada': certo.replace("script-src 'none'", 'script-src blob:http://x/1'),
+    'regra de outro tipo': certo.replace('Content-Security-Policy', 'refresh'),
+    'raiz com prefixo': certo.replace('<html ', '<h:html ').replace('</html>', '</h:html>'),
+    'raiz com sinal de maior num atributo': certo.replace('lang="pt"', 'lang="a>b"'),
+    'corpo antes da cabeça': certo.replace('<head>', '<body></body><head>'),
+  };
+  for (const [nome, texto] of Object.entries(recusados)) assert.equal(conferirCapitulo(texto), recusado, nome);
+});
+
+test('o código de um livro malicioso nunca roda: o capítulo é limpo, começa pela regra que proíbe código, e o que não puder ser conferido não é mostrado', async () => {
+  const { contexto, pagina, erros } = await abrirPrancheta();
+  try {
+    await abrirLivro(pagina, 'Malicioso.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    await pagina.waitForTimeout(800);
+    assert.deepEqual(await pagina.evaluate(() => window.__invasao), [], 'nenhuma tentativa do livro rodou');
+    // O quadro deixa código rodar, e nada além disso e de ler a própria página.
+    assert.equal(await pagina.evaluate(() => document.querySelector('#leitor iframe').getAttribute('sandbox')), 'allow-same-origin allow-scripts');
+
+    // A primeira trava: o capítulo mostrado não tem mais o que roda código.
+    const limpo = await pagina.evaluate(() => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      const todos = [...doc.querySelectorAll('*')];
+      const nos = [];
+      const caminhante = doc.createTreeWalker(doc, NodeFilter.SHOW_COMMENT | NodeFilter.SHOW_PROCESSING_INSTRUCTION);
+      for (let no = caminhante.nextNode(); no; no = caminhante.nextNode()) nos.push(no.nodeValue);
+      const regras = [...doc.querySelectorAll('meta[http-equiv]')];
+      return {
+        proibidos: todos.filter((e) => /^(script|iframe|frame|object|embed|base|noscript|template|set)$/i.test(e.localName)).map((e) => e.localName),
+        atributos: todos.flatMap((e) => [...e.attributes].filter((a) => /^on/i.test(a.name) || /^\s*j\s*a\s*v\s*a/i.test(a.value) || a.name === 'srcdoc').map((a) => `${e.localName} ${a.name}`)),
+        comentarios: nos.filter((texto) => texto !== ''),
+        tipo: doc.doctype ? doc.doctype.name : null,
+        regras: regras.map((m) => `${m.getAttribute('http-equiv')}: ${m.getAttribute('content')}`),
+        regraPrimeiro: doc.head.firstElementChild === regras[0] && doc.documentElement.firstElementChild === doc.head,
+        semCodigo: Boolean(doc.getElementById('sem-codigo')?.offsetParent),
+        literal: doc.body.textContent.includes("<script>parent.__invasao.push('trecho-literal')</script>"),
+        ordem: [...doc.body.children].indexOf(doc.getElementById('p1')),
+        textos: [...doc.querySelectorAll('p')].find((p) => p.textContent === 'umdois')?.childNodes.length,
+        elos: [...doc.querySelectorAll('a[id]')].map((a) => a.hasAttribute('href')),
+      };
+    });
+    assert.deepEqual(limpo.proibidos, [], 'nenhum elemento que roda código ou traz outra página');
+    assert.deepEqual(limpo.atributos, [], 'nenhum atributo com código');
+    assert.deepEqual(limpo.comentarios, [], 'os comentários e as instruções ficam vazios');
+    assert.equal(limpo.tipo, null, 'o tipo do documento sai');
+    assert.deepEqual(limpo.regras, [`Content-Security-Policy: ${POLITICA_DO_LIVRO}`], 'só a regra do leitor, sem as do livro');
+    assert.equal(limpo.regraPrimeiro, true, 'a regra vem antes de tudo');
+    assert.equal(limpo.semCodigo, true, 'o texto reservado a quem não roda código aparece');
+    assert.equal(limpo.literal, true, 'o trecho literal vira texto comum');
+    assert.deepEqual(limpo.elos, [false, false], 'os links com código ficam sem endereço');
+    // O que sai do corpo deixa um elemento no lugar, e o comentário continua separando os textos: os endereços dos destaques não mudam.
+    assert.equal(limpo.ordem, 17);
+    assert.equal(limpo.textos, 3);
+
+    // A segunda trava: a regra do navegador vale na página do livro, e barra até o código posto nela depois.
+    const barrado = await pagina.evaluate(async () => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      const violacoes = [];
+      doc.addEventListener('securitypolicyviolation', (e) => violacoes.push(e.violatedDirective));
+      const script = doc.createElement('script');
+      script.textContent = "parent.__invasao.push('posto-depois')";
+      doc.body.appendChild(script);
+      const p = doc.getElementById('p1');
+      p.setAttribute('onclick', "parent.__invasao.push('atributo-posto-depois')");
+      p.click();
+      await new Promise((pronto) => setTimeout(pronto, 300));
+      script.remove();
+      p.removeAttribute('onclick');
+      return violacoes;
+    });
+    assert.deepEqual(barrado, ['script-src-elem', 'script-src-attr']);
+    assert.deepEqual(await pagina.evaluate(() => window.__invasao), []);
+    // Os avisos pedidos pelo leitor continuam chegando: o trecho selecionado ganha a barra.
+    await selecionarNoEpub(pagina, 'p1', 9, 26);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await barraSome(pagina);
+
+    // A limpeza, vista de perto, no documento inteiro: o que fica fora da raiz sai, e a cabeça, com a regra, vai para o começo.
+    const limpos = await pagina.evaluate(([malicioso, comPrefixo]) => {
+      const { limparCapitulo, conferirCapitulo } = window.LeitorPrancheta;
+      const limpar = (texto) => {
+        const saida = new XMLSerializer().serializeToString(limparCapitulo(new DOMParser().parseFromString(texto, 'application/xhtml+xml')));
+        return { saida, aceito: conferirCapitulo(saida) !== conferirCapitulo('') };
+      };
+      const xhtml = (miolo) => `<html xmlns="http://www.w3.org/1999/xhtml">${miolo}</html>`;
+      return {
+        malicioso: limpar(malicioso),
+        comPrefixo: limpar(comPrefixo),
+        semCabeca: limpar(xhtml('<body><p>Sem cabeça.</p></body>')),
+        cabecaDepois: limpar(xhtml('<body><p>Corpo antes.</p></body><head><title>t</title><script>parent.x = 1</script></head>')),
+        textoAntesDaCabeca: limpar(xhtml('texto<!--c--><head><title>t</title></head><body><p>Corpo.</p></body>')),
+        outraRaiz: limpar('<svg xmlns="http://www.w3.org/2000/svg" onload="parent.x = 1"><script>parent.x = 1</script><rect width="1" height="1"/></svg>'),
+      };
+    }, [CAPITULO_MALICIOSO, CAPITULO_COM_PREFIXO]);
+    assert.equal(limpos.malicioso.aceito, true);
+    assert.doesNotMatch(limpos.malicioso.saida, /<\?alvo|<!DOCTYPE|<!--[^-]|<script|__invasao\.push\('(?!trecho-literal)/i, 'nada do que roda código sobra no texto do capítulo');
+    assert.equal(limpos.comPrefixo.aceito, false, 'a raiz com prefixo é recusada');
+    assert.equal(limpos.semCabeca.aceito, true, 'sem cabeça, o capítulo ganha uma, com a regra');
+    assert.match(limpos.semCabeca.saida, /<p>Sem cabeça\.<\/p>/);
+    assert.equal(limpos.cabecaDepois.aceito, true, 'a cabeça que vem depois do corpo vai para o começo');
+    assert.doesNotMatch(limpos.cabecaDepois.saida, /<script/);
+    assert.equal(limpos.textoAntesDaCabeca.aceito, true, 'o que vem antes da cabeça fica depois dela');
+    assert.equal(limpos.outraRaiz.aceito, true, 'outra raiz vai para dentro de um corpo');
+    assert.match(limpos.outraRaiz.saida, /<body><svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"><g\/><rect width="1" height="1"\/><\/svg><\/body>/);
+
+    // O capítulo que não começa pela raiz esperada não é mostrado: no lugar, um aviso, com a mesma regra.
+    await pagina.click('#leitor [data-acao="proxima"]');
+    await noCapitulo(pagina, /não pôde ser mostrado/);
+    const recusado = await pagina.evaluate(() => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      return { texto: doc.body.textContent, regra: doc.querySelector('meta[http-equiv]')?.getAttribute('content'), scripts: doc.querySelectorAll('script').length };
+    });
+    assert.deepEqual(recusado, { texto: 'Este capítulo não pôde ser mostrado.', regra: POLITICA_DO_LIVRO, scripts: 0 });
+    await pagina.waitForTimeout(500);
+    assert.deepEqual(await pagina.evaluate(() => window.__invasao), []);
+    assert.deepEqual(erros, []);
+  } finally {
+    await contexto.close();
+  }
+});
+
+// Anota os avisos de seleção que a página do livro aberto manda ao leitor.
+const anotarAvisosDeSelecao = (pagina) => pagina.evaluate(() => {
+  window.__avisos = [];
+  const vista = window.leitorDaPrancheta.vista;
+  if (vista.__anotada) return;
+  vista.__anotada = true;
+  const original = vista.aoMudar;
+  vista.aoMudar = (mudanca) => {
+    if (mudanca.tipo === 'selecao') window.__avisos.push(mudanca.selecao ? mudanca.selecao.texto : (mudanca.desfeita ? 'desfeita' : null));
+    return original(mudanca);
+  };
+});
+const avisosDeSelecao = (pagina) => pagina.evaluate(() => window.__avisos);
+
+test('onde a página do livro não avisa de nada, como no Safari do iPad, a barra da seleção aparece assim mesmo, destaca o trecho e some com a seleção', async () => {
+  const { contexto, pagina, erros } = await abrirPrancheta({ livroCalado: true });
+  try {
+    await abrirLivro(pagina, 'Livro rico.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    // A simulação vale: o toque no terço direito, que a página do livro avisaria, não vira a página.
+    await pagina.mouse.click(...await pontoNoLivro(pagina, 0.9));
+    await pagina.waitForTimeout(700);
+    assert.match(await textoDoEpub(pagina), /primeiro capítulo/);
+
+    // O trecho selecionado ganha a barra, com o texto e o endereço dele.
+    await anotarAvisosDeSelecao(pagina);
+    await selecionarNoEpub(pagina, 'p1', 9, 26);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    const selecao = await pagina.evaluate(() => window.leitorDaPrancheta.selecao);
+    assert.equal(selecao.texto, await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().toString()));
+    assert.match(selecao.posicao.cfi, /^epubcfi\(/);
+    let m = await barraDaSelecao(pagina);
+    assert.ok(m.barra.base <= m.trecho.topo && m.trecho.topo - m.barra.base < 24, `a barra fica logo acima do trecho: ${JSON.stringify(m)}`);
+    // A seleção desfeita tira a barra.
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await barraSome(pagina);
+    assert.equal(await pagina.evaluate(() => window.leitorDaPrancheta.selecao), null);
+    assert.deepEqual(await avisosDeSelecao(pagina), [selecao.texto, 'desfeita']);
+
+    // Enquanto a seleção muda, como no arrasto de uma alça, nada é avisado; só o trecho em que ela para.
+    await anotarAvisosDeSelecao(pagina);
+    for (const fim of [12, 15, 18, 21, 24]) {
+      await selecionarNoEpub(pagina, 'p1', 9, fim);
+      await pagina.waitForTimeout(120);
+    }
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    await pagina.waitForTimeout(700);
+    const final = await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().toString());
+    assert.deepEqual(await avisosDeSelecao(pagina), [final], 'um aviso só, do trecho final');
+    // O botão da barra destaca o trecho, e a barra some com a seleção.
+    // Os destaques deste livro feitos pelos outros testes chegam pelo servidor: conta só o deste trecho.
+    const destacados = () => pagina.evaluate((trecho) => window.marcacoesDaPrancheta.destaques(window.leitorDaPrancheta.livro.id).then((lista) => lista.filter((d) => d.trecho === trecho).length), final.trim());
+    const antes = await destacados();
+    await pagina.click('#leitor .lt-selecao [data-acao="destacar"]');
+    await barraSome(pagina);
+    assert.equal(await destacados(), antes + 1);
+    await pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque').length >= 1);
+
+    // Fechado o livro, a vigia para: nada mais é lido da página dele.
+    const vista = await pagina.evaluateHandle(() => window.leitorDaPrancheta.vista);
+    await pagina.click('#leitor [data-acao="fechar"]');
+    assert.equal(await vista.evaluate((v) => v._vigia), null);
+    assert.deepEqual(erros, []);
+  } finally {
+    await contexto.close();
+  }
+});
+
+test('onde a página do livro avisa, cada seleção é avisada uma vez só; numa tela de toque fora da casca, a barra fica abaixo do trecho, longe do menu do sistema', async () => {
+  const normal = await abrirPrancheta();
+  try {
+    await abrirLivro(normal.pagina, 'Livro rico.epub');
+    await noCapitulo(normal.pagina, /primeiro capítulo/);
+    await anotarAvisosDeSelecao(normal.pagina);
+    await selecionarNoEpub(normal.pagina, 'p1', 9, 26);
+    await normal.pagina.locator('#leitor .lt-selecao').waitFor();
+    await normal.pagina.waitForTimeout(1200);
+    const texto = await normal.pagina.evaluate(() => window.leitorDaPrancheta.selecao.texto);
+    assert.deepEqual(await avisosDeSelecao(normal.pagina), [texto]);
+    await normal.pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await barraSome(normal.pagina);
+    await normal.pagina.waitForTimeout(1200);
+    assert.deepEqual(await avisosDeSelecao(normal.pagina), [texto, 'desfeita']);
+    assert.deepEqual(normal.erros, []);
+  } finally {
+    await normal.contexto.close();
+  }
+
+  const deToque = await abrirPrancheta({ toque: true });
+  try {
+    assert.equal(await deToque.pagina.evaluate(() => matchMedia('(pointer: coarse)').matches && !window.Casca), true);
+    await abrirLivro(deToque.pagina, 'Livro rico.epub');
+    await noCapitulo(deToque.pagina, /primeiro capítulo/);
+    await selecionarNoEpub(deToque.pagina, 'p1', 9, 26);
+    await deToque.pagina.locator('#leitor .lt-selecao').waitFor();
+    let m = await barraDaSelecao(deToque.pagina);
+    assert.ok(m.barra.topo - m.trecho.base >= 30 && m.barra.topo - m.trecho.base < 48, `a barra fica abaixo do trecho, depois das alças: ${JSON.stringify(m)}`);
+    assert.ok(m.dentro, 'a barra fica sobre o livro');
+    assert.deepEqual(deToque.erros, []);
+  } finally {
+    await deToque.contexto.close();
+  }
+  // Na casca, que esconde o menu do Android, a barra continua acima do trecho.
+  const casca = await abrirPrancheta({ naCasca: true });
+  try {
+    await abrirLivro(casca.pagina, 'Livro rico.epub');
+    await noCapitulo(casca.pagina, /primeiro capítulo/);
+    await selecionarNoEpub(casca.pagina, 'p1', 9, 26);
+    await casca.pagina.locator('#leitor .lt-selecao').waitFor();
+    const m = await barraDaSelecao(casca.pagina);
+    assert.ok(m.barra.base <= m.trecho.topo, `na casca, a barra fica acima do trecho: ${JSON.stringify(m)}`);
+  } finally {
+    await casca.contexto.close();
   }
 });
 

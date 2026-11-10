@@ -6,6 +6,43 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · O quadro do livro deixa código rodar, com duas travas contra o código do livro
+
+### Feito
+
+- O autor decidiu, com um "faça", a saída completa para o iPad e o iPhone: o quadro em que a página do e-book fica passa a deixar código rodar, para os avisos pedidos pelo leitor chegarem também no Safari, e o código do próprio livro é barrado por duas travas independentes. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+- A limpeza de cada capítulo e a regra do navegador no começo dele, com a recusa de mostrar o capítulo que não começa por ela. Um livro de teste tenta rodar código de 26 formas: com qualquer uma das travas sozinha, nenhuma rodou; sem as duas, 14 rodaram.
+- 32 mutações, todas acusadas depois de o teste ser reforçado em 2 pontos. A suíte da página tem 123 testes. A mudança vai no mesmo PR #52, na casca 0.19.0.
+
+### Decidido
+
+- **A página de um e-book fica num quadro que deixa código rodar**, por decisão do autor. Revê a decisão registrada na entrada abaixo, de manter o quadro sem código. O risco aceito: se as duas travas falhassem juntas, um livro malicioso alcançaria os dados e as chaves guardados no aparelho.
+- **O que sai do corpo de um capítulo deixa um elemento vazio no lugar**, para os endereços dos destaques já feitos não mudarem.
+
+### Pendências
+
+- O teste do autor no iPad e no iPhone: a barra abaixo do trecho selecionado, o toque nos terços da página, um link do livro e o toque num destaque. Nada disso pôde ser visto aqui, que não tem o motor do Safari.
+- Os testes no Boox da casca 0.19.0, que traz a mudança do quadro, além dos pendentes da 0.18.0, o da ficha do livro, os do KOReader e os do plano 006; a exclusão do ramo antigo, pelo autor.
+
+## 2026-11-10 · A barra de destaque no iPad
+
+### Feito
+
+- Mesclado o PR #51, com a barra flutuante na seleção do laço e a seleção que segue para a página ao lado; casca 0.18.0.
+- O autor pediu o registro do iPad e do iPhone. A sessão do Mac recebeu o pedido de montar com ele o comando completo, sem colar chaves nem endereços, e de confirmar com ele antes de qualquer comando de administrador.
+- O autor relatou, com uma captura do iPad, que a barra de destaque não aparecia num e-book aberto no navegador. A causa é o quadro sem código em que a página do livro fica, que no Safari também não chama os avisos pedidos pelo leitor. O leitor passou a conferir a seleção por fora, e a barra fica abaixo do trecho nas telas de toque fora da casca, na casca 0.19.0. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+- 12 mutações, todas acusadas. A suíte da página tem 121 testes.
+
+### Decidido
+
+- **A proteção do quadro sem código fica como está**: a barra foi resolvida por fora dele. Deixar o quadro rodar código, para o toque na página do livro valer no iPad, é uma decisão de segurança do autor.
+
+### Pendências
+
+- O teste do autor no iPad: ver a barra abaixo do trecho selecionado e destacar por ela. Este ambiente não tem o motor do Safari.
+- A decisão do autor sobre os toques na página do livro no iPad e no iPhone, que não viram a página, não seguem links e não abrem destaques; sem abrir, um destaque não pode ser anotado nem apagado lá.
+- Os testes no Boox da casca 0.18.0, o da ficha do livro, os do KOReader e os do plano 006; a exclusão do ramo antigo, pelo autor.
+
 ## 2026-11-10 · A seleção que atravessa a página, e a etapa 01 do plano 008 concluída
 
 ### Feito

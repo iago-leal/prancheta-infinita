@@ -97,6 +97,8 @@
   const CARACTERES_POR_POSICAO = 1600;
   // Com a ponta de uma seleção fora da página, o tempo mínimo entre uma virada de página e a seguinte.
   const ESPERA_ENTRE_VIRADAS_DA_SELECAO = 900;
+  // De quanto em quanto tempo o leitor confere, por fora, a seleção feita na página de um e-book: ver _conferirSelecao.
+  const INTERVALO_DA_VIGIA_DA_SELECAO = 300;
 
   // ---- Busca no texto ----
 
@@ -301,6 +303,134 @@
     return limpo.length > limite ? `${limpo.slice(0, limite - 1)}…` : limpo;
   };
 
+  // ---- O código dos livros ----
+  //
+  // A página de um e-book fica num quadro que deixa código rodar, porque no
+  // Safari, e em todo navegador do iPad e do iPhone, um quadro sem código
+  // também não chama os avisos que o leitor pede a ele: o toque que vira a
+  // página, o link, o destaque tocado. O código do próprio livro é barrado por
+  // duas travas independentes. A primeira limpa cada capítulo antes de ele ser
+  // mostrado. A segunda é uma regra do navegador, posta no começo do
+  // capítulo, que proíbe qualquer código na página dele, venha de onde vier;
+  // o capítulo que não começar exatamente por essa regra não é mostrado.
+
+  const POLITICA_DO_LIVRO = "script-src 'none'; object-src 'none'; frame-src 'none'; child-src 'none'; worker-src 'none'";
+  const XHTML = 'http://www.w3.org/1999/xhtml';
+  const SVG = 'http://www.w3.org/2000/svg';
+  const MATHML = 'http://www.w3.org/1998/Math/MathML';
+  // Os elementos que rodam código, ou que trazem outra página para dentro do livro.
+  const ELEMENTOS_PROIBIDOS = new Set(['script', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'portal', 'base', 'template']);
+  const ANIMACOES = new Set(['animate', 'set', 'animatetransform', 'animatemotion']);
+  const ENDERECO_COM_CODIGO = /^(?:javascript:|vbscript:|data:(?:text\/html|text\/xml|application\/xml|application\/xhtml))/;
+  const nomeDe = (no) => String(no.localName || no.nodeName || '').toLowerCase();
+
+  function limparAtributos(elemento) {
+    for (const atributo of [...elemento.attributes]) {
+      const nome = String(atributo.name).toLowerCase();
+      const local = nomeDe(atributo);
+      // Um endereço é lido pelo navegador sem os espaços e os caracteres de controle no meio dele.
+      const valor = String(atributo.value).replace(/[\u0000-\u0020]+/g, '').toLowerCase();
+      if (nome.startsWith('on') || local.startsWith('on') || local === 'srcdoc' || ENDERECO_COM_CODIGO.test(valor)) elemento.removeAttributeNode(atributo);
+    }
+  }
+
+  /**
+   * Limpa um capítulo, no próprio documento dele: tira o que roda código e
+   * põe, antes de tudo, a regra que proíbe código. Fora do elemento raiz não
+   * fica nada, porque o tipo do documento, um comentário ou uma instrução
+   * podem esconder código de quem lê o capítulo como XML e entregá-lo a quem o
+   * lê como HTML, que é como ele é mostrado. No corpo, o que sai deixa um
+   * elemento vazio no lugar, e um comentário fica vazio, para os endereços dos
+   * destaques já feitos continuarem valendo.
+   */
+  function limparCapitulo(doc) {
+    let raiz = doc.documentElement;
+    for (const no of [...doc.childNodes]) if (no !== raiz) doc.removeChild(no);
+    if (!raiz || nomeDe(raiz) !== 'html') {
+      const html = doc.createElementNS(XHTML, 'html');
+      const corpo = html.appendChild(doc.createElementNS(XHTML, 'body'));
+      if (raiz) corpo.appendChild(doc.removeChild(raiz));
+      doc.appendChild(html);
+      raiz = html;
+    }
+    limparAtributos(raiz);
+    const noCorpo = (no) => {
+      for (let pai = no; pai && pai !== raiz; pai = pai.parentNode) if (pai.nodeType === 1 && nomeDe(pai) === 'body') return true;
+      return false;
+    };
+    // O elemento vazio que fica no lugar do que saiu, do mesmo tipo dos vizinhos, para a leitura como HTML não mudar a árvore.
+    const vazio = (pai) => {
+      if (pai.namespaceURI === SVG && !/^(foreignobject|desc|title)$/.test(nomeDe(pai))) return doc.createElementNS(SVG, 'g');
+      if (pai.namespaceURI === MATHML) return doc.createElementNS(MATHML, 'mrow');
+      const marcador = doc.createElementNS(XHTML, 'span');
+      marcador.setAttribute('hidden', 'hidden');
+      return marcador;
+    };
+    const pilha = [raiz];
+    while (pilha.length) {
+      const pai = pilha.pop();
+      const dentro = noCorpo(pai);
+      for (const no of [...pai.childNodes]) {
+        if (no.nodeType === 3) continue;
+        if (no.nodeType === 4) {
+          pai.replaceChild(doc.createTextNode(no.nodeValue), no);
+          continue;
+        }
+        if (no.nodeType !== 1) {
+          if (dentro) pai.replaceChild(doc.createComment(''), no);
+          else pai.removeChild(no);
+          continue;
+        }
+        const nome = nomeDe(no);
+        const regraDoLivro = nome === 'meta' && [...no.attributes].some((a) => nomeDe(a) === 'http-equiv');
+        const animacao = ANIMACOES.has(nome) && /^(on|.*href$)/i.test(no.getAttribute('attributeName') || '');
+        if (ELEMENTOS_PROIBIDOS.has(nome) || regraDoLivro || animacao) {
+          if (dentro) pai.replaceChild(vazio(pai), no);
+          else pai.removeChild(no);
+          continue;
+        }
+        // Com código permitido no quadro, o navegador esconderia o que o livro reserva a quem não roda código: passa a texto comum.
+        if (nome === 'noscript') {
+          if (dentro) {
+            const comum = doc.createElementNS(XHTML, 'span');
+            while (no.firstChild) comum.appendChild(no.firstChild);
+            pai.replaceChild(comum, no);
+            pilha.push(comum);
+          } else pai.removeChild(no);
+          continue;
+        }
+        limparAtributos(no);
+        pilha.push(no);
+      }
+    }
+    let cabeca = [...raiz.childNodes].find((f) => f.nodeType === 1 && nomeDe(f) === 'head');
+    if (!cabeca) cabeca = doc.createElementNS(XHTML, 'head');
+    raiz.insertBefore(cabeca, raiz.firstChild);
+    const regra = doc.createElementNS(XHTML, 'meta');
+    regra.setAttribute('http-equiv', 'Content-Security-Policy');
+    regra.setAttribute('content', POLITICA_DO_LIVRO);
+    cabeca.insertBefore(regra, cabeca.firstChild);
+    return doc;
+  }
+
+  const CAPITULO_RECUSADO = `<html xmlns="${XHTML}"><head><meta http-equiv="Content-Security-Policy" content="${POLITICA_DO_LIVRO}"/><title></title></head><body><p>Este capítulo não pôde ser mostrado.</p></body></html>`;
+  // O começo de um capítulo pronto para ser mostrado: a raiz, a cabeça e a regra, sem nada entre elas.
+  const COMECO_DO_CAPITULO = /^<html(?:\s[^<>]*)?>\s*<head(?:\s[^<>]*)?>\s*(<meta\s[^<>]*>)/;
+
+  /**
+   * Confere o texto de um capítulo, pronto para ir à tela: ele só é mostrado
+   * se começa pela raiz, pela cabeça e pela regra que proíbe código, sem nada
+   * antes nem no meio. Qualquer outro começo dá no lugar um capítulo vazio,
+   * com a mesma regra. A declaração de XML, que não é HTML, sai.
+   */
+  function conferirCapitulo(saida) {
+    const texto = typeof saida === 'string' ? saida.replace(/^\uFEFF?\s*(?:<\?xml\s[^<>]*\?>)?\s*/, '') : '';
+    const lido = COMECO_DO_CAPITULO.exec(texto);
+    const regra = lido ? lido[1].replace(/&(?:apos|#39|#x27);/gi, "'") : '';
+    const vale = regra.includes(' http-equiv="Content-Security-Policy"') && regra.includes(` content="${POLITICA_DO_LIVRO}"`);
+    return vale ? texto : CAPITULO_RECUSADO;
+  }
+
   // ---- EPUB ----
 
   class VistaEpub {
@@ -325,7 +455,10 @@
       this._achado = null;
       // A posição em que a epub.js deixou a rolagem do livro, depois de travada.
       this._rolagem = null;
-
+      // A vigia da seleção: o endereço do trecho na última leitura e o do último trecho avisado.
+      this._vigia = null;
+      this._selecaoLida = '';
+      this._selecaoAvisada = '';
     }
 
     async abrir(blob, posicao, { locais } = {}) {
@@ -338,8 +471,10 @@
       for (const ganchos of [this.livro.spine.hooks.content, this.livro.spine.hooks.serialize]) {
         if (ganchos && Array.isArray(ganchos.hooks)) ganchos.hooks = ganchos.hooks.filter((f) => !String(f).includes('createElement("base")'));
       }
+      this._barrarCodigoDoLivro();
+      // O quadro do livro deixa código rodar, para os avisos dele chegarem ao leitor também no Safari; o código do livro é barrado antes.
       this.vista = this.livro.renderTo(this.conteudo, {
-        width: '100%', height: '100%', flow: 'paginated', spread: 'none', allowScriptedContent: false,
+        width: '100%', height: '100%', flow: 'paginated', spread: 'none', allowScriptedContent: true,
       });
       this.vista.themes.default({
         body: { 'line-height': '1.5', margin: '0', padding: '0 4px' },
@@ -385,8 +520,10 @@
         for (const fim of ['pointerup', 'pointercancel']) conteudo.document.addEventListener(fim, () => { arrasto = null; }, true);
         // A epub.js só avisa de uma seleção feita; a desfeita, por um toque fora dela, é avisada aqui.
         conteudo.document.addEventListener('selectionchange', () => {
-          if (conteudo.window.getSelection().isCollapsed) this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
-          else if (arrasto && arrasto.moveu) this._seguirPontaDaSelecao(conteudo);
+          if (conteudo.window.getSelection().isCollapsed) {
+            this._selecaoAvisada = '';
+            this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
+          } else if (arrasto && arrasto.moveu) this._seguirPontaDaSelecao(conteudo);
         });
         conteudo.document.addEventListener('click', (e) => {
           const elo = e.target.closest && e.target.closest('a[href]');
@@ -399,6 +536,7 @@
       this.vista.on('click', (e, conteudo) => this._clicou(e, conteudo));
       this.vista.on('selected', (cfiRange, conteudo) => {
         const texto = conteudo && conteudo.window ? conteudo.window.getSelection().toString() : '';
+        this._selecaoAvisada = texto.trim() ? cfiRange : '';
         this.aoMudar({
           tipo: 'selecao',
           selecao: texto.trim() ? { texto: texto.trim(), posicao: { cfi: cfiRange }, retangulo: this._retanguloDaSelecao(conteudo) } : null,
@@ -407,6 +545,7 @@
       this._seguiuEm = 0;
       await this.vista.display(posicao && posicao.cfi ? posicao.cfi : undefined);
       this._travarRolagem();
+      this._vigia = setInterval(() => this._conferirSelecao(), INTERVALO_DA_VIGIA_DA_SELECAO);
       // As posições e as porcentagens vêm depois, sem atrasar a abertura: as
       // guardadas da primeira vez, ou calculadas agora, capítulo a capítulo, e
       // entregues para serem guardadas.
@@ -426,6 +565,22 @@
         this._posicoesProntas = true;
         if (this.vista) this.vista.reportLocation();
       }).catch(() => {});
+    }
+
+    // As duas travas contra o código do livro valem depois de tudo o que a
+    // epub.js faz com o capítulo: a limpeza, depois dos ganchos do documento,
+    // e a conferência, depois dos que mexem no texto pronto, como a troca dos
+    // endereços das figuras, seja qual for a ordem em que foram registrados.
+    _barrarCodigoDoLivro() {
+      const { content: documento, serialize: texto } = this.livro.spine.hooks;
+      const dispararDocumento = documento.trigger.bind(documento);
+      documento.trigger = (doc, ...resto) => Promise.resolve(dispararDocumento(doc, ...resto)).then(() => {
+        limparCapitulo(doc);
+      });
+      const dispararTexto = texto.trigger.bind(texto);
+      texto.trigger = (saida, secao, ...resto) => Promise.resolve(dispararTexto(saida, secao, ...resto)).then(() => {
+        secao.output = conferirCapitulo(secao.output);
+      });
     }
 
     // As marcas de página que o livro traz, do documento de navegação dele:
@@ -605,17 +760,50 @@
       this.aoMudar({ tipo: 'salto' });
       this.vista.reportLocation();
       // A barra da seleção acompanha a parte do trecho que está na página nova.
-      const conteudo = this.vista.getContents().find((c) => c.window && !c.window.getSelection().isCollapsed);
-      if (conteudo) {
-        const selecao = conteudo.window.getSelection();
-        const texto = selecao.toString().trim();
-        let cfi = '';
-        try {
-          cfi = conteudo.cfiFromRange(selecao.getRangeAt(0));
-        } catch (e) { /* sem endereço, a seleção fica sem a barra até mudar de novo */ }
-        if (texto && cfi) this.aoMudar({ tipo: 'selecao', selecao: { texto, posicao: { cfi }, retangulo: this._retanguloDaSelecao(conteudo) } });
-      }
+      const atual = this._selecaoAtual();
+      if (atual) this._avisarSelecao(atual);
       return true;
+    }
+
+    // O trecho selecionado no livro, com o endereço dele e a página em que está, ou null.
+    _selecaoAtual() {
+      const conteudo = this.vista ? this.vista.getContents().find((c) => c.window && !c.window.getSelection().isCollapsed) : null;
+      if (!conteudo) return null;
+      const selecao = conteudo.window.getSelection();
+      const texto = selecao.toString().trim();
+      let cfi = '';
+      try {
+        cfi = conteudo.cfiFromRange(selecao.getRangeAt(0));
+      } catch (e) { /* sem endereço, a seleção fica sem a barra até mudar de novo */ }
+      return texto && cfi ? { conteudo, texto, cfi } : null;
+    }
+
+    _avisarSelecao(atual) {
+      this._selecaoAvisada = atual.cfi;
+      this.aoMudar({ tipo: 'selecao', selecao: { texto: atual.texto, posicao: { cfi: atual.cfi }, retangulo: this._retanguloDaSelecao(atual.conteudo) } });
+    }
+
+    // A seleção é avisada pela página do livro, por eventos dela. Num
+    // navegador em que a página do livro não avise, como acontecia no Safari
+    // enquanto o quadro dela não deixava código rodar, a barra da seleção não
+    // apareceria. Por garantia, o leitor também confere a seleção por fora,
+    // de tempo em tempo, e avisa do trecho quando ele para de mudar, com duas
+    // leituras iguais, e da seleção desfeita. Onde a página avisa, o aviso
+    // dela chega antes, e o trecho já avisado não é avisado de novo.
+    _conferirSelecao() {
+      if (!this.vista || document.hidden) return;
+      const atual = this._selecaoAtual();
+      const endereco = atual ? atual.cfi : '';
+      if (endereco !== this._selecaoLida) {
+        this._selecaoLida = endereco;
+        return;
+      }
+      if (endereco === this._selecaoAvisada) return;
+      if (atual) this._avisarSelecao(atual);
+      else {
+        this._selecaoAvisada = '';
+        this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
+      }
     }
 
     // Onde a seleção está na área do livro, para a barra dela aparecer acima do trecho.
@@ -857,6 +1045,8 @@
     }
 
     destruir() {
+      clearInterval(this._vigia);
+      this._vigia = null;
       try {
         if (this.livro) this.livro.destroy();
       } catch (e) { /* o livro já estava fechado */ }
@@ -1771,16 +1961,22 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const textoDoRemoto = painel.querySelector('.lt-remoto-texto');
       const meio = painel.querySelector('.lt-meio');
       // A barra da seleção fica acima do trecho; sem espaço ali, abaixo dele,
-      // depois das alças da seleção, quando a tela é de toque.
+      // depois das alças da seleção, quando a tela é de toque. Num navegador
+      // de tela de toque, fora da casca, é o contrário: o menu de seleção do
+      // sistema aparece acima do trecho e não pode ser escondido pela página,
+      // e a barra vai para baixo, para não ficar por baixo dele.
       const posicionarBarra = (r) => {
         const area = meio.getBoundingClientRect();
         // Sem nenhuma parte do trecho à vista, como logo depois de a seleção seguir para a página ao lado, a barra fica no alto, fora do caminho.
         const alvo = r || { esquerda: area.width / 2, direita: area.width / 2, topo: 0, base: 0 };
         const largura = selecao.offsetWidth;
         const altura = selecao.offsetHeight;
-        const abaixo = global.matchMedia && global.matchMedia('(pointer: coarse)').matches ? 34 : 10;
+        const toque = Boolean(global.matchMedia && global.matchMedia('(pointer: coarse)').matches);
+        const abaixo = toque ? 34 : 10;
         let topo = alvo.topo - altura - 10;
-        if (topo < 4) topo = Math.min(alvo.base + abaixo, area.height - altura - 4);
+        if (toque && !global.Casca && r) {
+          if (alvo.base + abaixo + altura <= area.height - 4) topo = alvo.base + abaixo;
+        } else if (topo < 4) topo = Math.min(alvo.base + abaixo, area.height - altura - 4);
         const esquerda = Math.min(Math.max(4, (alvo.esquerda + alvo.direita) / 2 - largura / 2), area.width - largura - 4);
         // No e-ink, cada mudança de posição atualiza a região: só escreve o que mudou.
         const lugar = { left: `${Math.round(esquerda)}px`, top: `${Math.round(Math.max(4, topo))}px` };
@@ -1978,6 +2174,6 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
   }
 
   global.LeitorPrancheta = Object.freeze({
-    Leitor, ligar, procurarNosTextos, lerCaminhoDoKoreader, montarCaminhoDoKoreader, quandoFoi, LARGURA_MINIMA_LADO_A_LADO,
+    Leitor, ligar, procurarNosTextos, limparCapitulo, conferirCapitulo, POLITICA_DO_LIVRO, lerCaminhoDoKoreader, montarCaminhoDoKoreader, quandoFoi, LARGURA_MINIMA_LADO_A_LADO,
   });
 })(typeof window !== 'undefined' ? window : globalThis);
