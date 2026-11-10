@@ -366,7 +366,7 @@ test('a barra da seleção flutua acima do trecho, só com os botões, e some ao
     // Todos os botões do leitor mostram um ícone, sem palavras, e dizem a ação no rótulo e na dica.
     const botoes = await pagina.evaluate(() => [...document.querySelectorAll('#leitor button')].filter((b) => !b.closest('.lt-painel-lista'))
       .map((b) => ({ acao: b.dataset.acao || b.type, texto: b.textContent.trim(), icone: b.querySelectorAll(':scope > svg.i').length, rotulo: b.getAttribute('aria-label'), dica: b.title })));
-    assert.equal(botoes.length, 20);
+    assert.equal(botoes.length, 21);
     for (const b of botoes.filter((x) => x.acao !== 'marca-estilo')) {
       assert.ok(b.texto === '' && b.icone === 1 && b.rotulo && b.rotulo === b.dica, `botão com ícone e rótulo: ${JSON.stringify(b)}`);
     }

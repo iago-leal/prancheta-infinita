@@ -18,6 +18,14 @@
 //   nunca responde; a página intercepta o toque no link e abre o livro no
 //   leitor, que o baixa antes, se este aparelho ainda não o guardou.
 //
+// - Etapa 02 do plano 008: citacoes() diz, de cada livro, os quadros
+//   guardados neste aparelho que o citam e os cartões de cada um. Uma citação
+//   é um cartão com o link de volta do livro; ela é achada no texto dos
+//   cartões de todos os quadros do índice, lidos do banco local, sem abri-los,
+//   e, no quadro aberto, do que está na tela, que pode ainda não ter sido
+//   gravado. Quadros apagados e cartões apagados ficam de fora. abrirNoQuadro()
+//   abre o quadro de uma citação e põe o cartão no meio da parte visível.
+//
 // Deve ser carregado depois de compat/leitor.js; compat/claude.js o liga ao
 // leitor em window.marcacoesDaPrancheta.
 
@@ -73,10 +81,153 @@
     }
   }
 
+  // ---- Citações: os cartões que apontam para um livro ----
+
+  const LINK_NO_CARTAO = /\[[^\]\n]*\]\((https:\/\/prancheta\.invalid\/livro\/[0-9a-f]{32}\/[A-Za-z0-9_-]+)\)/g;
+  const LIMITE_DO_RESUMO = 600;
+
+  // O texto de um bloco de cartão, sem as marcas e com as entidades trocadas.
+  const textoDe = (html) => String(html || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+
+  /**
+   * As citações de livros nos itens de um quadro, uma por cartão e livro:
+   * [{ livro, posicao, cartao, trecho, onde }]. `trecho` é o texto citado, dos
+   * blocos de citação do cartão; `onde`, a posição escrita ao lado do link.
+   */
+  function citacoesNosItens(itens) {
+    const citacoes = [];
+    for (const item of itens || []) {
+      if (!item || item.type !== 'card' || !Array.isArray(item.blocks)) continue;
+      const vistos = new Set();
+      for (const bloco of item.blocks) {
+        const html = String((bloco && bloco.h) || '');
+        for (const achado of html.matchAll(LINK_NO_CARTAO)) {
+          const lido = lerEndereco(achado[1]);
+          if (!lido || vistos.has(lido.livro)) continue;
+          vistos.add(lido.livro);
+          const trecho = textoDe(item.blocks.filter((b) => b && b.k === 'quote').map((b) => b.h).join(' ')).slice(0, LIMITE_DO_RESUMO);
+          // Ao lado do link, o cartão diz o nome do livro, em itálico, e a posição: fica só a posição.
+          const onde = textoDe(html.replace(LINK_NO_CARTAO, '').replace(/^\s*<i>[^<]*<\/i>\s*,?/, '')).replace(/^[·,\s]+|[·,\s]+$/g, '').slice(0, LIMITE_DO_RESUMO);
+          citacoes.push({ livro: lido.livro, posicao: lido.posicao, cartao: item.id, trecho, onde });
+        }
+      }
+    }
+    return citacoes;
+  }
+
+  const colecaoDosItens = (quadro) => (quadro === 'main' ? 'canvas-shards' : `boards/${quadro}/shards`);
+
+  // O que a página sabe dos quadros, quando este módulo roda dentro dela: o
+  // índice dos quadros e os itens do quadro aberto. Fora dela, nada.
+  /* global L, S, openBoard, select, applyView */
+  const DA_PAGINA = {
+    quadros: () => (typeof L !== 'undefined' && L && Array.isArray(L.boards) && L.boards.length ? L.boards : null),
+    aberto: () => (typeof S !== 'undefined' && S && S.items ? { id: S.board, itens: [...S.items.values()] } : null),
+  };
+
+  // A parte visível do quadro: o que sobra do painel dos quadros, se aberto,
+  // e do leitor, se ao lado, à esquerda ou à direita.
+  function parteVisivelDoQuadro() {
+    const lateral = document.getElementById('side');
+    let esquerda = lateral && !lateral.hidden && getComputedStyle(lateral).display !== 'none' ? lateral.getBoundingClientRect().right : 0;
+    let direita = global.innerWidth;
+    if (document.body.classList.contains('leitor-lado')) {
+      const leitor = document.getElementById('leitor').getBoundingClientRect();
+      if (document.body.classList.contains('leitor-esquerda')) esquerda = Math.max(esquerda, leitor.right);
+      else direita = leitor.left;
+    }
+    return { esquerda, direita };
+  }
+
   class Marcacoes {
-    constructor(leitor, banco) {
+    constructor(leitor, banco, pagina = DA_PAGINA) {
       this.leitor = leitor;
       this.banco = banco;
+      this.pagina = pagina;
+    }
+
+    // Os quadros que existem, sem os apagados: do índice que a página tem
+    // aberto ou, sem ele, do índice guardado no banco.
+    async _quadros() {
+      let quadros = this.pagina.quadros();
+      if (!quadros) {
+        const indice = await this.banco.doc('library/index').get();
+        quadros = indice.exists && Array.isArray(indice.data().boards) ? indice.data().boards : [];
+      }
+      return quadros.filter((q) => q && typeof q.id === 'string' && !q.deleted).map((q) => ({ id: q.id, titulo: q.title || 'Sem título' }));
+    }
+
+    // Os itens de um quadro: os da tela, se ele é o quadro aberto, ou os guardados no banco local.
+    async _itensDoQuadro(quadro) {
+      const aberto = this.pagina.aberto();
+      if (aberto && aberto.id === quadro) return aberto.itens;
+      const pedacos = await this.banco.collection(colecaoDosItens(quadro)).get();
+      const itens = [];
+      for (const pedaco of pedacos.docs) {
+        const dados = pedaco.data();
+        if (dados && Array.isArray(dados.items)) itens.push(...dados.items);
+      }
+      return itens;
+    }
+
+    /**
+     * Os quadros guardados neste aparelho que citam cada livro, na ordem dos
+     * títulos: Map do livro para [{ quadro, titulo, cartoes: [{ id, trecho, onde, posicao }] }].
+     */
+    async citacoes() {
+      const porLivro = new Map();
+      const quadros = (await this._quadros()).sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt') || a.id.localeCompare(b.id));
+      for (const quadro of quadros) {
+        let itens;
+        try {
+          itens = await this._itensDoQuadro(quadro.id);
+        } catch (e) {
+          continue;
+        }
+        for (const citacao of citacoesNosItens(itens)) {
+          if (!porLivro.has(citacao.livro)) porLivro.set(citacao.livro, []);
+          const doLivro = porLivro.get(citacao.livro);
+          let noQuadro = doLivro[doLivro.length - 1];
+          if (!noQuadro || noQuadro.quadro !== quadro.id) {
+            noQuadro = { quadro: quadro.id, titulo: quadro.titulo, cartoes: [] };
+            doLivro.push(noQuadro);
+          }
+          noQuadro.cartoes.push({ id: citacao.cartao, trecho: citacao.trecho, onde: citacao.onde, posicao: citacao.posicao });
+        }
+      }
+      return porLivro;
+    }
+
+    /**
+     * Abre o quadro de uma citação, seleciona o cartão e o põe no meio da parte
+     * visível do quadro. Com o leitor em tela inteira, que cobriria o quadro,
+     * ele passa para o lado, ou é fechado quando a tela não comporta os dois.
+     * Devolve se o cartão foi achado.
+     */
+    async abrirNoQuadro(quadro, cartao) {
+      if (typeof openBoard !== 'function') return false;
+      const leitor = this.leitor;
+      if (leitor && leitor.aberto && document.body.classList.contains('leitor-tela')) {
+        if (leitor.modo === 'tela') leitor.alternarModo();
+        if (document.body.classList.contains('leitor-tela')) leitor.fechar();
+      }
+      await openBoard(quadro);
+      // Os itens de um quadro recém-aberto chegam do banco logo em seguida.
+      for (let espera = 0; espera < 100 && !(S.board === quadro && S.items.has(cartao)); espera++) await new Promise((pronto) => setTimeout(pronto, 50));
+      const item = S.board === quadro ? S.items.get(cartao) : null;
+      if (!item) {
+        if (typeof global.toast === 'function') global.toast('Este cartão não está mais no quadro.');
+        return false;
+      }
+      select([cartao]);
+      const { esquerda, direita } = parteVisivelDoQuadro();
+      const k = S.view.k;
+      const elemento = document.querySelector(`#cards [data-id="${cartao}"]`);
+      const altura = (item.h || (elemento ? elemento.offsetHeight : 0) || 120);
+      S.view = { k, x: (esquerda + direita) / 2 - (item.x + (item.w || 0) / 2) * k, y: global.innerHeight / 2 - (item.y + altura / 2) * k };
+      applyView();
+      return true;
     }
 
     _documento(livro) {
@@ -149,16 +300,7 @@
       if (nota) blocos.push({ h: escapar(semMarcasDeLink(nota)) });
       const onde = rotulo ? `, ${escapar(semMarcasDeLink(rotulo))}` : '';
       blocos.push({ h: `<i>${escapar(semMarcasDeLink(nome))}</i>${onde} · [abrir no livro](${enderecoDe(livro, posicao)})` });
-      // A parte visível do quadro: o que sobra do painel dos quadros, se aberto,
-      // e do leitor, se ao lado, à esquerda ou à direita.
-      const lateral = document.getElementById('side');
-      let esquerda = lateral && !lateral.hidden && getComputedStyle(lateral).display !== 'none' ? lateral.getBoundingClientRect().right : 0;
-      let direita = global.innerWidth;
-      if (document.body.classList.contains('leitor-lado')) {
-        const leitor = document.getElementById('leitor').getBoundingClientRect();
-        if (document.body.classList.contains('leitor-esquerda')) esquerda = Math.max(esquerda, leitor.right);
-        else direita = leitor.left;
-      }
+      const { esquerda, direita } = parteVisivelDoQuadro();
       const centro = global.toWorld((esquerda + direita) / 2, global.innerHeight / 2);
       global.begin();
       const cartao = global.add({
@@ -201,5 +343,5 @@
     return marcacoes;
   }
 
-  global.MarcacoesPrancheta = Object.freeze({ Marcacoes, ligar, enderecoDe, lerEndereco, ENDERECO });
+  global.MarcacoesPrancheta = Object.freeze({ Marcacoes, ligar, enderecoDe, lerEndereco, citacoesNosItens, ENDERECO });
 })(typeof window !== 'undefined' ? window : globalThis);

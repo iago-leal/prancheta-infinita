@@ -6,6 +6,25 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 008: a ficha do livro
+
+### Feito
+
+- Mesclado o PR #48, com a etapa 01 do plano 008; a casca 0.15.0 e o servidor novo foram publicados.
+- Implementada a [etapa 02 do plano 008](planos/008-biblioteca-organizada/etapas/02-ficha-do-livro.md), com a casca 0.16.0: cada livro tem uma ficha, aberta por um botão na linha dele e por um botão do leitor, com os destaques e os quadros que o citam. Tocar num destaque abre o livro no trecho, e tocar num cartão abre o quadro com ele no meio da parte visível. Na lista, cada livro citado diz em quantos quadros aparece, e o filtro "Citados" deixa só esses.
+- 4 testes novos na página; 66 mutações, todas acusadas depois de os testes serem reforçados em 5 pontos. A suíte da página tem 118 testes, e a do servidor, 50.
+
+### Decidido
+
+- **Uma citação é um cartão com o link de volta do livro.** Ela é achada no texto dos cartões de todos os quadros guardados no aparelho, sem índice à parte, para valer também para os cartões que já existem.
+- **Com a tela aberta, as citações são procuradas de novo a cada rodada da sincronização**, para o que chega do outro aparelho aparecer sem fechar a tela.
+- **A lista só é redesenhada quando muda o que mostra**, para não tirar o foco nem engolir um toque.
+
+### Pendências
+
+- O teste do autor no Boox, com a casca 0.16.0, para o critério 9 da etapa 01 e o critério 8 da etapa 02 do plano 008.
+- Os testes do autor com o KOReader, do plano 007, e os do plano 006 no Boox.
+
 ## 2026-11-10 · Plano 008: a tela da biblioteca
 
 ### Feito

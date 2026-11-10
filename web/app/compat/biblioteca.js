@@ -102,11 +102,15 @@
    * - ordem: 'autor', com os livros agrupados; 'titulo'; ou 'recentes', com os
    *   lidos por último primeiro, pelas leituras deste aparelho.
    * - soGuardados: só os livros de `guardados`, o conjunto dos guardados neste aparelho.
+   * - soCitados: só os livros de `citados`, o conjunto dos citados em algum quadro.
    */
-  function organizar(lista, { consulta = '', ordem = 'autor', soGuardados = false, guardados = new Set(), leituras = new Map() } = {}) {
+  function organizar(lista, {
+    consulta = '', ordem = 'autor', soGuardados = false, guardados = new Set(), soCitados = false, citados = new Set(), leituras = new Map(),
+  } = {}) {
     const palavras = normalizar(consulta).split(' ').filter(Boolean);
     const escolhidos = (lista || []).filter((livro) => {
       if (soGuardados && !guardados.has(livro.id)) return false;
+      if (soCitados && !citados.has(livro.id)) return false;
       if (!palavras.length) return true;
       const onde = normalizar([tituloDe(livro), livro.autor, livro.pasta, livro.nome].filter(Boolean).join(' '));
       return palavras.every((palavra) => onde.includes(palavra));
@@ -133,8 +137,12 @@
     return linhas;
   }
 
-  /** O que a linha de um livro diz sobre ele neste aparelho: o download, guardado ou o tamanho, e a porcentagem lida. */
-  function situacaoDe(livro, estado, baixando) {
+  /**
+   * O que a linha de um livro diz sobre ele neste aparelho: o download,
+   * guardado ou o tamanho, a porcentagem lida e, com `quadros`, em quantos
+   * quadros ele é citado.
+   */
+  function situacaoDe(livro, estado, baixando, quadros = 0) {
     const andamento = baixando && baixando.get(livro.id);
     if (andamento) {
       const { recebidos, total } = andamento.andamento;
@@ -144,6 +152,7 @@
     const partes = [estado.guardados.has(livro.id) ? 'guardado' : megabytes(livro.bytes || 0)];
     const leitura = estado.leituras && estado.leituras.get(livro.id);
     if (leitura && Number.isFinite(leitura.porcentagem)) partes.push(`${Math.round(leitura.porcentagem * 100)}%`);
+    if (quadros > 0) partes.push(quadros === 1 ? '1 quadro' : `${quadros} quadros`);
     return partes.join(' · ');
   }
 
@@ -295,9 +304,10 @@
     /**
      * Abre um livro da lista no leitor, baixando-o antes, se preciso, e deixa
      * em `estado.aviso` o que aconteceu. `aoAbrir` é chamado quando o livro já
-     * está neste aparelho e vai para o leitor. Devolve se abriu.
+     * está neste aparelho e vai para o leitor. Com `posicao`, o livro abre
+     * nela, e não onde a leitura parou. Devolve se abriu.
      */
-    async abrirNoLeitor(id, aoAbrir) {
+    async abrirNoLeitor(id, aoAbrir, posicao) {
       const livro = this.estado.lista.find((l) => l.id === id);
       if (!livro) return false;
       const titulo = tituloDe(livro);
@@ -321,7 +331,7 @@
       if (!leitor) return false;
       if (aoAbrir) aoAbrir();
       try {
-        await leitor.abrir(id);
+        await leitor.abrir(id, posicao);
         return true;
       } catch (e) {
         this._mudar({ aviso: `Não foi possível abrir "${titulo}": ${e.message}.` });

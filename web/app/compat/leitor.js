@@ -194,6 +194,7 @@
     sumario: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="18" r=".8"/>',
     buscar: '<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.5-4.5"/>',
     cartao: '<path d="M13 6H6a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-5"/><path d="M7 12h6M7 16h4M19 2v6M16 5h6"/>',
+    ficha: '<path d="M6 4h12v16H6z"/><path d="M9 9h6M9 13h6M9 17h3"/>',
     lado: '<path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/>',
     tela: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
     dividida: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/>',
@@ -1563,6 +1564,12 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       return this.vista ? this.vista.anterior() : undefined;
     }
 
+    /** Abre a ficha do livro aberto, com os destaques dele e os quadros que o citam, na tela da biblioteca. */
+    abrirFicha() {
+      const tela = this.biblioteca.tela;
+      if (tela && this.livro) tela.abrirFicha(this.livro.id, { nome: this.livro.nome, tipo: this.livro.tipo });
+    }
+
     /** Passa o leitor de lado a lado para a tela inteira e de volta. */
     alternarModo() {
       this.modo = this.modo === 'tela' ? 'lado' : 'tela';
@@ -1646,6 +1653,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
   ${botao('sumario', 'sumario', 'Sumário')}
   ${botao('buscar', 'buscar', 'Buscar no livro')}
   ${botao('ao-quadro', 'cartao', 'Levar esta posição ao quadro, sem destacar')}
+  ${botao('ficha', 'ficha', 'Ficha do livro: destaques e quadros que o citam')}
   ${botao('lado', 'lado', 'Passar o leitor para o outro lado do quadro')}
   <button type="button" data-acao="modo"></button>
 </div>
@@ -1828,6 +1836,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         if (acao === 'anterior') Promise.resolve(this.anterior()).catch(() => {});
         if (acao === 'modo') this.alternarModo();
         if (acao === 'ao-quadro') this.levarPosicaoAoQuadro();
+        if (acao === 'ficha') this.abrirFicha();
         if (acao === 'lado') this.trocarLado();
         if (acao === 'sumario') this.abrirSumario().catch(() => {});
         if (acao === 'buscar') this.abrirBusca();

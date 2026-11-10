@@ -17,7 +17,14 @@ async function abrirABiblioteca(pagina) {
 /** Toca na linha de um livro, na tela da biblioteca. */
 async function abrirPelaBiblioteca(pagina, arquivo) {
   await abrirABiblioteca(pagina);
-  await pagina.locator(`#tela-biblioteca .tb-livro[data-arquivo="${arquivo}"]`).click();
+  await pagina.locator(`#tela-biblioteca .tb-livro[data-arquivo="${arquivo}"] .tb-abrir`).click();
 }
 
-module.exports = { esperarLista, abrirABiblioteca, abrirPelaBiblioteca };
+/** Abre a ficha de um livro pelo botão no fim da linha dele, na tela da biblioteca. */
+async function abrirAFicha(pagina, arquivo) {
+  await abrirABiblioteca(pagina);
+  await pagina.locator(`#tela-biblioteca .tb-livro[data-arquivo="${arquivo}"] [data-acao="ficha"]`).click();
+  await pagina.locator('#tela-biblioteca .tb-ficha-titulo').waitFor();
+}
+
+module.exports = { esperarLista, abrirABiblioteca, abrirPelaBiblioteca, abrirAFicha };
