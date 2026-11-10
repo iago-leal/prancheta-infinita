@@ -9,6 +9,11 @@
 // apagar, a troca de estilo entre realce e sublinhado, a nota e levar ao
 // quadro, como no Readest, de que só o comportamento foi aproveitado.
 //
+// As barras de baixo do leitor, a do destaque aberto, a do progresso do
+// KOReader e a dos avisos, ficam por cima do rodapé da página, sem mudar a
+// altura dela: a epub.js não refaz as páginas quando a área do livro encolhe,
+// e o fim da página ficava cortado.
+//
 // Leitura no e-ink, etapa 02 do plano 006: tocar no terço direito da página
 // avança, e no esquerdo volta, sem animação; o sumário e a busca abrem num
 // painel sobre o livro, e a busca não distingue maiúsculas nem acentos; na
@@ -192,11 +197,48 @@
     realce: '<path d="M9 11l-6 6v3h9l3-3M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
     sublinhado: '<path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"/>',
     guardar: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    ir: '<path d="M5 12h14M13 6l6 6-6 6"/>',
     apagar: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
   };
   const icone = (nome) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONES[nome]}</svg>`;
   // Um botão só com o ícone, com o nome da ação no rótulo e na dica.
   const botao = (acao, nome, rotulo, tipo = 'button') => `<button type="${tipo}"${acao ? ` data-acao="${acao}"` : ''} title="${rotulo}" aria-label="${rotulo}">${icone(nome)}</button>`;
+
+  // ---- Progresso do KOReader ----
+
+  /**
+   * Lê a posição com que o KOReader descreve um ponto de um EPUB, como
+   * /body/DocFragment[3]/body/div/p[12]/text().34: o número do capítulo, na
+   * ordem de leitura e a partir de 1, e os passos até o elemento dentro do
+   * corpo dele, cada um com o nome e a ordem entre os irmãos de mesmo nome.
+   * O texto e o deslocamento no fim são deixados de lado: a Prancheta vai até
+   * o parágrafo. Devolve null se o texto não tem essa forma.
+   */
+  function lerCaminhoDoKoreader(texto) {
+    const lido = /^\/body\/DocFragment(?:\[(\d+)\])?\/body((?:\/[^/]+)*)$/.exec(String(texto || '').trim());
+    if (!lido) return null;
+    const fragmento = Number(lido[1] || 1);
+    if (!Number.isSafeInteger(fragmento) || fragmento < 1) return null;
+    const passos = [];
+    for (const parte of lido[2].split('/').filter(Boolean)) {
+      // O deslocamento, depois do ponto, e o nó de texto encerram o caminho dos elementos.
+      const passo = /^([A-Za-z][\w:-]*)(?:\[(\d+)\])?(?:\.\d+)?$/.exec(parte);
+      if (!passo) {
+        if (/^text\(\)(?:\[\d+\])?(?:\.\d+)?$/.test(parte)) break;
+        return null;
+      }
+      passos.push({ nome: passo[1].toLowerCase(), indice: Number(passo[2] || 1) });
+    }
+    return { fragmento, passos };
+  }
+
+  // O horário de um progresso, para o aviso: a hora, se foi hoje; senão, o dia e a hora.
+  function quandoFoi(ms, agora = Date.now()) {
+    const d = new Date(ms);
+    const dois = (n) => String(n).padStart(2, '0');
+    const hora = `${dois(d.getHours())}:${dois(d.getMinutes())}`;
+    return new Date(agora).toDateString() === d.toDateString() ? `hoje às ${hora}` : `em ${dois(d.getDate())}/${dois(d.getMonth() + 1)} às ${hora}`;
+  }
 
   // O retângulo que envolve as partes de uma seleção que estão à vista, em
   // relação à área do livro; `desloca` é a posição, na tela, do quadro em que
@@ -237,10 +279,12 @@
       this._achado = null;
       // A posição em que a epub.js deixou a rolagem do livro, depois de travada.
       this._rolagem = null;
+
     }
 
     async abrir(blob, posicao) {
       const ePub = await carregarEpub();
+      this._ePub = ePub;
       this.livro = ePub(await blob.arrayBuffer());
       // A epub.js põe em cada capítulo uma tag base com o endereço do livro,
       // que a política da página recusa; num livro aberto do próprio arquivo,
@@ -301,7 +345,13 @@
       }).catch(() => {});
     }
 
+    // A página à vista agora; o último aviso da epub.js pode ser de um
+    // instante antes de o texto assentar, logo depois de um salto.
     posicao() {
+      try {
+        const local = this.vista && this.vista.currentLocation();
+        if (local && local.start && local.start.cfi) return { cfi: local.start.cfi };
+      } catch (e) { /* a página ainda não foi desenhada */ }
       return this.cfi ? { cfi: this.cfi } : null;
     }
 
@@ -373,6 +423,52 @@
       const quadro = conteudo.document.defaultView.frameElement;
       if (!selecao.rangeCount || !quadro) return null;
       return retanguloAVista(selecao.getRangeAt(0).getClientRects(), this.conteudo.getBoundingClientRect(), quadro.getBoundingClientRect());
+    }
+
+    /**
+     * Onde fica, neste livro, o ponto em que o KOReader parou: o endereço do
+     * parágrafo, ou do último elemento achado no caminho até ele, que é o
+     * começo do capítulo quando nada é achado, e se ele está na página à vista. Devolve null se o progresso não dá para entender.
+     */
+    async lugarDoKoreader(progresso) {
+      const caminho = lerCaminhoDoKoreader(progresso && progresso.progress);
+      const secao = caminho && this.livro.spine.spineItems[caminho.fragmento - 1];
+      if (!secao) return null;
+      const doc = await this.livro.load(secao.url);
+      const corpo = doc && doc.querySelector('body');
+      if (!corpo) return null;
+      let elemento = corpo;
+      for (const passo of caminho.passos) {
+        const filho = [...elemento.children].filter((f) => f.localName.toLowerCase() === passo.nome)[passo.indice - 1];
+        // Um passo que não é achado encerra o caminho: vale o último elemento
+        // achado, que é o começo do capítulo quando nem o primeiro passo existe.
+        if (!filho) break;
+        elemento = filho;
+      }
+      const alvo = secao.cfiFromElement(elemento);
+      const local = await this._paginaAssentada();
+      if (!this.vista) return null;
+      const comparar = new this._ePub.CFI();
+      // Na página à vista: o elemento começa nela, ou ela começa dentro dele.
+      const dentroDoAlvo = (ponto) => ponto.startsWith(`${alvo.slice(0, -1)}/`);
+      const mesmoLugar = Boolean(local && local.start && local.end) && (dentroDoAlvo(local.start.cfi)
+        || (comparar.compare(alvo, local.start.cfi) >= 0 && comparar.compare(alvo, local.end.cfi) <= 0));
+      return { alvo, mesmoLugar };
+    }
+
+    // A página à vista, depois de assentada: até quase meio segundo depois de
+    // abrir, a epub.js ainda ajusta o capítulo, e o texto muda de lugar; a
+    // página só vale quando duas leituras, com meio segundo entre elas, dão a mesma.
+    async _paginaAssentada() {
+      let anterior = '';
+      for (let tentativa = 0; tentativa < 6 && this.vista; tentativa++) {
+        const local = this.vista.currentLocation();
+        const marca = local && local.start && local.end ? `${local.start.cfi} ${local.end.cfi}` : '';
+        if (marca && marca === anterior) return local;
+        anterior = marca;
+        await new Promise((pronto) => setTimeout(pronto, 500));
+      }
+      return this.vista ? this.vista.currentLocation() : null;
     }
 
     /** Diz se há um trecho selecionado no livro. */
@@ -693,6 +789,13 @@
       this.aoMudar({ tipo: 'selecao', selecao: texto ? { texto, posicao, retangulo } : null });
     }
 
+    /** Onde fica, neste PDF, a página em que o KOReader parou, e se é a página à vista; null se não é uma página do livro. */
+    async lugarDoKoreader(progresso) {
+      const pagina = Number(progresso && progresso.progress);
+      if (!Number.isSafeInteger(pagina) || pagina < 1 || pagina > this.total) return null;
+      return { alvo: pagina, mesmoLugar: pagina === this.pagina };
+    }
+
     /** Diz se há um trecho selecionado na página. */
     temSelecao() {
       const selecao = document.getSelection();
@@ -848,6 +951,10 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
 #leitor .lt-selecao button{font:inherit;font-size:13px;width:46px;height:38px;padding:0;border:0;border-radius:7px;background:transparent;color:inherit;cursor:pointer}
 #leitor .lt-selecao button+button{border-left:1px solid var(--line,#E3E1DD);border-radius:0 7px 7px 0}
 #leitor .lt-aviso button{font:inherit;font-size:13px;height:34px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+#leitor .lt-rodape{position:absolute;left:0;right:0;bottom:0;z-index:4;background:var(--panel,#fff)}
+#leitor .lt-remoto{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line,#E3E1DD);font-size:13px}
+#leitor .lt-remoto .lt-remoto-texto{flex:1;min-width:0}
+#leitor .lt-remoto button{flex:none;font:inherit;min-width:38px;height:34px;padding:0;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 #leitor .lt-aviso{flex:none;margin:0;padding:6px 10px;font-size:12.5px;color:var(--muted,#7F7C76)}
 #leitor .lt-aviso:empty{display:none}
 #leitor [hidden]{display:none}
@@ -871,6 +978,8 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this.painel = null;
       this._achados = { consulta: '', itens: [], aviso: '' };
       this._busca = 0;
+      // O ponto em que o KOReader parou neste livro, mais adiante que a leitura deste aparelho, ou null.
+      this.remoto = null;
       // Quando um botão da barra da seleção foi tocado pela última vez.
       this._tocouBarraEm = 0;
       this._aLargar = null;
@@ -916,7 +1025,9 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       if (!registro) registro = await biblioteca.guardar(id);
       if (!registro) throw erro('not_found', 'livro fora da biblioteca');
       this.fechar();
-      const ondeParou = posicao || await biblioteca.lerPosicao(id);
+      // Aberto por um link de volta, o livro vai à posição do link, e o progresso do KOReader não é consultado.
+      const local = posicao ? null : await biblioteca.lerPosicaoComHora(id);
+      const ondeParou = posicao || (local && local.posicao) || undefined;
       this.livro = { id, nome: registro.nome, tipo: registro.tipo };
       const Vista = registro.tipo === 'application/pdf' ? VistaPdf : VistaEpub;
       this._mostrar();
@@ -939,7 +1050,43 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         });
       }
       this._avisar();
+      if (!posicao && this.vista === vista) this._conferirProgressoRemoto(vista, id, local ? local.em : 0).catch(() => {});
       return this.posicaoAtual();
+    }
+
+    // Depois de aberto o livro, sem atrasar a abertura: se o KOReader gravou um
+    // progresso mais novo que a última leitura neste aparelho, e em outro
+    // lugar, o leitor oferece ir até lá, sem pular sozinho.
+    async _conferirProgressoRemoto(vista, id, lidoEm) {
+      const remoto = await this.biblioteca.progressoRemoto(id);
+      if (!remoto || vista !== this.vista) return;
+      const quando = Number(remoto.timestamp) * 1000;
+      if (!(quando > lidoEm)) return;
+      const lugar = await vista.lugarDoKoreader(remoto);
+      if (!lugar || lugar.mesmoLugar || vista !== this.vista) return;
+      const porcentagem = Number(remoto.percentage);
+      this.remoto = {
+        alvo: lugar.alvo, quando, aparelho: typeof remoto.device === 'string' ? remoto.device.slice(0, 40) : '',
+        porcentagem: porcentagem >= 0 && porcentagem <= 1 ? Math.round(porcentagem * 100) : null,
+      };
+      this._avisar();
+    }
+
+    /** Leva ao ponto em que o KOReader parou e tira o aviso. */
+    async irAoProgressoRemoto() {
+      const remoto = this.remoto;
+      if (!remoto || !this.vista) return;
+      this.remoto = null;
+      this._largarSelecao();
+      this._avisar();
+      await this.vista.irPara(remoto.alvo);
+    }
+
+    /** Tira o aviso do progresso do KOReader, sem sair do lugar. */
+    dispensarProgressoRemoto() {
+      if (!this.remoto) return;
+      this.remoto = null;
+      this._avisar();
     }
 
     // O livro aberto, como as marcações o identificam.
@@ -1141,13 +1288,16 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this._avisar();
     }
 
+    // Quem vira a página escolheu continuar daqui: o aviso do KOReader sai.
     proxima() {
       this._largarSelecao();
+      this.dispensarProgressoRemoto();
       return this.vista ? this.vista.proxima() : undefined;
     }
 
     anterior() {
       this._largarSelecao();
+      this.dispensarProgressoRemoto();
       return this.vista ? this.vista.anterior() : undefined;
     }
 
@@ -1189,9 +1339,15 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this._pararMarcas = null;
       this.destaques = [];
       this.destaqueAberto = null;
+      this.remoto = null;
       this.painel = null;
       this._achados = { consulta: '', itens: [], aviso: '' };
       this._busca += 1;
+      // Ao fechar, fica guardada a página à vista, e não a do último aviso de mudança.
+      if (this.vista && this.livro) {
+        const posicao = this.vista.posicao();
+        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao).catch(() => {});
+      }
       if (this.vista) this.vista.destruir();
       this.vista = null;
       this.livro = null;
@@ -1236,6 +1392,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
   </div>
   <div class="lt-selecao" role="toolbar" aria-label="Trecho selecionado" hidden>${botao('destacar', 'realce', 'Destacar')}${botao('levar', 'cartao', 'Destacar e levar ao quadro')}</div>
 </div>
+<div class="lt-rodape">
 <div class="lt-marca" hidden>
   <span class="lt-marca-trecho"></span>
   <label>Nota<input name="nota" type="text" autocomplete="off" maxlength="4000"></label>
@@ -1245,13 +1402,21 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
   ${botao('marca-apagar', 'apagar', 'Apagar o destaque')}
   ${botao('marca-fechar', 'fechar', 'Fechar')}
 </div>
-<p class="lt-aviso" role="status"></p>`;
+<div class="lt-remoto" hidden>
+  <span class="lt-remoto-texto" role="status"></span>
+  ${botao('remoto-ir', 'ir', 'Ir para onde o KOReader parou')}
+  ${botao('remoto-fechar', 'fechar', 'Ficar onde estou')}
+</div>
+<p class="lt-aviso" role="status"></p>
+</div>`;
       document.body.appendChild(painel);
       this._painel = painel;
       const titulo = painel.querySelector('.lt-titulo');
       const posicao = painel.querySelector('.lt-posicao');
       const modo = painel.querySelector('[data-acao="modo"]');
       const selecao = painel.querySelector('.lt-selecao');
+      const remoto = painel.querySelector('.lt-remoto');
+      const textoDoRemoto = painel.querySelector('.lt-remoto-texto');
       const meio = painel.querySelector('.lt-meio');
       // A barra da seleção fica acima do trecho; sem espaço ali, abaixo dele,
       // depois das alças da seleção, quando a tela é de toque.
@@ -1358,8 +1523,19 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         }
         selecao.hidden = !this.selecao;
         if (this.selecao) posicionarBarra(this.selecao.retangulo);
+        remoto.hidden = !this.remoto;
+        if (this.remoto) {
+          const r = this.remoto;
+          escrever(textoDoRemoto, `No KOReader${r.aparelho ? `, em ${r.aparelho}` : ''}, você parou${r.porcentagem === null ? '' : ` em ${r.porcentagem}%`}, ${quandoFoi(r.quando)}.`);
+        }
       });
-      this.aviso = (texto) => escrever(aviso, texto || '');
+      // O aviso fica por cima do rodapé da página e sai sozinho, para não esconder a última linha.
+      let saidaDoAviso = null;
+      this.aviso = (texto) => {
+        escrever(aviso, texto || '');
+        clearTimeout(saidaDoAviso);
+        if (texto) saidaDoAviso = setTimeout(() => escrever(aviso, ''), 5000);
+      };
       sobre.busca.addEventListener('submit', (e) => {
         e.preventDefault();
         this.procurar(sobre.campo.value).catch((erroNaBusca) => this.aviso(`Não foi possível procurar: ${erroNaBusca.message}.`));
@@ -1382,6 +1558,8 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         if (acao === 'sumario') this.abrirSumario().catch(() => {});
         if (acao === 'buscar') this.abrirBusca();
         if (acao === 'painel-fechar') this.fecharPainel();
+        if (acao === 'remoto-ir') this.irAoProgressoRemoto().catch(() => this.aviso('Não foi possível ir até onde o KOReader parou.'));
+        if (acao === 'remoto-fechar') this.dispensarProgressoRemoto();
         if (acao === 'marca-fechar') this.fecharDestaque();
         if (acao === 'marca-levar') this.levarDestaqueAoQuadro();
         const falhou = (erroNaMarca) => this.aviso(`Não foi possível mudar o destaque: ${erroNaMarca.message}.`);
@@ -1427,5 +1605,5 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
     return leitor;
   }
 
-  global.LeitorPrancheta = Object.freeze({ Leitor, ligar, procurarNosTextos, LARGURA_MINIMA_LADO_A_LADO });
+  global.LeitorPrancheta = Object.freeze({ Leitor, ligar, procurarNosTextos, lerCaminhoDoKoreader, quandoFoi, LARGURA_MINIMA_LADO_A_LADO });
 })(typeof window !== 'undefined' ? window : globalThis);

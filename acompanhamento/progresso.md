@@ -6,6 +6,26 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 007: a Prancheta abre o livro onde o KOReader parou
+
+### Feito
+
+- Mesclado o PR #44, com o ajuste do leitor e a etapa 01 do plano 007; casca 0.11.0 publicada.
+- Implementada a [etapa 02 do plano 007](planos/007-progresso-do-koreader/etapas/02-prancheta-abre-onde-o-koreader-parou.md), com a casca 0.12.0: o servidor entrega a um aparelho o último progresso gravado de um livro, e o leitor, ao abrir o livro, mostra um aviso com a porcentagem, o aparelho e o horário quando o KOReader está mais adiante, com um botão que leva ao parágrafo, no EPUB, ou à página, no PDF.
+- Corrigido um defeito antigo do leitor: as barras de baixo encolhiam a área do livro, e o fim da página do EPUB ficava cortado enquanto uma delas estava à vista. Agora elas ficam por cima do rodapé, e o aviso de texto sai sozinho em 5 segundos.
+- Ao fechar o livro, fica guardada a página à vista naquele momento.
+- 5 testes novos na página e 1 no servidor; 30 mutações, todas acusadas depois de os testes serem reforçados em 6 pontos. A suíte da página tem 105 testes, e a do servidor, 44.
+
+### Decidido
+
+- **O leitor avisa e não pula sozinho.** O autor aprovou os critérios com o aviso e o botão, em vez do salto automático.
+- **Quando só o fim do caminho do KOReader não é achado, vale o parágrafo já encontrado.** O começo do capítulo fica para quando nada do caminho é achado.
+
+### Pendências
+
+- O autor rodar o roteiro na VPS, criar o usuário do KOSync, configurar o KOReader e testar, no Boox, os planos 006 e 007 com a casca 0.12.0.
+- Detalhar com ele a etapa 03 do plano 007.
+
 ## 2026-11-10 · Ajuste do leitor e plano 007: progresso do KOReader
 
 ### Feito

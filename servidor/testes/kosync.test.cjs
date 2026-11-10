@@ -288,3 +288,50 @@ test('sem o KOSync configurado, as rotas dele recusam tudo; configurado pelo amb
     await ligado.fechar();
   }
 });
+
+test('um aparelho da Prancheta lê, com a chave dele, o progresso mais recente de um livro; a credencial do KOSync não vale nessa rota', async () => {
+  const arquivo = path.join(temporaria('usuarios'), 'kosync');
+  const linha = (usuario, senha) => `${usuario} ${crypto.createHash('sha256').update(md5(senha)).digest('hex')}\n`;
+  fs.writeFileSync(arquivo, linha('leitor', SENHA) + linha('visita', 'senha-da-visita-no-kosync'));
+  let agora = 1762740000000;
+  const s = await subir({ arquivo, relogio: () => agora });
+  const ler = (livro, cabecalhos = { Authorization: `Bearer ${CHAVE}` }) => fetch(`${s.base}/sync/progresso/${livro}`, { headers: cabecalhos }).then(async (r) => [r.status, await r.json()]);
+  try {
+    assert.deepEqual(await ler(LIVRO), [200, { progresso: null }]);
+    await pedir(s, 'PUT', '/sync/kosync/syncs/progress', { corpo: progresso() });
+    assert.deepEqual(await ler(LIVRO), [200, { progresso: { ...progresso(), timestamp: 1762740000 } }]);
+    assert.deepEqual(await ler(OUTRO), [200, { progresso: null }]);
+    // Entre dois usuários, vale a gravação mais recente, qualquer que seja a ordem.
+    agora += 60000;
+    await pedir(s, 'PUT', '/sync/kosync/syncs/progress', { usuario: 'visita', senha: 'senha-da-visita-no-kosync', corpo: progresso({ percentage: 0.8, device: 'outro' }) });
+    assert.deepEqual((await ler(LIVRO))[1].progresso, { ...progresso({ percentage: 0.8, device: 'outro' }), timestamp: 1762740060 });
+    agora += 60000;
+    await pedir(s, 'PUT', '/sync/kosync/syncs/progress', { corpo: progresso({ percentage: 0.9 }) });
+    assert.equal((await ler(LIVRO))[1].progresso.percentage, 0.9);
+    // Vale também sem o /sync no caminho, como as outras rotas.
+    assert.equal((await fetch(`${s.base}/progresso/${LIVRO}`, { headers: { Authorization: `Bearer ${CHAVE}` } })).status, 200);
+
+    // Sem a chave de um aparelho, nada; a credencial do KOSync não a substitui.
+    const doKosync = { 'x-auth-user': USUARIO, 'x-auth-key': md5(SENHA) };
+    for (const cabecalhos of [{}, doKosync, { ...doKosync, Authorization: `Bearer ${md5(SENHA)}` }, { Authorization: 'Bearer chave-errada-com-mais-de-32-caracteres-000000' }]) {
+      assert.deepEqual(await ler(LIVRO, cabecalhos), [401, { erro: 'nao_autorizado' }]);
+    }
+    // Um identificador fora do formato é recusado, e um arquivo estranho na pasta não atrapalha.
+    assert.deepEqual(await ler('livro.epub'), [400, { erro: 'livro_invalido' }]);
+    assert.deepEqual(await ler(LIVRO.toUpperCase()), [400, { erro: 'livro_invalido' }]);
+    fs.writeFileSync(path.join(s.pasta, 'kosync', 'anotacao.txt'), 'não é progresso');
+    fs.writeFileSync(path.join(s.pasta, 'kosync', 'não é usuário.json'), '{isto não é json');
+    assert.equal((await ler(LIVRO))[1].progresso.percentage, 0.9);
+    assert.equal((await fetch(`${s.base}/sync/progresso/${LIVRO}`, { method: 'PUT', headers: { Authorization: `Bearer ${CHAVE}` } })).status, 404);
+  } finally {
+    await s.fechar();
+  }
+  // Sem o KOSync configurado, a rota responde que não há progresso.
+  const sem = await subir({ semKosync: true });
+  try {
+    const r = await fetch(`${sem.base}/sync/progresso/${LIVRO}`, { headers: { Authorization: `Bearer ${CHAVE}` } });
+    assert.deepEqual([r.status, await r.json()], [200, { progresso: null }]);
+  } finally {
+    await sem.fechar();
+  }
+});
