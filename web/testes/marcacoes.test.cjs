@@ -278,7 +278,7 @@ test('tocar num destaque do EPUB abre apagar, estilo e nota, e as mudanças cheg
     await a.pagina.mouse.click(...await meioNoEpub(a.pagina, 'p2', 2, 18));
     await a.pagina.locator('#leitor .lt-marca').waitFor();
     assert.equal(await a.pagina.textContent('#leitor .lt-marca-trecho'), 'Destaque: “segundo capítulo”');
-    assert.equal(await a.pagina.textContent('#leitor [data-acao="marca-estilo"]'), 'Sublinhar');
+    assert.equal(await a.pagina.getAttribute('#leitor [data-acao="marca-estilo"]', 'aria-label'), 'Sublinhar');
     // Tocar fora dos destaques não abre nada, e Fechar fecha a barra.
     await a.pagina.click('#leitor [data-acao="marca-fechar"]');
     assert.equal(await a.pagina.isVisible('#leitor .lt-marca'), false);
@@ -292,7 +292,7 @@ test('tocar num destaque do EPUB abre apagar, estilo e nota, e as mudanças cheg
     await a.pagina.click('#leitor [data-acao="marca-estilo"]');
     await a.pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-sublinhado').length === 1);
     assert.deepEqual(await marcasNoEpub(a.pagina), { realces: 1, sublinhados: 1 });
-    assert.equal(await a.pagina.textContent('#leitor [data-acao="marca-estilo"]'), 'Realçar');
+    assert.equal(await a.pagina.getAttribute('#leitor [data-acao="marca-estilo"]', 'aria-label'), 'Realçar');
 
     // Nota: guardada com Enter, vai para o cartão levado ao quadro.
     await a.pagina.fill('#leitor .lt-marca input[name="nota"]', 'Voltar a este ponto');

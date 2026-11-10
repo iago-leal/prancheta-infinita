@@ -126,7 +126,7 @@ test('o EPUB abre ao lado do quadro, vira as páginas, lembra a posição e pass
       selecao.removeAllRanges();
       selecao.addRange(intervalo);
     });
-    await pagina.waitForFunction(() => /Selecionado: “segundo capítulo”/.test(document.querySelector('#leitor .lt-trecho').textContent), null, { timeout: 5000 });
+    await pagina.waitForFunction(() => window.leitorDaPrancheta.selecao?.texto === 'segundo capítulo' && !document.querySelector('#leitor .lt-selecao').hidden, null, { timeout: 5000 });
     const selecao = await pagina.evaluate(() => window.leitorDaPrancheta.selecao);
     assert.equal(selecao.texto, 'segundo capítulo');
     assert.match(selecao.posicao.cfi, /^epubcfi\(.*,/);
@@ -135,7 +135,7 @@ test('o EPUB abre ao lado do quadro, vira as páginas, lembra a posição e pass
     await pagina.click('#leitor [data-acao="modo"]');
     assert.equal(await pagina.evaluate(() => document.body.classList.contains('leitor-tela')), true);
     assert.equal(Math.round(await pagina.evaluate(() => document.getElementById('leitor').getBoundingClientRect().width)), 1200);
-    assert.equal(await pagina.textContent('#leitor [data-acao="modo"]'), 'Lado a lado');
+    assert.equal(await pagina.getAttribute('#leitor [data-acao="modo"]', 'aria-label'), 'Lado a lado');
     await pagina.click('#leitor [data-acao="modo"]');
     assert.equal(await pagina.evaluate(() => document.body.classList.contains('leitor-lado')), true);
 
@@ -176,7 +176,10 @@ test('o PDF abre página a página, com o texto selecionável e a página no tre
       selecao.removeAllRanges();
       selecao.addRange(intervalo);
     });
-    await pagina.waitForFunction(() => /Selecionado: “Segunda pagina do PDF” \(p\. 2\)/.test(document.querySelector('#leitor .lt-trecho').textContent), null, { timeout: 5000 });
+    await pagina.waitForFunction(() => {
+      const selecao = window.leitorDaPrancheta.selecao;
+      return selecao?.texto === 'Segunda pagina do PDF' && selecao.posicao.pagina === 2 && !document.querySelector('#leitor .lt-selecao').hidden;
+    }, null, { timeout: 5000 });
 
     // A página anterior volta, e a última página lida é lembrada.
     await pagina.click('#leitor [data-acao="anterior"]');
