@@ -274,6 +274,239 @@ test('no EPUB, tocar no terço direito avança e no esquerdo volta; o meio, um l
   }
 });
 
+test('no EPUB, a seleção que passa do fim da página segue para a página ao lado, e o trecho vira um destaque só', async () => {
+  const { contexto, pagina, erros } = await abrirPrancheta();
+  const rolagem = () => pagina.evaluate(() => {
+    const recipiente = document.querySelector('#leitor .epub-container');
+    return { x: recipiente.scrollLeft, largura: recipiente.scrollWidth, pagina: window.leitorDaPrancheta.vista.vista.manager.layout.delta };
+  });
+  const doisQuadros = () => pagina.evaluate(() => new Promise((pronto) => requestAnimationFrame(() => requestAnimationFrame(pronto))));
+  // O que o navegador faz ao levar a ponta da seleção para fora da página: rola o livro um pouco, para um lado.
+  const empurrar = (quanto) => pagina.evaluate((dx) => { document.querySelector('#leitor .epub-container').scrollLeft += dx; }, quanto);
+  const selecao = () => pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().toString().replace(/\s+/g, ' ').trim());
+  // Os parágrafos do capítulo longo que começam em cada página, pela posição deles no livro.
+  const paragrafosPorPagina = () => pagina.evaluate(() => {
+    const doc = document.querySelector('#leitor iframe').contentDocument;
+    const passo = window.leitorDaPrancheta.vista.vista.manager.layout.delta;
+    const porPagina = {};
+    for (const p of doc.querySelectorAll('p[id^="l"]')) {
+      const n = Math.floor((p.getBoundingClientRect().left + 1) / passo);
+      (porPagina[n] = porPagina[n] || []).push(p.id);
+    }
+    return porPagina;
+  });
+  const barra = () => pagina.evaluate(() => {
+    const el = document.querySelector('#leitor .lt-selecao');
+    const r = el.getBoundingClientRect();
+    const area = document.querySelector('#leitor .lt-meio').getBoundingClientRect();
+    return { visivel: !el.hidden, topo: Math.round(r.top - area.top), dentro: r.left >= area.left && r.right <= area.right && r.top >= area.top && r.bottom <= area.bottom };
+  });
+  try {
+    await abrirLivro(pagina, 'Livro longo.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    await pagina.click('#leitor [data-acao="sumario"]');
+    await pagina.locator('#leitor .lt-painel-lista button', { hasText: 'Capítulo longo' }).click();
+    await noCapitulo(pagina, /Parágrafo 1 do capítulo longo/);
+    await pausa(pagina);
+    const inicio = await rolagem();
+    assert.equal(inicio.x, 0);
+    assert.ok(inicio.largura > inicio.pagina * 3, `o capítulo tem várias páginas: ${JSON.stringify(inicio)}`);
+    const paginas = await paragrafosPorPagina();
+    const [ultimoDaPrimeira, primeiroDaSegunda] = [paginas[0].at(-1), paginas[1][1]];
+    const paginaNoRotulo = () => pagina.evaluate(() => document.querySelector('#leitor .lt-posicao').dataset.noCapitulo);
+
+    // Um trecho selecionado no fim da primeira página.
+    await selecionarNoEpub(pagina, ultimoDaPrimeira, 0, 9);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    assert.equal(await selecao(), 'Parágrafo');
+    await pagina.evaluate(() => { window.leitorDaPrancheta._leu = false; });
+    // A ponta da seleção passa do fim da página, e o navegador tenta rolar o livro para mostrá-la:
+    // em vez de a página ficar cortada, ou de a seleção travar, o livro vira uma página inteira.
+    await empurrar(137);
+    await pagina.waitForFunction((x) => document.querySelector('#leitor .epub-container').scrollLeft === x, inicio.pagina);
+    await pagina.waitForFunction(() => /^2\//.test(document.querySelector('#leitor .lt-posicao').dataset.noCapitulo));
+    assert.equal(await selecao(), 'Parágrafo', 'a seleção continua de pé na página nova');
+    // A página virada pela seleção conta como leitura, como qualquer virada.
+    assert.equal(await pagina.evaluate(() => window.leitorDaPrancheta._leu), true);
+    // Sem nenhuma parte do trecho à vista, a barra fica no alto, fora do caminho.
+    let b = await barra();
+    assert.ok(b.visivel && b.dentro && b.topo < 60, `a barra no alto: ${JSON.stringify(b)}`);
+    // O navegador insiste enquanto a ponta está fora da página: logo em seguida, o livro não vira de novo.
+    for (const dx of [137, 60, 200]) {
+      await empurrar(dx);
+      await doisQuadros();
+      assert.equal((await rolagem()).x, inicio.pagina, 'uma virada só, alinhada');
+    }
+    // A seleção é estendida na página nova, como faz quem arrasta a ponta dela, e a barra vai para junto do trecho.
+    await pagina.evaluate((id) => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      doc.getSelection().extend(doc.getElementById(id).firstChild, 9);
+    }, primeiroDaSegunda);
+    await pagina.waitForFunction(() => document.querySelector('#leitor .lt-selecao').getBoundingClientRect().top - document.querySelector('#leitor .lt-meio').getBoundingClientRect().top > 60, null, { timeout: 5000 });
+    b = await barra();
+    assert.ok(b.visivel && b.dentro, JSON.stringify(b));
+    const trecho = await selecao();
+    assert.ok(trecho.startsWith('Parágrafo') && trecho.endsWith('Parágrafo') && trecho.length > 60, `o trecho vai de uma página à outra: ${trecho}`);
+
+    // Passada a espera, a ponta levada de volta para antes da página vira a página para trás, e de novo para a frente.
+    await pagina.waitForTimeout(1000);
+    await empurrar(-80);
+    await pagina.waitForFunction(() => document.querySelector('#leitor .epub-container').scrollLeft === 0);
+    assert.equal(await selecao(), trecho);
+    await pagina.waitForTimeout(1000);
+    await empurrar(50);
+    await pagina.waitForFunction((x) => document.querySelector('#leitor .epub-container').scrollLeft === x, inicio.pagina);
+    assert.equal(await selecao(), trecho);
+    await pagina.waitForFunction(() => /^2\//.test(document.querySelector('#leitor .lt-posicao').dataset.noCapitulo));
+
+    // Destacado, o trecho das duas páginas é um destaque só, marcado nas duas.
+    await pagina.waitForTimeout(400);
+    await destacarSelecao(pagina);
+    const livro = await pagina.evaluate(() => window.leitorDaPrancheta.livro.id);
+    const destaques = await pagina.evaluate((id) => window.marcacoesDaPrancheta.destaques(id), livro);
+    assert.equal(destaques.length, 1);
+    assert.equal(destaques[0].trecho.replace(/\s+/g, ' '), trecho);
+    const marcasAVista = () => pagina.evaluate(() => {
+      const area = document.querySelector('#leitor .lt-conteudo').getBoundingClientRect();
+      return [...document.querySelectorAll('#leitor g.lt-destaque rect')].filter((r) => {
+        const m = r.getBoundingClientRect();
+        return m.width > 1 && m.right > area.left && m.left < area.right;
+      }).length;
+    });
+    await pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque rect').length > 1, null, { timeout: 5000 });
+    assert.ok(await marcasAVista() > 0, 'o destaque aparece na segunda página');
+    await pagina.click('#leitor [data-acao="anterior"]');
+    await pagina.waitForFunction(() => document.querySelector('#leitor .epub-container').scrollLeft === 0);
+    await pausa(pagina);
+    assert.ok(await marcasAVista() > 0, 'e na primeira');
+
+    // Sem trecho selecionado, a rolagem estranha continua sendo só desfeita.
+    await empurrar(137);
+    await doisQuadros();
+    assert.equal((await rolagem()).x, 0);
+
+    // Com o mouse, o navegador não rola o livro: a ponta da seleção vai para o texto da página ao lado,
+    // que fica depois da borda. O arrasto que passa da borda vira a página, uma vez, e continua nela.
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await pagina.waitForFunction(() => document.querySelector('#leitor .lt-selecao').hidden);
+    const penultimo = paginas[0].at(-2);
+    const comeco = await pontoNoEpub(pagina, penultimo, 2);
+    const borda = await pagina.evaluate(() => document.querySelector('#leitor .epub-container').getBoundingClientRect().right);
+    const cdp = await pagina.context().newCDPSession(pagina);
+    const mouse = (type, [x, y], botoes) => cdp.send('Input.dispatchMouseEvent', {
+      type, x: Math.round(x), y: Math.round(y), button: botoes === undefined ? 'none' : 'left', buttons: botoes || 0, clickCount: 1,
+    });
+    await mouse('mouseMoved', comeco);
+    await mouse('mousePressed', comeco, 1);
+    // Dentro da página, até perto da borda, o arrasto só seleciona.
+    for (const x of [comeco[0] + 20, comeco[0] + 120, borda - 40]) await mouse('mouseMoved', [x, comeco[1]], 1);
+    await doisQuadros();
+    assert.equal((await rolagem()).x, 0, 'dentro da página, nada vira');
+    // Além da borda, a página vira; parado ali, e mexendo pouco, não vira de novo.
+    for (const dx of [10, 25, 40]) await mouse('mouseMoved', [borda + dx, comeco[1] + 10], 1);
+    await pagina.waitForFunction((x) => document.querySelector('#leitor .epub-container').scrollLeft === x, inicio.pagina, { timeout: 5000 });
+    for (const dx of [41, 43]) await mouse('mouseMoved', [borda + dx, comeco[1] + 10], 1);
+    await doisQuadros();
+    assert.equal((await rolagem()).x, inicio.pagina, 'uma virada só');
+    // De volta para dentro, a seleção termina num parágrafo da segunda página.
+    const fimDoArrasto = await pontoNoEpub(pagina, primeiroDaSegunda, 8);
+    await mouse('mouseMoved', [fimDoArrasto[0] - 5, fimDoArrasto[1]], 1);
+    await mouse('mouseMoved', fimDoArrasto, 1);
+    await mouse('mouseReleased', fimDoArrasto, 0);
+    await cdp.detach();
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    const arrastado = await selecao();
+    // Do meio da primeira palavra do penúltimo parágrafo da primeira página ao meio da primeira palavra do segundo parágrafo da segunda.
+    assert.match(arrastado, new RegExp(`^.{0,3}grafo ${penultimo.slice(1)} do capítulo longo`), arrastado);
+    assert.ok(arrastado.includes(`Parágrafo ${ultimoDaPrimeira.slice(1)} do capítulo longo`) && arrastado.includes(`Parágrafo ${paginas[1][0].slice(1)} do capítulo longo`), `o trecho passa pelo fim da primeira página e pelo começo da segunda: ${arrastado}`);
+    assert.match(arrastado, /leitor\. Parágr?a?f?o?$/, arrastado);
+    assert.equal(arrastado.includes(`Parágrafo ${primeiroDaSegunda.slice(1)} do`), false, 'o trecho termina na primeira palavra do parágrafo em que o arrasto parou');
+    assert.equal((await rolagem()).x, inicio.pagina);
+    // No outro sentido: da segunda página, o arrasto que passa da borda esquerda volta à primeira.
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await pagina.waitForTimeout(1000);
+    const deVolta = await pontoNoEpub(pagina, primeiroDaSegunda, 8);
+    const bordaEsquerda = await pagina.evaluate(() => document.querySelector('#leitor .epub-container').getBoundingClientRect().left);
+    const cdp2 = await pagina.context().newCDPSession(pagina);
+    const mouse2 = (type, [x, y], botoes) => cdp2.send('Input.dispatchMouseEvent', {
+      type, x: Math.round(x), y: Math.round(y), button: botoes === undefined ? 'none' : 'left', buttons: botoes || 0, clickCount: 1,
+    });
+    await mouse2('mouseMoved', deVolta);
+    await mouse2('mousePressed', deVolta, 1);
+    for (const dx of [10, 25, 40]) await mouse2('mouseMoved', [bordaEsquerda - dx, deVolta[1] - 10], 1);
+    await pagina.waitForFunction(() => document.querySelector('#leitor .epub-container').scrollLeft === 0, null, { timeout: 5000 });
+    const fimDaVolta = await pontoNoEpub(pagina, ultimoDaPrimeira, 2);
+    await mouse2('mouseMoved', [fimDaVolta[0] + 5, fimDaVolta[1]], 1);
+    await mouse2('mouseMoved', fimDaVolta, 1);
+    await mouse2('mouseReleased', fimDaVolta, 0);
+    await cdp2.detach();
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    assert.ok((await selecao()).includes(`Parágrafo ${paginas[1][0].slice(1)} do capítulo longo`), `o trecho volta da segunda página à primeira: ${await selecao()}`);
+    assert.equal((await rolagem()).x, 0);
+    // Solto o botão, o arrasto acabou: uma seleção que chegue à outra página por outro caminho não vira a página.
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await pagina.waitForTimeout(1000);
+    await pagina.evaluate(([de, ate]) => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      doc.getSelection().setBaseAndExtent(doc.getElementById(de).firstChild, 0, doc.getElementById(ate).firstChild, 9);
+    }, [ultimoDaPrimeira, primeiroDaSegunda]);
+    await pausa(pagina);
+    assert.equal((await rolagem()).x, 0, 'depois de solto, a seleção não vira a página');
+    // Uma seleção que chega à outra página com o botão apertado, mas sem arrasto, como a dos três cliques
+    // num parágrafo que continua na página seguinte, não vira a página; depois de o ponteiro andar, vira.
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await pagina.waitForTimeout(1000);
+    const selecionarAteAOutraPagina = (comArrasto) => pagina.evaluate(([de, ate, arrasto]) => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      const evento = (tipo, x, botoes) => doc.dispatchEvent(new PointerEvent(tipo, { clientX: x, clientY: 200, buttons: botoes, bubbles: true }));
+      evento('pointerdown', 100, 1);
+      if (arrasto) evento('pointermove', 180, 1);
+      doc.getSelection().setBaseAndExtent(doc.getElementById(de).firstChild, 0, doc.getElementById(ate).firstChild, 9);
+      return new Promise((pronto) => setTimeout(() => { evento('pointerup', 180, 0); pronto(); }, 300));
+    }, [ultimoDaPrimeira, primeiroDaSegunda, comArrasto]);
+    await selecionarAteAOutraPagina(false);
+    assert.equal((await rolagem()).x, 0, 'sem arrasto, a página não vira');
+    assert.ok((await selecao()).length > 60, 'e o trecho fica selecionado');
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await selecionarAteAOutraPagina(true);
+    assert.equal((await rolagem()).x, inicio.pagina, 'com arrasto, vira');
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await pagina.click('#leitor [data-acao="anterior"]');
+    await pagina.waitForFunction(() => document.querySelector('#leitor .epub-container').scrollLeft === 0);
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+
+    // Na última página do capítulo, a seleção para ali: o livro não passa para o capítulo seguinte nem fica cortado.
+    await pagina.evaluate(async () => {
+      const vista = window.leitorDaPrancheta.vista;
+      const secao = vista.livro.spine.spineItems[2];
+      const doc = await vista.livro.load(secao.url);
+      await vista.irPara(secao.cfiFromElement(doc.querySelector('#l80')));
+    });
+    await pausa(pagina);
+    const fim = await rolagem();
+    assert.ok(fim.x > 0 && fim.x + fim.pagina >= fim.largura - 1, `a última página do capítulo: ${JSON.stringify(fim)}`);
+    await selecionarNoEpub(pagina, 'l80', 0, 9);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    await pagina.waitForTimeout(1000);
+    await empurrar(-60);
+    await pagina.waitForFunction((x) => document.querySelector('#leitor .epub-container').scrollLeft === x, fim.x - fim.pagina);
+    await pagina.waitForTimeout(1000);
+    await empurrar(60);
+    await pagina.waitForFunction((x) => document.querySelector('#leitor .epub-container').scrollLeft === x, fim.x);
+    await pagina.waitForTimeout(1000);
+    const capitulo = await pagina.evaluate(() => window.leitorDaPrancheta.vista.capitulo);
+    await pagina.evaluate(() => { const r = document.querySelector('#leitor .epub-container'); r.scrollLeft = r.scrollWidth; });
+    await doisQuadros();
+    assert.equal((await rolagem()).x, fim.x);
+    assert.equal(await pagina.evaluate(() => window.leitorDaPrancheta.vista.capitulo), capitulo);
+    assert.equal(await selecao(), 'Parágrafo');
+    assert.deepEqual(await pagina.evaluate(() => window.__violacoes), []);
+    assert.deepEqual(erros, []);
+  } finally {
+    await contexto.close();
+  }
+});
+
 test('no EPUB, a rolagem que o navegador faz para mostrar a ponta de uma seleção é desfeita, e a página não fica cortada', async () => {
   const { contexto, pagina, erros } = await abrirPrancheta();
   const rolagem = () => pagina.evaluate(() => {

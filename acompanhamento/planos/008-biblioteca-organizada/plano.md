@@ -32,7 +32,7 @@ A biblioteca é uma lista no painel lateral, agrupada pelas pastas do servidor. 
 
 | Etapa | Título | Status |
 |---|---|---|
-| [01](etapas/01-tela-da-biblioteca.md) | A tela da biblioteca, com título, autor, busca e ordenação | em_andamento |
+| [01](etapas/01-tela-da-biblioteca.md) | A tela da biblioteca, com título, autor, busca e ordenação | concluida |
 | [02](etapas/02-ficha-do-livro.md) | A ficha do livro, com os destaques e os quadros que o citam | em_andamento |
 
 ## Riscos

@@ -6,6 +6,24 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · A seleção que atravessa a página, e a etapa 01 do plano 008 concluída
+
+### Feito
+
+- O autor confirmou que achou um livro pela busca e o abriu no Boox. Com isso, a [etapa 01 do plano 008](planos/008-biblioteca-organizada/etapas/01-tela-da-biblioteca.md) foi concluída.
+- A pedido do autor, a seleção de um trecho no e-book passou a seguir para a página ao lado, para uma frase que quebra de página virar um destaque só, na casca 0.18.0. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+- 16 mutações, todas acusadas depois de o teste ser reforçado em 3 pontos. A suíte da página tem 119 testes.
+
+### Decidido
+
+- **Com um trecho selecionado, a rolagem que o navegador tenta vira uma virada de página inteira**; sem trecho selecionado, ela continua sendo só desfeita, como na correção da página cortada.
+
+### Pendências
+
+- O teste do autor no Boox: a alça de seleção do Android levada até a borda da página, que não pôde ser simulada, e a barra flutuante na seleção do laço.
+- O teste da ficha do livro, para o critério 8 da etapa 02 do plano 008; os testes com o KOReader, do plano 007; e os do plano 006.
+- A exclusão do ramo antigo `claude/canal-publicacao-vps`, pelo autor.
+
 ## 2026-11-10 · A barra flutuante na seleção do laço
 
 ### Feito
