@@ -199,10 +199,19 @@
     guardar: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     ir: '<path d="M5 12h14M13 6l6 6-6 6"/>',
     apagar: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+    copiar: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
   };
   const icone = (nome) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONES[nome]}</svg>`;
   // Um botão só com o ícone, com o nome da ação no rótulo e na dica.
   const botao = (acao, nome, rotulo, tipo = 'button') => `<button type="${tipo}"${acao ? ` data-acao="${acao}"` : ''} title="${rotulo}" aria-label="${rotulo}">${icone(nome)}</button>`;
+
+  // Na casca, avisa se o toque começou no leitor: lá, a barra da seleção é a
+  // da Prancheta, e a casca esconde o menu de seleção do Android, que ficava
+  // por cima dela. O aviso vai no começo do toque, antes de a seleção nascer.
+  function avisarCascaDoToque(noLeitor) {
+    const casca = global.Casca;
+    if (casca && typeof casca.toqueNoLeitor === 'function') casca.toqueNoLeitor(Boolean(noLeitor));
+  }
 
   // ---- Progresso do KOReader ----
 
@@ -318,6 +327,7 @@
       this.vista.hooks.content.register((conteudo) => {
         // Um toque que começa com um trecho selecionado só desfaz a seleção.
         conteudo.document.addEventListener('pointerdown', () => {
+          avisarCascaDoToque(true);
           this._haviaSelecao = !conteudo.window.getSelection().isCollapsed;
         }, true);
         // A epub.js só avisa de uma seleção feita; a desfeita, por um toque fora dela, é avisada aqui.
@@ -990,7 +1000,8 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
 #leitor .lt-marca button{font:inherit;font-size:13px;min-width:38px;height:34px;padding:0;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 #leitor .lt-selecao{position:absolute;z-index:2;display:flex;padding:3px;background:var(--panel,#fff);border:1.5px solid currentColor;border-radius:10px;font-size:13px;white-space:nowrap}
 #leitor .lt-selecao button{font:inherit;font-size:13px;width:46px;height:38px;padding:0;border:0;border-radius:7px;background:transparent;color:inherit;cursor:pointer}
-#leitor .lt-selecao button+button{border-left:1px solid var(--line,#E3E1DD);border-radius:0 7px 7px 0}
+#leitor .lt-selecao button+button{border-left:1px solid var(--line,#E3E1DD);border-radius:0}
+#leitor .lt-selecao button:last-child{border-radius:0 7px 7px 0}
 #leitor .lt-aviso button{font:inherit;font-size:13px;height:34px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 #leitor .lt-rodape{position:absolute;left:0;right:0;bottom:0;z-index:4;background:var(--panel,#fff)}
 #leitor .lt-remoto{flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line,#E3E1DD);font-size:13px}
@@ -1185,6 +1196,34 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       if (this.aviso) this.aviso(levar ? 'Trecho destacado e levado ao quadro.' : 'Trecho destacado.');
       this._avisar();
       return destaque;
+    }
+
+    /** Copia o trecho selecionado para a área de transferência e desfaz a seleção. */
+    async copiarSelecao() {
+      if (!this.selecao || !this.vista) return false;
+      const texto = this.selecao.texto;
+      let copiou = false;
+      try {
+        await global.navigator.clipboard.writeText(texto);
+        copiou = true;
+      } catch (e) {
+        // Sem a área de transferência do navegador, vale o comando antigo, num campo provisório.
+        const campo = document.createElement('textarea');
+        campo.value = texto;
+        campo.setAttribute('readonly', '');
+        campo.style.cssText = 'position:fixed;left:-9999px;top:0';
+        document.body.appendChild(campo);
+        campo.select();
+        try {
+          copiou = document.execCommand('copy');
+        } catch (erroDoComando) {
+          copiou = false;
+        }
+        campo.remove();
+      }
+      if (copiou) this._largarSelecao();
+      if (this.aviso) this.aviso(copiou ? 'Trecho copiado.' : 'Não foi possível copiar o trecho.');
+      return copiou;
     }
 
     /** Abre um destaque na barra do leitor, no lugar da seleção. */
@@ -1483,7 +1522,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
     <p class="lt-painel-aviso" role="status"></p>
     <div class="lt-painel-lista"></div>
   </div>
-  <div class="lt-selecao" role="toolbar" aria-label="Trecho selecionado" hidden>${botao('destacar', 'realce', 'Destacar')}${botao('levar', 'cartao', 'Destacar e levar ao quadro')}</div>
+  <div class="lt-selecao" role="toolbar" aria-label="Trecho selecionado" hidden>${botao('destacar', 'realce', 'Destacar')}${botao('levar', 'cartao', 'Destacar e levar ao quadro')}${botao('copiar', 'copiar', 'Copiar')}</div>
 </div>
 <div class="lt-rodape">
 <div class="lt-marca" hidden>
@@ -1660,6 +1699,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         if (acao === 'marca-apagar') this.apagarDestaque().catch(falhou);
         if (acao === 'marca-estilo') this.trocarEstiloDoDestaque().catch(falhou);
         if (acao === 'marca-nota') this.anotarDestaque(nota.value).catch(falhou);
+        if (acao === 'copiar') this.copiarSelecao().catch(() => {});
         if (acao === 'destacar' || acao === 'levar') {
           this.destacarSelecao({ levar: acao === 'levar' }).catch((erroAoDestacar) => {
             this.aviso(`Não foi possível destacar: ${erroAoDestacar.message}.`);
@@ -1677,6 +1717,11 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         if (e.key === 'ArrowRight' || e.key === 'PageDown') Promise.resolve(this.proxima()).catch(() => {});
         if (e.key === 'ArrowLeft' || e.key === 'PageUp') Promise.resolve(this.anterior()).catch(() => {});
       });
+      // Todo toque na página diz à casca se começou na área do livro; o do EPUB,
+      // que acontece dentro do quadro do capítulo, avisa por lá.
+      document.addEventListener('pointerdown', (e) => {
+        avisarCascaDoToque(Boolean(e.target && e.target.closest && e.target.closest('#leitor .lt-conteudo')));
+      }, true);
       // O livro pode ficar aberto enquanto a leitura continua em outro aparelho:
       // quando a tela volta, o leitor confere de novo o progresso.
       document.addEventListener('visibilitychange', () => {

@@ -6,6 +6,26 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 007: posição entre os aparelhos, e o menu do Android no leitor
+
+### Feito
+
+- Mesclado o PR #45, com a etapa 02 do plano 007; casca 0.12.0 publicada.
+- Implementada a [etapa 03 do plano 007](planos/007-progresso-do-koreader/etapas/03-posicao-entre-os-aparelhos.md), com a casca 0.13.0: o leitor grava no servidor a posição exata dele pouco depois da última virada de página e ao fechar o livro, e o outro aparelho da Prancheta mostra o aviso com o nome do aparelho e vai à mesma página. O aparelho guarda à parte o horário da última virada de página e confere o progresso de novo quando a tela volta com o livro aberto.
+- O autor testou a barra da seleção no Boox: o menu de seleção do Android aparecia por cima dela. A casca passou a escondê-lo dentro do leitor, por uma WebView própria avisada pela página a cada toque, e a barra ganhou "Copiar". O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+- 26 mutações da etapa 03 e 7 do ajuste, todas acusadas depois de os testes serem reforçados em 2 pontos. A suíte da página tem 106 testes, e a do servidor, 45.
+
+### Decidido
+
+- **A etapa 03 ficou só entre os aparelhos da Prancheta.** O envio da posição ao KOReader passou para a etapa 04, depois do teste da etapa 02 com o KOReader de verdade, porque as duas conversões partem da mesma descrição do formato.
+- **Ler é virar a página.** Abrir e fechar um livro não conta como leitura neste aparelho, para o aviso do outro aparelho não se perder.
+- **No leitor, o menu de seleção é o da Prancheta.** O do Android fica escondido ali e continua valendo no resto da página.
+
+### Pendências
+
+- O autor confirmar no Boox que o menu do Android sumiu dentro do leitor; o comportamento do menu vazio depende do Android da Onyx e não pôde ser testado aqui.
+- Os demais testes do autor, dos planos 006 e 007, e o roteiro na VPS.
+
 ## 2026-11-10 · Plano 007: a Prancheta abre o livro onde o KOReader parou
 
 ### Feito

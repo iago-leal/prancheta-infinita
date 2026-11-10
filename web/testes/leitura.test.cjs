@@ -54,11 +54,16 @@ after(async () => {
 
 // Abre a Prancheta, ligada ao servidor; com naCasca, dentro de uma casca simulada, com tela de toque.
 async function abrirPrancheta({ naCasca = false } = {}) {
-  const contexto = await navegador.newContext({ viewport: TELA, hasTouch: naCasca });
+  const contexto = await navegador.newContext({ viewport: TELA, hasTouch: naCasca, permissions: ['clipboard-read', 'clipboard-write'] });
   if (naCasca) {
     await contexto.addInitScript(() => {
       const nada = () => {};
-      window.Casca = { pronta: nada, transformacao: nada, areasReservadas: nada, canetaEscreve: nada, redesenharTela: nada, tinta: nada };
+      // A casca simulada anota os avisos de onde cada toque começou.
+      window.__toquesNoLeitor = [];
+      window.Casca = {
+        pronta: nada, transformacao: nada, areasReservadas: nada, canetaEscreve: nada, redesenharTela: nada, tinta: nada,
+        toqueNoLeitor: (noLeitor) => window.__toquesNoLeitor.push(noLeitor),
+      };
     });
   }
   const pagina = await contexto.newPage();
@@ -353,14 +358,14 @@ test('a barra da seleção flutua acima do trecho, só com os botões, e some ao
     await selecionarNoEpub(pagina, 'p1', 9, 26);
     await pagina.locator('#leitor .lt-selecao').waitFor();
     let m = await barraDaSelecao(pagina);
-    assert.deepEqual([m.dentro, m.botoes, m.icones, m.texto], [true, ['Destacar', 'Destacar e levar ao quadro'], 2, ''], 'a barra fica sobre o livro, com um ícone em cada botão, e não transcreve o trecho');
+    assert.deepEqual([m.dentro, m.botoes, m.icones, m.texto], [true, ['Destacar', 'Destacar e levar ao quadro', 'Copiar'], 3, ''], 'a barra fica sobre o livro, com um ícone em cada botão, e não transcreve o trecho');
     assert.ok(m.barra.base <= m.trecho.topo && m.trecho.topo - m.barra.base < 24, `a barra fica logo acima do trecho: ${JSON.stringify(m)}`);
     const meio = (r) => (r.esquerda + r.direita) / 2;
     assert.ok(Math.abs(meio(m.barra) - meio(m.trecho)) < 2, `a barra fica centrada no trecho: ${JSON.stringify(m)}`);
     // Todos os botões do leitor mostram um ícone, sem palavras, e dizem a ação no rótulo e na dica.
     const botoes = await pagina.evaluate(() => [...document.querySelectorAll('#leitor button')].filter((b) => !b.closest('.lt-painel-lista'))
       .map((b) => ({ acao: b.dataset.acao || b.type, texto: b.textContent.trim(), icone: b.querySelectorAll(':scope > svg.i').length, rotulo: b.getAttribute('aria-label'), dica: b.title })));
-    assert.equal(botoes.length, 19);
+    assert.equal(botoes.length, 20);
     for (const b of botoes.filter((x) => x.acao !== 'marca-estilo')) {
       assert.ok(b.texto === '' && b.icone === 1 && b.rotulo && b.rotulo === b.dica, `botão com ícone e rótulo: ${JSON.stringify(b)}`);
     }
@@ -411,6 +416,16 @@ test('a barra da seleção flutua acima do trecho, só com os botões, e some ao
     await pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque').length === 2);
     await barraSome(pagina);
 
+    // Copiar leva o trecho à área de transferência, desfaz a seleção e tira a barra.
+    await selecionarNoEpub(pagina, 'p5', 3, 16);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    await pagina.click('#leitor .lt-selecao [data-acao="copiar"]');
+    await pagina.waitForFunction(() => document.querySelector('#leitor .lt-aviso').textContent === 'Trecho copiado.');
+    assert.equal(await pagina.evaluate(() => navigator.clipboard.readText()), 'fim, o CORAÇÃ');
+    await barraSome(pagina);
+    assert.equal(await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().isCollapsed), true);
+    assert.equal(await pagina.evaluate(() => document.querySelectorAll('#leitor g.lt-destaque').length), 2, 'copiar não destaca');
+
     // PDF: a barra acima do trecho, e tocar fora a tira.
     await abrirLivro(pagina, 'Marcado.pdf');
     await naPagina(pagina, 'p. 1 de 2');
@@ -423,6 +438,12 @@ test('a barra da seleção flutua acima do trecho, só com os botões, e some ao
     await pagina.mouse.click(...await pontoNoLivro(pagina, 0.5));
     await barraSome(pagina);
     assert.equal(await pagina.textContent('#leitor .lt-posicao'), 'p. 1 de 2');
+    // Copiar vale também no PDF.
+    await selecionarAPaginaDoPdf(pagina);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    await pagina.click('#leitor .lt-selecao [data-acao="copiar"]');
+    await barraSome(pagina);
+    assert.equal(await pagina.evaluate(() => navigator.clipboard.readText()), 'Primeira página do PDF');
     assert.deepEqual(erros, []);
   } finally {
     await contexto.close();
@@ -696,6 +717,18 @@ test('na casca, o realce aparece invertido e o sublinhado em linha preta cheia, 
     assert.ok(sublinhado.escuros > 0.9, `na casca, o sublinhado é uma linha preta cheia: ${JSON.stringify(sublinhado)}`);
     await pagina.click('#leitor [data-acao="marca-fechar"]');
 
+    // A cada toque, a página diz à casca se ele começou na área do livro, para ela esconder ali o menu de seleção do Android.
+    const ultimoToque = () => pagina.evaluate(() => window.__toquesNoLeitor.at(-1));
+    await pagina.touchscreen.tap(...await pontoNoLivro(pagina, 0.5, 0.9));
+    assert.equal(await ultimoToque(), true, 'toque na página do EPUB');
+    const leitor = await pagina.locator('#leitor').boundingBox();
+    await pagina.touchscreen.tap(leitor.x + leitor.width + 200, leitor.y + leitor.height / 2);
+    assert.equal(await ultimoToque(), false, 'toque no quadro, fora do leitor');
+    await pagina.touchscreen.tap(...await pontoNoLivro(pagina, 0.5, 0.9));
+    assert.equal(await ultimoToque(), true);
+    const titulo = await pagina.locator('#leitor .lt-titulo').boundingBox();
+    await pagina.touchscreen.tap(titulo.x + 10, titulo.y + titulo.height / 2);
+    assert.equal(await ultimoToque(), false, 'toque na barra do leitor, fora da área do livro');
     // O toque do dedo no terço direito avança, e no esquerdo volta.
     await pausa(pagina);
     await pagina.touchscreen.tap(...await pontoNoLivro(pagina, 0.9));
@@ -729,6 +762,7 @@ test('na casca, o realce aparece invertido e o sublinhado em linha preta cheia, 
     assert.ok(noPdf.escuros > 0.6 && noPdf.claros > 0.03, `na casca, o realce do PDF tem o fundo escuro e o texto claro: ${JSON.stringify(noPdf)}`);
     await pagina.touchscreen.tap(...await pontoNoLivro(pagina, 0.9));
     await naPagina(pagina, 'p. 2 de 2');
+    assert.equal(await ultimoToque(), true, 'toque na página do PDF');
     await pagina.touchscreen.tap(...await pontoNoLivro(pagina, 0.1));
     await naPagina(pagina, 'p. 1 de 2');
     assert.deepEqual(casca.erros, []);

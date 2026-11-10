@@ -71,7 +71,7 @@ class MainActivity : Activity() {
         }
         roteador.pixelsPorMm = resources.displayMetrics.xdpi / 25.4f
 
-        webView = WebView(this).apply {
+        webView = WebViewDaCasca(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.allowFileAccess = false
