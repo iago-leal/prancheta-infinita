@@ -26,9 +26,9 @@ O plano 005 entregou o leitor e as marcações, e o autor os testou no Boox em 2
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-leitor-a-esquerda-e-destaques.md) | Leitor à esquerda e destaques editáveis ao toque | em_andamento |
-| 02 | Leitura no e-ink: destaques visíveis, toque nas laterais, sumário e busca | pendente |
+| [02](etapas/02-leitura-no-e-ink.md) | Leitura no e-ink: destaques visíveis, toque nas laterais, sumário e busca | em_andamento |
 
-A etapa 02 será detalhada com o autor antes de começar.
+A etapa 01 está implementada e espera o teste do autor no Boox; a 02 começou em paralelo, com a aprovação dele.
 
 ## Riscos
 
