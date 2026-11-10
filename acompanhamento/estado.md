@@ -1,9 +1,9 @@
 ---
 tipo: estado
 atualizado_em: 2026-11-10
-fase: Melhorias do leitor
-plano_ativo: acompanhamento/planos/006-melhorias-do-leitor/plano.md
-etapa_atual: acompanhamento/planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md
+fase: Progresso de leitura com o KOReader
+plano_ativo: acompanhamento/planos/007-progresso-do-koreader/plano.md
+etapa_atual: acompanhamento/planos/007-progresso-do-koreader/etapas/01-servidor-recebe-o-progresso.md
 bloqueios: []
 ---
 
@@ -31,23 +31,23 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 - Atualizações da casca pelo próprio aplicativo: o GitHub compila e publica cada versão, assinada com a chave das versões instaladas, e a casca oferece a atualização ao abrir com internet.
 - Publicação na VPS pelo GitHub: o fluxo `.github/workflows/publicar.yml` envia a página e o servidor a cada mudança deles na `main`, por uma conta sem privilégios e sem acesso ao Docker, que só troca a versão em uso e confere na própria VPS que ela entrou no ar; as ações de administrador ficam num roteiro executado pelo autor, e nenhum endereço da Prancheta entra no repositório.
 - Segurança, conforme o debate de 2026-11-08: os quadros só respondem com a chave de cada aparelho; arquivos isolados da página, versão nova só quando o autor pede, histórico de 30 dias e cópia puxada pelo computador; rede privada e cifra no aparelho antes dos livros. Desde 2026-11-09, a Prancheta só responde pela rede privada do Tailscale, com o endereço público fechado, e o Boox precisa do Tailscale sempre ligado.
-- Cifra ponta a ponta, por decisão do autor: uma chave aleatória de 256 bits, criada no primeiro aparelho, guardada só no Bitwarden e informada nos outros; o servidor não a conhece e, depois da primeira gravação cifrada, recusa o legível e outra chave. Sem o Bitwarden e sem os aparelhos, a cópia da VPS fica ilegível; o banco local continua legível.
+- Cifra ponta a ponta, por decisão do autor: uma chave aleatória de 256 bits, criada no primeiro aparelho, guardada só no Bitwarden e informada nos outros; o servidor não a conhece e, depois da primeira gravação cifrada, recusa o legível e outra chave. Sem o Bitwarden e sem os aparelhos, a cópia da VPS fica ilegível; o banco local continua legível. Única exceção, aceita pelo autor em 2026-11-10: o progresso de leitura do KOReader, que não conhece a chave, fica legível na VPS, só com o resumo do livro, a posição, a porcentagem, o aparelho e o horário, e tem uma credencial própria, que não abre mais nada.
 - Livros: funções de outros leitores entram pela especificação do comportamento, nunca por cópia de código, porque o Readest e o KOReader são AGPL. O servidor da Prancheta lê a subpasta de livros do WebDAV, montada só para leitura, com uma permissão extra de leitura para a conta `prancheta`, reaplicada a cada 5 minutos para os livros novos, e a entrega com a chave de cada aparelho; cada livro aberto fica guardado no aparelho, num banco separado dos quadros, e é identificado como no KOReader.
 - Servidor de sincronização em Node puro, sem dependências e com os dados em arquivos: numera as mudanças, devolve os conflitos para o aparelho combinar e só atende com a chave; a única exceção, aceita pelo autor, é a consulta prévia do navegador vinda da casca, que não recebe dados.
 - Sincronização no próprio banco local, em segundo plano: combina item a item, pelo id; no mesmo campo mudado nos dois aparelhos, prevalece a gravação mais recente; a gravação da página também é combinada com o que chegou do servidor desde a anterior; endereço e chave ficam no banco de cada aparelho.
 
 ## Em andamento
 
-Plano 006, melhorias do leitor, aberto em 2026-11-10 com a aprovação do autor. As duas etapas estão implementadas e esperam o teste dele no Boox: 01, leitor à esquerda e destaques editáveis ao toque, na casca 0.9.0; 02, leitura no e-ink, na casca 0.10.0, com o toque nas laterais para virar a página, o sumário, a busca no livro inteiro, sem distinguir maiúsculas nem acentos, e os destaques invertidos. A etapa 02 também corrigiu a página cortada ao arrastar a ponta de uma seleção, relatada pelo autor, os links internos dos EPUBs e as marcas fora do lugar na volta a um capítulo. As funções seguem o comportamento do Readest, descrito em `acompanhamento/planos/006-melhorias-do-leitor/readest.md` e implementado sem copiar código, porque ele é AGPL. O plano 005 terminou em 2026-11-09, com a casca 0.8.0. Os planos 001 a 004 estão concluídos.
+Plano 007, progresso de leitura com o KOReader, aberto em 2026-11-10: a etapa 01, o servidor recebe e devolve o progresso pelo protocolo KOSync, em `/sync/kosync/`, está implementada e espera o roteiro na VPS e o teste do autor no KOReader do Boox; as etapas 02, a Prancheta abre o livro onde o KOReader parou, e 03, a Prancheta envia a posição dela, serão detalhadas com ele. O plano 006, melhorias do leitor, tem as duas etapas implementadas, à espera do teste do autor no Boox, com a casca 0.11.0: leitor à esquerda, destaques editáveis ao toque, toque nas laterais, sumário, busca, destaques invertidos, barra da seleção flutuante acima do trecho e ícones nos botões. As funções seguem o comportamento do Readest e o protocolo do KOReader, descritos em palavras e implementados sem copiar código, porque ambos são AGPL. Os planos 001 a 005 estão concluídos.
 
 ## Próximo passo
 
-Mesclar a etapa 02 do plano 006, com a casca 0.10.0, e o autor testar no Boox: da etapa 01, o leitor à esquerda, a caneta no quadro à direita e o toque num destaque, com o dedo e com a caneta; da etapa 02, se os destaques invertidos se enxergam bem, o toque nas laterais, o sumário, a busca e a seleção arrastada para além da página. Com a confirmação dele, concluir as duas etapas e o plano. Quando o autor enviar um livro novo pelo WebDAV, conferir que ele aparece na biblioteca em até 5 minutos. No início da próxima sessão em contêiner novo, confirmar que o script de configuração rodou, verificando se `/opt/android-sdk` existe.
+Mesclar o ajuste do leitor e a etapa 01 do plano 007. Depois, o autor: atualiza a casca para a 0.11.0 e testa no Boox as duas etapas do plano 006, inclusive a barra da seleção, que o menu de seleção do Android pode cobrir; roda de novo o roteiro na VPS, cria o usuário com `prancheta-kosync novo leitor`, sem que a senha passe por uma sessão do Claude, e configura o KOReader, como em `servidor/implantacao/LEIA-ME.md`. Com as confirmações, concluir as etapas e detalhar a etapa 02 do plano 007. Antes de rodar os testes da página depois de compilar a casca, encerrar o Gradle com `./gradlew --stop`. No início da próxima sessão em contêiner novo, verificar se `/opt/android-sdk` existe.
 
 ## Planos previstos
 
 1. 001 a 005, concluídos: experimento da casca Android, Prancheta independente do claude.ai, Prancheta no Boox e sincronização com a VPS, modo e-ink, e livros e PDFs, com rede privada e cifra.
-2. 006: melhorias do leitor, ativo. A decidir depois dele: receber no servidor o progresso de leitura do KOReader, e escrever à mão sobre a página do livro.
+2. 006, melhorias do leitor, e 007, progresso de leitura com o KOReader, ativos. A decidir depois deles: escrever à mão sobre a página do livro.
 3. Publicação no catálogo de aplicativos de código aberto da Hostinger, com o botão "Implantar no Hostinger" no LEIA-ME e comissão sobre as hospedagens compradas por ele, pedida pelo autor para depois do 005; exige uma licença de código aberto e uma implantação genérica, sem o Tailscale e sem nada da VPS do autor.
 
 ## Ambiente de nuvem

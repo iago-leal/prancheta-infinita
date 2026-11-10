@@ -11,6 +11,7 @@ A Prancheta roda na VPS num contêiner próprio e só responde pela rede privada
 | `tailscale-serve.json` | o que o Tailscale entrega pela rede privada: a página em `/` e a sincronização em `/sync/` | `/opt/prancheta/tailscale-serve.json` |
 | `prancheta-publicar` | comando forçado da conta `prancheta`, a única coisa que a chave do GitHub executa | `/usr/local/bin/prancheta-publicar` |
 | `prancheta-chave` | cria, lista e revoga as chaves dos aparelhos | `/usr/local/sbin/prancheta-chave` |
+| `prancheta-kosync` | cria, lista e revoga os usuários do progresso de leitura do KOReader | `/usr/local/sbin/prancheta-kosync` |
 | `prancheta-biblioteca` | põe e reaplica a permissão extra de leitura da Prancheta na subpasta de livros | `/usr/local/sbin/prancheta-biblioteca` |
 | `prancheta-biblioteca.service` e `.timer` | chamam o comando acima a cada 5 minutos, para os livros novos | `/etc/systemd/system/` |
 
@@ -67,6 +68,28 @@ Para tirar a permissão extra, o temporizador e a montagem da biblioteca:
 ```sh
 ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh --sem-biblioteca'
 ```
+
+## Progresso de leitura do KOReader
+
+Pelo plano 007, o KOReader do Boox sincroniza com a Prancheta até onde o leitor chegou em cada livro, pelo protocolo KOSync, em `/sync/kosync/`, descrito em `servidor/LEIA-ME.md`. Como a Prancheta só responde pela rede privada, o aparelho do KOReader precisa do Tailscale ligado.
+
+Uma vez, como administrador, rode o roteiro de novo, para instalar o comando e religar o contêiner com o arquivo dos usuários, e crie o usuário:
+
+```sh
+ssh <vps> 'bash /root/prancheta-implantacao/preparar-vps.sh'
+ssh -t <vps> 'prancheta-kosync novo leitor'
+```
+
+A senha, de 20 letras minúsculas e algarismos, aparece uma única vez, para ser digitada no KOReader; ela nunca passa pelo repositório nem por uma sessão do Claude. O servidor guarda só um resumo dela, em `/etc/prancheta/acesso/kosync`. `prancheta-kosync listar` mostra os usuários, e `prancheta-kosync revogar leitor` desliga o usuário na hora, sem apagar o progresso gravado.
+
+No KOReader, com um livro aberto, no menu das ferramentas, em "Progress sync":
+
+1. em "Custom sync server", informe o endereço da Prancheta na rede privada seguido de `/sync/kosync`;
+2. em "Register / Login", informe o usuário e a senha e escolha "Login"; "Register" é recusado, porque o cadastro é fechado;
+3. deixe "Document matching method" em "Binary", que é o padrão: assim o livro é reconhecido pelo conteúdo, como na biblioteca da Prancheta, e não pelo nome do arquivo;
+4. use "Push progress from this device now" e "Pull progress from other devices now" para conferir.
+
+Essa credencial só abre o progresso de leitura. O progresso fica legível na VPS, em `/var/lib/prancheta/kosync/`, por uma exceção à cifra aceita pelo autor: o KOReader não conhece a chave da cifra. Ele não entra no histórico nem na cópia de segurança puxada pelo computador.
 
 ## A cada envio à main
 

@@ -13,6 +13,9 @@
 // - GET  /sync/biblioteca                  → os livros da biblioteca, por servidor/biblioteca.cjs
 // - GET  /sync/biblioteca/<id>             → um livro da biblioteca
 //
+// À parte, em /sync/kosync/, o progresso de leitura do KOReader, com a
+// credencial própria dele em vez da chave de um aparelho, por servidor/kosync.cjs.
+//
 // Configuração por variáveis de ambiente, nunca no repositório:
 // - PRANCHETA_CHAVES_ARQUIVO: o arquivo com o resumo da chave de cada aparelho,
 //   descrito em servidor/chaves.cjs; ou, para rodar localmente,
@@ -28,7 +31,9 @@
 //   com o código novo;
 // - PRANCHETA_HISTORICO_DIAS: por quantos dias as versões antigas dos
 //   documentos ficam guardadas, por padrão 30;
-// - PRANCHETA_BIBLIOTECA: a pasta dos livros, só lida, por padrão nenhuma.
+// - PRANCHETA_BIBLIOTECA: a pasta dos livros, só lida, por padrão nenhuma;
+// - PRANCHETA_KOSYNC_ARQUIVO: o arquivo com os usuários do KOSync, descrito em
+//   servidor/kosync.cjs; sem ele, as rotas do KOSync recusam todos os pedidos.
 //
 // Com PRANCHETA_VERSAO, depois de começar, o servidor anota em no-ar.json, na
 // pasta dos dados, a versão que entrega e se a sincronização recusa um pedido
@@ -48,6 +53,7 @@ const path = require('node:path');
 const { Armazem, ID_DE_ARQUIVO } = require('./armazem.cjs');
 const { Biblioteca } = require('./biblioteca.cjs');
 const { criarVerificador } = require('./chaves.cjs');
+const { Kosync } = require('./kosync.cjs');
 const { criarServidorDaPagina } = require('./pagina.cjs');
 
 const LIMITE_DO_JSON = 25 * 1024 * 1024;
@@ -56,6 +62,7 @@ const ERROS_DA_CIFRA = new Set(['cifra_exigida', 'cifra_diferente']);
 const LIMITE_DO_ARQUIVO = 25 * 1024 * 1024;
 const LIMITE_DA_LISTA = 500;
 const DISPOSITIVO = /^[0-9a-f]{8,64}$/;
+const ROTA_DO_KOSYNC = '/sync/kosync/';
 const CABECALHOS_PERMITIDOS = 'Authorization, Content-Type, X-Prancheta-Dispositivo, X-Prancheta-Criado-Em';
 
 const SEGURANCA = {
@@ -155,8 +162,9 @@ function validarMudanca(m) {
  * @param opcoes.verificar a função de servidor/chaves.cjs, que confere a chave de cada aparelho.
  * @param opcoes.origens as origens de navegador aceitas.
  * @param opcoes.biblioteca a Biblioteca de servidor/biblioteca.cjs, se houver.
+ * @param opcoes.kosync o Kosync de servidor/kosync.cjs, se houver.
  */
-function criarServidor({ armazem, chave, verificar, origens = [], biblioteca = null }) {
+function criarServidor({ armazem, chave, verificar, origens = [], biblioteca = null, kosync = null }) {
   const conferir = verificar || criarVerificador({ chave });
   const origensAceitas = new Set(origens);
 
@@ -173,6 +181,17 @@ function criarServidor({ armazem, chave, verificar, origens = [], biblioteca = n
   }
 
   async function atender(req, res) {
+    const url = new URL(req.url, 'http://local');
+    const rota = rotaDaSincronizacao(url.pathname);
+    // O progresso do KOReader tem a credencial dele: a chave de um aparelho não
+    // vale aqui, e a credencial do KOSync não vale em nenhuma outra rota.
+    if (rota.startsWith(ROTA_DO_KOSYNC)) {
+      if (!kosync) return responder(res, 401, { code: 2001, message: 'Unauthorized' });
+      const resposta = await kosync.atender({
+        metodo: req.method, caminho: rota.slice(ROTA_DO_KOSYNC.length - 1), cabecalhos: req.headers, lerCorpo: (limite) => lerCorpo(req, limite),
+      });
+      return responder(res, resposta.status, resposta.corpo);
+    }
     const origem = cabecalhosDeOrigem(req);
     // A consulta prévia do navegador não traz a chave nem recebe dados; só é
     // respondida para as origens aceitas.
@@ -187,9 +206,6 @@ function criarServidor({ armazem, chave, verificar, origens = [], biblioteca = n
       return res.end();
     }
     if (!autorizado(req)) return responder(res, 401, { erro: 'nao_autorizado' }, origem);
-
-    const url = new URL(req.url, 'http://local');
-    const rota = rotaDaSincronizacao(url.pathname);
 
     if (req.method === 'GET' && rota === '/sync/estado') {
       return responder(res, 200, { posicao: armazem.posicao }, origem);
@@ -368,8 +384,9 @@ async function iniciar(ambiente = process.env) {
   const diasDeHistorico = Number(ambiente.PRANCHETA_HISTORICO_DIAS || 30);
   const armazem = await Armazem.abrir(pasta, { diasDeHistorico });
   const biblioteca = new Biblioteca(ambiente.PRANCHETA_BIBLIOTECA || null);
+  const kosync = ambiente.PRANCHETA_KOSYNC_ARQUIVO ? new Kosync({ pasta, arquivo: ambiente.PRANCHETA_KOSYNC_ARQUIVO }) : null;
   const servidores = [];
-  const servidor = criarServidor({ armazem, verificar, origens, biblioteca });
+  const servidor = criarServidor({ armazem, verificar, origens, biblioteca, kosync });
   await ouvir(servidor, porta, endereco);
   servidores.push(servidor);
   console.log(`sincronização da Prancheta em http://${endereco}:${servidor.address().port}, posição ${armazem.posicao}`);

@@ -270,8 +270,22 @@ test('pela rede privada, o Tailscale entrega a página e a sincronização por h
   assert.match(fs.readFileSync(path.join(PASTA, 'preparar-vps.sh'), 'utf8'), /tailscale-serve\.json" \/opt\/prancheta\/tailscale-serve\.json/);
 });
 
+test('o roteiro instala o comando dos usuários do KOSync, e o contêiner lê o arquivo deles só para leitura', () => {
+  const roteiro = fs.readFileSync(path.join(PASTA, 'preparar-vps.sh'), 'utf8');
+  assert.match(roteiro, /install -o root -g root -m 0700 "\$AQUI\/prancheta-kosync" \/usr\/local\/sbin\/prancheta-kosync/);
+  // O arquivo nasce vazio, do administrador, legível só pelo grupo da conta prancheta, e não é sobrescrito.
+  assert.match(roteiro, /\[\[ -f \/etc\/prancheta\/acesso\/kosync \]\] \|\| install -o root -g prancheta -m 0640 \/dev\/null \/etc\/prancheta\/acesso\/kosync/);
+  assert.match(roteiro, /for arquivo in [^;]*prancheta-kosync/);
+  // No contêiner, o arquivo fica na pasta de acesso, montada só para leitura.
+  const compose = fs.readFileSync(path.join(PASTA, 'compose.yml'), 'utf8');
+  assert.match(compose, /PRANCHETA_KOSYNC_ARQUIVO: \/run\/prancheta\/kosync\n/);
+  assert.match(compose, /- \/etc\/prancheta\/acesso:\/run\/prancheta:ro\n/);
+  // O comando escreve no mesmo arquivo que o roteiro cria.
+  assert.match(fs.readFileSync(path.join(PASTA, 'prancheta-kosync'), 'utf8'), /ARQUIVO="\$\{PRANCHETA_KOSYNC:-\/etc\/prancheta\/acesso\/kosync\}"/);
+});
+
 test('o roteiro tem sintaxe válida, e a Prancheta não é entregue pelo endereço público', (t) => {
-  for (const script of ['preparar-vps.sh', 'prancheta-publicar', 'prancheta-chave']) {
+  for (const script of ['preparar-vps.sh', 'prancheta-publicar', 'prancheta-chave', 'prancheta-kosync']) {
     const r = spawnSync('bash', ['-n', path.join(PASTA, script)], { encoding: 'utf8' });
     assert.equal(r.status, 0, `${script}: ${r.stderr}`);
     assert.ok(fs.statSync(path.join(PASTA, script)).mode & 0o111, `${script} sem permissão de execução`);

@@ -53,6 +53,7 @@ services:
       PRANCHETA_VERSAO: /srv/prancheta/atual
       PRANCHETA_HISTORICO_DIAS: "30"
       PRANCHETA_BIBLIOTECA: /biblioteca
+      PRANCHETA_KOSYNC_ARQUIVO: /run/prancheta/kosync
     volumes:
       - /home/prancheta/publicado:/srv/prancheta:ro
       - /var/lib/prancheta:/dados

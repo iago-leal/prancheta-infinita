@@ -106,12 +106,31 @@ A biblioteca de livros, da etapa 03 do plano 005, por `servidor/biblioteca.cjs`.
 
 Nos aparelhos, a seção "Biblioteca" do painel lateral, de `web/app/compat/biblioteca.js`, mostra a lista e guarda cada livro aberto num banco próprio, `prancheta-biblioteca`, separado do banco dos quadros: os livros não sobem ao servidor nem passam pela cifra. A última lista recebida fica guardada para o uso sem rede.
 
+### Progresso do KOReader, em `/sync/kosync/`
+
+Pelo plano 007, o servidor fala o protocolo KOSync, com que o KOReader sincroniza até onde o leitor chegou em cada livro, por `servidor/kosync.cjs`. Só o protocolo foi aproveitado; o servidor de referência é AGPL, e nenhum código dele entra aqui. O livro é identificado pelo mesmo resumo parcial MD5 da biblioteca.
+
+Estas rotas não usam a chave de um aparelho. Cada pedido traz o usuário em `X-Auth-User` e, em `X-Auth-Key`, o resumo MD5 da senha, que é o que o KOReader envia. Essa credencial só vale aqui: não abre os quadros, os arquivos nem a biblioteca, e a chave de um aparelho não vale nestas rotas.
+
+| Rota | Resposta |
+|---|---|
+| `GET /sync/kosync/users/auth` | `200 { "authorized": "OK" }` |
+| `PUT /sync/kosync/syncs/progress` | grava `{ document, progress, percentage, device, device_id }` e devolve `200 { document, timestamp }` |
+| `GET /sync/kosync/syncs/progress/<documento>` | o último progresso gravado, com `timestamp` em segundos, ou `{}` |
+| `POST /sync/kosync/users/create` | `402`, código 2005: o cadastro é fechado |
+
+- `progress` é a posição como o KOReader a descreve: nos EPUBs, um caminho dentro do livro; nos PDFs, o número da página. `percentage` vai de 0 a 1.
+- Sem a credencial certa, a resposta é `401 { "code": 2001, "message": "Unauthorized" }`. Um pedido fora do formato recebe `403`, com o código 2003, ou 2004 quando falta o documento; acima de 16 KB, `413`.
+- Os usuários ficam no arquivo de `PRANCHETA_KOSYNC_ARQUIVO`, uma linha por usuário, com o nome e o resumo SHA-256 do MD5 da senha; ele é relido quando muda. Sem a variável, ou sem o arquivo, todos os pedidos são recusados. Na VPS, o comando `prancheta-kosync` cria e revoga os usuários.
+- Exceção à cifra ponta a ponta, aceita pelo autor: o KOReader não conhece a chave da cifra, e o progresso fica legível no servidor, só com o identificador do livro, a posição, a porcentagem, o nome do aparelho e o horário. Cada usuário guarda até 5.000 livros; passado isso, saem os gravados há mais tempo.
+
 ## Dados em disco
 
 - `registro.jsonl`: uma linha por mudança aceita, com a posição, o caminho, o aparelho e o número da mudança.
 - `documentos/<sha256 do caminho>.json`: a versão atual de cada documento.
 - `arquivos/<id>.bin` e `arquivos/<id>.json`: cada arquivo e os dados dele.
 - `cifra.json`: o identificador da chave da cifra e a posição em que ela foi ligada.
+- `kosync/<usuário>.json`: o progresso de leitura do KOReader, legível, fora do registro e do histórico dos quadros.
 
 Cada gravação vai para um arquivo temporário e é renomeada, e só depois entra a linha do registro. Ao abrir, uma linha cortada no fim do registro é descartada, e um documento gravado sem a sua linha, por uma queda entre as duas gravações, ganha a linha que faltava.
 
