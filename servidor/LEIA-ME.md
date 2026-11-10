@@ -124,11 +124,24 @@ Estas rotas não usam a chave de um aparelho. Cada pedido traz o usuário em `X-
 - Os usuários ficam no arquivo de `PRANCHETA_KOSYNC_ARQUIVO`, uma linha por usuário, com o nome e o resumo SHA-256 do MD5 da senha; ele é relido quando muda. Sem a variável, ou sem o arquivo, todos os pedidos são recusados. Na VPS, o comando `prancheta-kosync` cria e revoga os usuários.
 - Exceção à cifra ponta a ponta, aceita pelo autor: o KOReader não conhece a chave da cifra, e o progresso fica legível no servidor, só com o identificador do livro, a posição, a porcentagem, o nome do aparelho e o horário. Cada usuário guarda até 5.000 livros; passado isso, saem os gravados há mais tempo.
 
-### `GET /sync/progresso/<id>`
+### `GET /sync/progresso/<id>` e `PUT /sync/progresso/<id>`
 
-Para o leitor da Prancheta continuar de onde o KOReader parou, pela etapa 02 do plano 007. Com a chave de um aparelho, como as outras rotas da sincronização, devolve `{ "progresso": … }`: o progresso mais recente do livro entre os usuários do KOSync, com os campos do protocolo e o `timestamp` em segundos, ou `null` quando não há nenhum ou o KOSync não está configurado. A credencial do KOSync não vale aqui, e os aparelhos da Prancheta não a guardam. Um identificador fora do formato recebe `400`.
+O progresso de leitura para o leitor da Prancheta, pelas etapas 02 e 03 do plano 007, com a chave de um aparelho, como as outras rotas da sincronização. A credencial do KOSync não vale aqui, e os aparelhos da Prancheta não a guardam. Um identificador de livro fora do formato recebe `400`.
 
-Ao abrir um livro, o leitor consulta essa rota sem atrasar a abertura. Num PDF, a posição do KOReader é o número da página. Num EPUB, é um caminho como `/body/DocFragment[3]/body/p[12]/text().34`: o número do capítulo, na ordem de leitura e a partir de 1, e os passos até o parágrafo; o leitor vai até o parágrafo, ou ao começo do capítulo quando não o acha. Se o progresso é mais novo que a última leitura no aparelho e está fora da página à vista, o leitor mostra um aviso com um botão, e não pula sozinho.
+`GET` devolve `{ "progresso": … }`: o progresso mais recente do livro, entre o que o KOReader gravou e o que os aparelhos da Prancheta gravaram, com os campos do protocolo e o `timestamp` em segundos, ou `null` quando não há nenhum. O que veio de um aparelho da Prancheta traz também `posicao`, a posição exata do leitor.
+
+`PUT` grava a posição do leitor de um aparelho:
+
+```json
+{ "posicao": { "cfi": "epubcfi(/6/8!/4/82/1:0)" }, "porcentagem": 0.4, "aparelho": "Boox", "dispositivo": "<identificador do aparelho>" }
+```
+
+- `posicao` é `{ "cfi": … }` num EPUB ou `{ "pagina": N }` num PDF; `porcentagem` vai de 0 a 1; `dispositivo` é o identificador do aparelho na sincronização. Fora do formato, `400`; acima de 16 KB, `413`.
+- A resposta é `200 { "timestamp": … }`. O KOReader ainda não recebe o que a Prancheta grava: a rota do KOSync continua devolvendo só o que ele mesmo gravou.
+
+Ao abrir um livro, e quando a tela volta com o livro aberto, o leitor consulta o progresso sem atrasar a leitura. Se ele é mais novo que a última vez em que o leitor virou a página neste aparelho, vem de outro aparelho e está fora da página à vista, o leitor mostra um aviso com um botão, e não pula sozinho. A posição de outro aparelho da Prancheta é usada como está. A do KOReader é convertida: num PDF, é o número da página; num EPUB, é um caminho como `/body/DocFragment[3]/body/p[12]/text().34`, com o número do capítulo, na ordem de leitura e a partir de 1, e os passos até o parágrafo; o leitor vai até o parágrafo, ou até o último elemento achado no caminho.
+
+O leitor grava a posição dele cerca de dois segundos depois da última virada de página, e ao fechar o livro; abrir um livro sem virar a página não grava nada.
 
 ## Dados em disco
 
@@ -137,6 +150,7 @@ Ao abrir um livro, o leitor consulta essa rota sem atrasar a abertura. Num PDF, 
 - `arquivos/<id>.bin` e `arquivos/<id>.json`: cada arquivo e os dados dele.
 - `cifra.json`: o identificador da chave da cifra e a posição em que ela foi ligada.
 - `kosync/<usuário>.json`: o progresso de leitura do KOReader, legível, fora do registro e do histórico dos quadros.
+- `kosync/+prancheta.json`: o progresso gravado pelos aparelhos da Prancheta, também legível; o nome não pode ser o de um usuário do KOSync.
 
 Cada gravação vai para um arquivo temporário e é renomeada, e só depois entra a linha do registro. Ao abrir, uma linha cortada no fim do registro é descartada, e um documento gravado sem a sua linha, por uma queda entre as duas gravações, ganha a linha que faltava.
 

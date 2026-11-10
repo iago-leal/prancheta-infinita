@@ -232,6 +232,9 @@
     return { fragmento, passos };
   }
 
+  // Quanto o leitor espera, depois da última virada de página, para gravar a posição no servidor.
+  const ESPERA_DO_ENVIO = 2000;
+
   // O horário de um progresso, para o aviso: a hora, se foi hoje; senão, o dia e a hora.
   function quandoFoi(ms, agora = Date.now()) {
     const d = new Date(ms);
@@ -456,6 +459,31 @@
       return { alvo, mesmoLugar };
     }
 
+    /**
+     * Onde fica a posição exata gravada pelo leitor de outro aparelho da
+     * Prancheta, e se ela está na página à vista; null se não é uma posição de EPUB.
+     */
+    async lugarDaPrancheta(posicao) {
+      const alvo = posicao && posicao.cfi;
+      if (typeof alvo !== 'string' || !/^epubcfi\([^\s()]+\)$/.test(alvo)) return null;
+      const local = await this._paginaAssentada();
+      if (!this.vista) return null;
+      const comparar = new this._ePub.CFI();
+      const mesmoLugar = Boolean(local && local.start && local.end)
+        && comparar.compare(alvo, local.start.cfi) >= 0 && comparar.compare(alvo, local.end.cfi) <= 0;
+      return { alvo, mesmoLugar };
+    }
+
+    /** Até onde o livro foi lido, de 0 a 1: pelas porcentagens do livro, ou pelo capítulo e pela página nele. */
+    porcentagem() {
+      const local = this.vista && this.vista.currentLocation();
+      if (!local || !local.start) return 0;
+      if (this.livro.locations.length() && local.start.percentage >= 0) return Math.min(1, local.start.percentage);
+      const visto = local.start.displayed || {};
+      const noCapitulo = visto.total ? (visto.page - 1) / visto.total : 0;
+      return Math.min(1, (local.start.index + noCapitulo) / (this.livro.spine.spineItems.length || 1));
+    }
+
     // A página à vista, depois de assentada: até quase meio segundo depois de
     // abrir, a epub.js ainda ajusta o capítulo, e o texto muda de lugar; a
     // página só vale quando duas leituras, com meio segundo entre elas, dão a mesma.
@@ -492,6 +520,7 @@
       if (!this.livro.spine.get(alvo)) return;
       this.limparSelecao();
       this.aoMudar({ tipo: 'selecao', selecao: null });
+      this.aoMudar({ tipo: 'salto' });
       Promise.resolve(this.vista.display(alvo)).catch(() => {});
     }
 
@@ -796,6 +825,18 @@
       return { alvo: pagina, mesmoLugar: pagina === this.pagina };
     }
 
+    /** Onde fica a página gravada pelo leitor de outro aparelho da Prancheta, e se é a página à vista. */
+    async lugarDaPrancheta(posicao) {
+      const pagina = posicao && posicao.pagina;
+      if (!Number.isSafeInteger(pagina) || pagina < 1 || pagina > this.total) return null;
+      return { alvo: pagina, mesmoLugar: pagina === this.pagina };
+    }
+
+    /** Até onde o livro foi lido, de 0 a 1. */
+    porcentagem() {
+      return this.total ? this.pagina / this.total : 0;
+    }
+
     /** Diz se há um trecho selecionado na página. */
     temSelecao() {
       const selecao = document.getSelection();
@@ -978,8 +1019,17 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this.painel = null;
       this._achados = { consulta: '', itens: [], aviso: '' };
       this._busca = 0;
-      // O ponto em que o KOReader parou neste livro, mais adiante que a leitura deste aparelho, ou null.
+      // O ponto em que a leitura parou no KOReader ou em outro aparelho da Prancheta, mais novo que a deste aparelho, ou null.
       this.remoto = null;
+      // Se o leitor virou a página ou saltou neste livro: só então a posição
+      // dele é gravada no servidor, para o outro aparelho continuar de lá.
+      this._leu = false;
+      this._enviada = null;
+      this._aEnviar = null;
+      // Quando o leitor virou a página pela última vez no livro aberto, neste aparelho.
+      this._lidoEm = 0;
+      // O horário do progresso de outro leitor que já foi dispensado neste livro aberto.
+      this._dispensadoAte = 0;
       // Quando um botão da barra da seleção foi tocado pela última vez.
       this._tocouBarraEm = 0;
       this._aLargar = null;
@@ -1028,6 +1078,8 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       // Aberto por um link de volta, o livro vai à posição do link, e o progresso do KOReader não é consultado.
       const local = posicao ? null : await biblioteca.lerPosicaoComHora(id);
       const ondeParou = posicao || (local && local.posicao) || undefined;
+      this._lidoEm = local ? local.em : 0;
+      this._dispensadoAte = 0;
       this.livro = { id, nome: registro.nome, tipo: registro.tipo };
       const Vista = registro.tipo === 'application/pdf' ? VistaPdf : VistaEpub;
       this._mostrar();
@@ -1050,41 +1102,68 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         });
       }
       this._avisar();
-      if (!posicao && this.vista === vista) this._conferirProgressoRemoto(vista, id, local ? local.em : 0).catch(() => {});
+      if (!posicao && this.vista === vista) this._conferirProgressoRemoto(vista, id).catch(() => {});
       return this.posicaoAtual();
     }
 
-    // Depois de aberto o livro, sem atrasar a abertura: se o KOReader gravou um
-    // progresso mais novo que a última leitura neste aparelho, e em outro
+    // Depois de aberto o livro, sem atrasar a abertura, e quando a tela volta
+    // com o livro aberto: se o KOReader ou outro aparelho da Prancheta gravou
+    // um progresso mais novo que a última leitura neste aparelho, e em outro
     // lugar, o leitor oferece ir até lá, sem pular sozinho.
-    async _conferirProgressoRemoto(vista, id, lidoEm) {
+    async _conferirProgressoRemoto(vista, id) {
+      if (this.remoto) return;
       const remoto = await this.biblioteca.progressoRemoto(id);
-      if (!remoto || vista !== this.vista) return;
+      if (!remoto || vista !== this.vista || this.remoto) return;
+      // A gravação deste mesmo aparelho não é novidade para ele.
+      if (remoto.device_id && remoto.device_id === this.biblioteca.dispositivo) return;
       const quando = Number(remoto.timestamp) * 1000;
-      if (!(quando > lidoEm)) return;
-      const lugar = await vista.lugarDoKoreader(remoto);
+      if (!(quando > this._lidoEm) || quando <= this._dispensadoAte) return;
+      // O leitor de outro aparelho da Prancheta grava a posição exata; a do KOReader é convertida.
+      const lugar = remoto.posicao ? await vista.lugarDaPrancheta(remoto.posicao) : await vista.lugarDoKoreader(remoto);
       if (!lugar || lugar.mesmoLugar || vista !== this.vista) return;
       const porcentagem = Number(remoto.percentage);
       this.remoto = {
         alvo: lugar.alvo, quando, aparelho: typeof remoto.device === 'string' ? remoto.device.slice(0, 40) : '',
+        daPrancheta: Boolean(remoto.posicao),
         porcentagem: porcentagem >= 0 && porcentagem <= 1 ? Math.round(porcentagem * 100) : null,
       };
       this._avisar();
     }
 
-    /** Leva ao ponto em que o KOReader parou e tira o aviso. */
+    /** Leva ao ponto em que a leitura parou no outro leitor e tira o aviso. */
     async irAoProgressoRemoto() {
       const remoto = this.remoto;
       if (!remoto || !this.vista) return;
       this.remoto = null;
+      this._leu = true;
       this._largarSelecao();
       this._avisar();
       await this.vista.irPara(remoto.alvo);
     }
 
+    // Grava no servidor a posição do leitor, pouco depois da última virada de
+    // página, sem atrasar a leitura; sem rede, tenta de novo na virada seguinte.
+    _agendarEnvio() {
+      clearTimeout(this._aEnviar);
+      this._aEnviar = setTimeout(() => this._enviarProgresso(), ESPERA_DO_ENVIO);
+    }
+
+    _enviarProgresso() {
+      clearTimeout(this._aEnviar);
+      if (!this.livro || !this.vista || !this._leu) return;
+      const posicao = this.vista.posicao();
+      const marca = JSON.stringify(posicao);
+      if (!posicao || marca === this._enviada) return;
+      this._enviada = marca;
+      this.biblioteca.gravarProgressoRemoto(this.livro.id, { posicao, porcentagem: this.vista.porcentagem() }).then((gravou) => {
+        if (!gravou && this._enviada === marca) this._enviada = null;
+      }, () => {});
+    }
+
     /** Tira o aviso do progresso do KOReader, sem sair do lugar. */
     dispensarProgressoRemoto() {
       if (!this.remoto) return;
+      this._dispensadoAte = this.remoto.quando;
       this.remoto = null;
       this._avisar();
     }
@@ -1209,6 +1288,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const item = painel && painel.itens[indice];
       if (!item || !this.vista) return;
       this.painel = null;
+      this._leu = true;
       this._largarSelecao();
       this._avisar();
       if (painel.tipo === 'busca') await this.vista.mostrarAchado(item.alvo);
@@ -1261,9 +1341,15 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         else if (mudanca.fracao > 2 / 3) Promise.resolve(this.proxima()).catch(() => {});
         return;
       }
+      if (mudanca.tipo === 'salto') {
+        this._leu = true;
+        return;
+      }
       if (mudanca.tipo === 'posicao' && this.livro) {
         const posicao = vista.posicao();
-        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao).catch(() => {});
+        if (this._leu) this._lidoEm = Date.now();
+        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao, this._lidoEm).catch(() => {});
+        if (this._leu) this._agendarEnvio();
       }
       this._avisar();
     }
@@ -1288,14 +1374,16 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this._avisar();
     }
 
-    // Quem vira a página escolheu continuar daqui: o aviso do KOReader sai.
+    // Quem vira a página escolheu continuar daqui: o aviso da leitura em outro lugar sai.
     proxima() {
+      this._leu = true;
       this._largarSelecao();
       this.dispensarProgressoRemoto();
       return this.vista ? this.vista.proxima() : undefined;
     }
 
     anterior() {
+      this._leu = true;
       this._largarSelecao();
       this.dispensarProgressoRemoto();
       return this.vista ? this.vista.anterior() : undefined;
@@ -1343,11 +1431,16 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this.painel = null;
       this._achados = { consulta: '', itens: [], aviso: '' };
       this._busca += 1;
-      // Ao fechar, fica guardada a página à vista, e não a do último aviso de mudança.
+      // Ao fechar, fica guardada a página à vista, e não a do último aviso de
+      // mudança, e a posição que ainda esperava para ir ao servidor vai agora.
       if (this.vista && this.livro) {
         const posicao = this.vista.posicao();
-        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao).catch(() => {});
+        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao, this._lidoEm).catch(() => {});
+        this._enviarProgresso();
       }
+      clearTimeout(this._aEnviar);
+      this._leu = false;
+      this._enviada = null;
       if (this.vista) this.vista.destruir();
       this.vista = null;
       this.livro = null;
@@ -1404,7 +1497,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
 </div>
 <div class="lt-remoto" hidden>
   <span class="lt-remoto-texto" role="status"></span>
-  ${botao('remoto-ir', 'ir', 'Ir para onde o KOReader parou')}
+  ${botao('remoto-ir', 'ir', 'Ir para onde a leitura parou')}
   ${botao('remoto-fechar', 'fechar', 'Ficar onde estou')}
 </div>
 <p class="lt-aviso" role="status"></p>
@@ -1526,7 +1619,8 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         remoto.hidden = !this.remoto;
         if (this.remoto) {
           const r = this.remoto;
-          escrever(textoDoRemoto, `No KOReader${r.aparelho ? `, em ${r.aparelho}` : ''}, você parou${r.porcentagem === null ? '' : ` em ${r.porcentagem}%`}, ${quandoFoi(r.quando)}.`);
+          const onde = r.daPrancheta ? `Na Prancheta${r.aparelho ? ` do ${r.aparelho}` : ''}` : `No KOReader${r.aparelho ? `, em ${r.aparelho}` : ''}`;
+          escrever(textoDoRemoto, `${onde}, você parou${r.porcentagem === null ? '' : ` em ${r.porcentagem}%`}, ${quandoFoi(r.quando)}.`);
         }
       });
       // O aviso fica por cima do rodapé da página e sai sozinho, para não esconder a última linha.
@@ -1558,7 +1652,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         if (acao === 'sumario') this.abrirSumario().catch(() => {});
         if (acao === 'buscar') this.abrirBusca();
         if (acao === 'painel-fechar') this.fecharPainel();
-        if (acao === 'remoto-ir') this.irAoProgressoRemoto().catch(() => this.aviso('Não foi possível ir até onde o KOReader parou.'));
+        if (acao === 'remoto-ir') this.irAoProgressoRemoto().catch(() => this.aviso('Não foi possível ir até onde a leitura parou.'));
         if (acao === 'remoto-fechar') this.dispensarProgressoRemoto();
         if (acao === 'marca-fechar') this.fecharDestaque();
         if (acao === 'marca-levar') this.levarDestaqueAoQuadro();
@@ -1582,6 +1676,11 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
         }
         if (e.key === 'ArrowRight' || e.key === 'PageDown') Promise.resolve(this.proxima()).catch(() => {});
         if (e.key === 'ArrowLeft' || e.key === 'PageUp') Promise.resolve(this.anterior()).catch(() => {});
+      });
+      // O livro pode ficar aberto enquanto a leitura continua em outro aparelho:
+      // quando a tela volta, o leitor confere de novo o progresso.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.livro && this.vista) this._conferirProgressoRemoto(this.vista, this.livro.id).catch(() => {});
       });
       let largura = global.innerWidth;
       global.addEventListener('resize', () => {

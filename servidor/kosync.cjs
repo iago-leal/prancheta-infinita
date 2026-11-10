@@ -15,6 +15,12 @@
 // - POST /users/create                → recusado: o cadastro é fechado, e a
 //   credencial é criada na VPS, por servidor/implantacao/prancheta-kosync
 //
+// Os aparelhos da Prancheta leem e gravam o progresso por outra rota, com a
+// chave de cada um, em servidor/servidor.cjs: leem o mais recente entre o do
+// KOReader e o dos aparelhos, e gravam a posição exata do leitor deles, que
+// fica em <dados>/kosync/+prancheta.json. O KOReader ainda não recebe o que a
+// Prancheta grava.
+//
 // Exceção à cifra ponta a ponta, aceita pelo autor: o KOReader não conhece a
 // chave da cifra, e o progresso fica legível, em <dados>/kosync/<usuário>.json,
 // só com o identificador do livro, que é um resumo do arquivo e não o nome, a
@@ -42,6 +48,11 @@ const LIMITE_DO_PEDIDO = 16 * 1024;
 const LIMITE_DA_POSICAO = 2048;
 const LIMITE_DO_APARELHO = 128;
 const LIMITE_DE_LIVROS = 5000;
+// O progresso gravado pelos aparelhos da Prancheta fica num arquivo à parte dos
+// usuários do KOSync, com um nome que nenhum usuário pode ter.
+const DA_PRANCHETA = '+prancheta';
+const DISPOSITIVO = /^[0-9a-f]{8,64}$/;
+const CFI = /^epubcfi\([^\s()]{1,1000}\)$/;
 
 const sha256 = (texto) => crypto.createHash('sha256').update(texto).digest();
 const md5 = (texto) => crypto.createHash('md5').update(texto).digest('hex');
@@ -103,6 +114,25 @@ function lerProgresso(pedido) {
   const textoCurto = (valor) => typeof valor === 'string' && valor.length <= LIMITE_DO_APARELHO;
   if (!textoCurto(pedido.device) || (pedido.device_id !== undefined && !textoCurto(pedido.device_id))) return null;
   return { progress: posicao, percentage: pedido.percentage, device: pedido.device, device_id: pedido.device_id || '' };
+}
+
+// O progresso que um aparelho da Prancheta grava: a posição exata, de EPUB ou
+// de PDF, a porcentagem, o nome do aparelho e o identificador dele; null se
+// fugir do formato. Num PDF, a posição vai também como o KOReader a descreve.
+function lerProgressoDaPrancheta(pedido) {
+  if (!pedido || typeof pedido !== 'object' || Array.isArray(pedido)) return null;
+  const p = pedido.posicao;
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+  let posicao = null;
+  if (typeof p.cfi === 'string' && CFI.test(p.cfi)) posicao = { cfi: p.cfi };
+  else if (Number.isSafeInteger(p.pagina) && p.pagina >= 1 && p.pagina <= 1000000) posicao = { pagina: p.pagina };
+  if (!posicao) return null;
+  if (typeof pedido.porcentagem !== 'number' || !(pedido.porcentagem >= 0 && pedido.porcentagem <= 1)) return null;
+  if (typeof pedido.aparelho !== 'string' || pedido.aparelho === '' || pedido.aparelho.length > LIMITE_DO_APARELHO) return null;
+  if (typeof pedido.dispositivo !== 'string' || !DISPOSITIVO.test(pedido.dispositivo)) return null;
+  return {
+    progress: posicao.pagina ? String(posicao.pagina) : '', percentage: pedido.porcentagem, device: pedido.aparelho, device_id: pedido.dispositivo, posicao,
+  };
 }
 
 class Kosync {
@@ -179,11 +209,19 @@ class Kosync {
     let recente = null;
     for (const arquivo of arquivos) {
       const usuario = arquivo.endsWith('.json') ? arquivo.slice(0, -'.json'.length) : '';
-      if (!USUARIO.test(usuario)) continue;
+      if (!USUARIO.test(usuario) && usuario !== DA_PRANCHETA) continue;
       const guardado = await this.progresso(usuario, documento);
       if (guardado && (!recente || guardado.timestamp > recente.timestamp)) recente = guardado;
     }
     return recente;
+  }
+
+  /**
+   * Grava o progresso de um livro lido num aparelho da Prancheta, já conferido
+   * por lerProgressoDaPrancheta, e devolve o horário, em segundos.
+   */
+  gravarDaPrancheta(documento, progresso) {
+    return this.gravar(DA_PRANCHETA, documento, progresso);
   }
 
   /** Grava o progresso de um livro e devolve o horário, em segundos. */
@@ -237,4 +275,4 @@ class Kosync {
   }
 }
 
-module.exports = { Kosync, criarConferencia, lerProgresso, LIMITE_DE_LIVROS };
+module.exports = { Kosync, criarConferencia, lerProgresso, lerProgressoDaPrancheta, LIMITE_DE_LIVROS };

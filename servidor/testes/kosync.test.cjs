@@ -322,7 +322,7 @@ test('um aparelho da Prancheta lê, com a chave dele, o progresso mais recente d
     fs.writeFileSync(path.join(s.pasta, 'kosync', 'anotacao.txt'), 'não é progresso');
     fs.writeFileSync(path.join(s.pasta, 'kosync', 'não é usuário.json'), '{isto não é json');
     assert.equal((await ler(LIVRO))[1].progresso.percentage, 0.9);
-    assert.equal((await fetch(`${s.base}/sync/progresso/${LIVRO}`, { method: 'PUT', headers: { Authorization: `Bearer ${CHAVE}` } })).status, 404);
+    assert.equal((await fetch(`${s.base}/sync/progresso/${LIVRO}`, { method: 'DELETE', headers: { Authorization: `Bearer ${CHAVE}` } })).status, 404);
   } finally {
     await s.fechar();
   }
@@ -333,5 +333,74 @@ test('um aparelho da Prancheta lê, com a chave dele, o progresso mais recente d
     assert.deepEqual([r.status, await r.json()], [200, { progresso: null }]);
   } finally {
     await sem.fechar();
+  }
+});
+
+test('um aparelho da Prancheta grava a posição exata dele, e o outro a lê; o KOReader continua recebendo só o que ele gravou', async () => {
+  let agora = 1762740000000;
+  const s = await subir({ relogio: () => agora });
+  const rota = `/sync/progresso/${LIVRO}`;
+  const gravar = (corpo, cabecalhos = { Authorization: `Bearer ${CHAVE}` }, livro = LIVRO) => fetch(`${s.base}/sync/progresso/${livro}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', ...cabecalhos }, body: typeof corpo === 'string' ? corpo : JSON.stringify(corpo),
+  }).then(async (r) => [r.status, await r.json()]);
+  const ler = (livro = LIVRO) => fetch(`${s.base}/sync/progresso/${livro}`, { headers: { Authorization: `Bearer ${CHAVE}` } }).then((r) => r.json()).then((j) => j.progresso);
+  const doBoox = { posicao: { cfi: 'epubcfi(/6/8!/4/82[l40]/1:0)' }, porcentagem: 0.4, aparelho: 'Boox', dispositivo: 'aaaaaaaaaaaaaaaa' };
+  try {
+    assert.deepEqual(await gravar(doBoox), [200, { timestamp: 1762740000 }]);
+    assert.deepEqual(await ler(), {
+      document: LIVRO, progress: '', percentage: 0.4, device: 'Boox', device_id: 'aaaaaaaaaaaaaaaa', posicao: { cfi: 'epubcfi(/6/8!/4/82[l40]/1:0)' }, timestamp: 1762740000,
+    });
+    // Num PDF, a posição vai também como o KOReader a descreve, pelo número da página.
+    agora += 1000;
+    assert.equal((await gravar({ posicao: { pagina: 12 }, porcentagem: 0.5, aparelho: 'computador', dispositivo: 'bbbbbbbbbbbbbbbb' }, undefined, OUTRO))[0], 200);
+    assert.deepEqual(await ler(OUTRO), { document: OUTRO, progress: '12', percentage: 0.5, device: 'computador', device_id: 'bbbbbbbbbbbbbbbb', posicao: { pagina: 12 }, timestamp: 1762740001 });
+
+    // Vale o mais recente entre o KOReader e os aparelhos da Prancheta, nos dois sentidos.
+    agora += 60000;
+    await pedir(s, 'PUT', '/sync/kosync/syncs/progress', { corpo: progresso({ percentage: 0.7 }) });
+    assert.deepEqual([(await ler()).percentage, (await ler()).posicao], [0.7, undefined]);
+    agora += 60000;
+    await gravar({ ...doBoox, porcentagem: 0.8 });
+    assert.deepEqual([(await ler()).percentage, (await ler()).posicao], [0.8, doBoox.posicao]);
+    // O KOReader continua recebendo só o que ele gravou.
+    assert.equal((await pedir(s, 'GET', `/sync/kosync/syncs/progress/${LIVRO}`)).json.percentage, 0.7);
+    // Um usuário do KOSync não consegue se passar pelo arquivo dos aparelhos.
+    assert.equal((await pedir(s, 'GET', `/sync/kosync/syncs/progress/${LIVRO}`, { usuario: '+prancheta' })).status, 401);
+
+    // Sem a chave de um aparelho, ou com a credencial do KOSync, nada é gravado.
+    for (const cabecalhos of [{}, { 'x-auth-user': USUARIO, 'x-auth-key': md5(SENHA) }, { Authorization: 'Bearer chave-errada-com-mais-de-32-caracteres-000000' }]) {
+      assert.deepEqual(await gravar({ ...doBoox, porcentagem: 0.99 }, cabecalhos), [401, { erro: 'nao_autorizado' }]);
+    }
+    // Fora do formato, ou grande demais: recusado.
+    const recusados = [
+      { ...doBoox, posicao: { cfi: 'epubcfi(/6/8!/4 <script>)' } }, { ...doBoox, posicao: { cfi: 'x' } }, { ...doBoox, posicao: { pagina: 0 } }, { ...doBoox, posicao: { pagina: 1.5 } },
+      { ...doBoox, posicao: null }, { ...doBoox, posicao: 'epubcfi(/6/8!/4)' }, { ...doBoox, porcentagem: 1.2 }, { ...doBoox, porcentagem: '0.5' }, { ...doBoox, aparelho: '' },
+      { ...doBoox, aparelho: 'x'.repeat(129) }, { ...doBoox, dispositivo: 'Boox' }, { ...doBoox, dispositivo: undefined }, [doBoox], null,
+    ];
+    for (const corpo of recusados) assert.deepEqual(await gravar(corpo), [400, { erro: 'progresso_invalido' }], JSON.stringify(corpo).slice(0, 90));
+    assert.deepEqual(await gravar('{isto não é json'), [400, { erro: 'json_invalido' }]);
+    assert.equal((await gravar({ ...doBoox, enchimento: 'x'.repeat(20000) }))[0], 413);
+    assert.deepEqual(await gravar(doBoox, undefined, 'livro.epub'), [400, { erro: 'livro_invalido' }]);
+    assert.equal((await ler()).percentage, 0.8, 'nada do que foi recusado ficou guardado');
+    // Fica legível, num arquivo próprio, só com os campos conferidos, e sem tocar nos quadros.
+    const guardado = JSON.parse(fs.readFileSync(path.join(s.pasta, 'kosync', '+prancheta.json'), 'utf8'));
+    assert.deepEqual(Object.keys(guardado.livros[LIVRO]).sort(), ['device', 'device_id', 'percentage', 'posicao', 'progress', 'timestamp']);
+    assert.equal(s.armazem.posicao, 0);
+    assert.equal(rota.length > 0, true);
+  } finally {
+    await s.fechar();
+  }
+  // Sem o arquivo dos usuários, o servidor ligado pelo ambiente ainda troca o progresso entre os aparelhos, e o KOReader não entra.
+  const pasta = temporaria('dados');
+  const ligado = await iniciar({ PRANCHETA_CHAVE: CHAVE, PRANCHETA_DADOS: pasta, PRANCHETA_PORTA: '0' });
+  try {
+    const base = `http://127.0.0.1:${ligado.servidores[0].address().port}`;
+    const r = await fetch(`${base}/sync/progresso/${LIVRO}`, { method: 'PUT', headers: { Authorization: `Bearer ${CHAVE}`, 'Content-Type': 'application/json' }, body: JSON.stringify(doBoox) });
+    assert.equal(r.status, 200);
+    const lido = await (await fetch(`${base}/sync/progresso/${LIVRO}`, { headers: { Authorization: `Bearer ${CHAVE}` } })).json();
+    assert.deepEqual(lido.progresso.posicao, doBoox.posicao);
+    assert.equal((await pedir({ base }, 'GET', '/sync/kosync/users/auth')).status, 401);
+  } finally {
+    await ligado.fechar();
   }
 });
