@@ -18,6 +18,7 @@ const { criarServidor } = require('../../servidor/servidor.cjs');
 const { criarServidorDaPagina } = require('../../servidor/pagina.cjs');
 const { Biblioteca } = require('../../servidor/biblioteca.cjs');
 const { criarEpub, criarPdf } = require('./apoio/livros.cjs');
+const { esperarLista, abrirPelaBiblioteca } = require('./apoio/biblioteca.cjs');
 
 const CHAVE = 'chave-de-teste-do-leitor-0123456789abcdef';
 const TELA = { width: 1200, height: 800 };
@@ -54,7 +55,7 @@ async function abrirPrancheta(contexto, base) {
   await pagina.waitForFunction(() => window.__booted === true && navigator.serviceWorker.controller !== null, null, { timeout: 10000 });
   await pagina.waitForFunction(() => Boolean(window.leitorDaPrancheta && document.getElementById('leitor')), null, { timeout: 10000 });
   await pagina.evaluate(([endereco, chave]) => window.sincronizacaoDaPrancheta.configurar({ endereco, chave }), [base, CHAVE]);
-  await pagina.locator('#biblioteca .bib-livro').nth(1).waitFor();
+  await esperarLista(pagina, 2);
   return { pagina, erros };
 }
 
@@ -69,7 +70,7 @@ test('o EPUB abre ao lado do quadro, vira as páginas, lembra a posição e pass
   const contexto = await navegador.newContext({ viewport: TELA });
   try {
     const { pagina, erros } = await abrirPrancheta(contexto, vps.base);
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Livro de teste.epub' }).click();
+    await abrirPelaBiblioteca(pagina, 'Livro de teste.epub');
     await pagina.waitForFunction(() => !document.getElementById('leitor').hidden);
     await pagina.waitForFunction(() => /primeiro capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
     assert.equal(await pagina.textContent('#leitor .lt-titulo'), 'Livro de teste.epub');
@@ -99,7 +100,7 @@ test('o EPUB abre ao lado do quadro, vira as páginas, lembra a posição e pass
     await pagina.reload();
     await pagina.waitForFunction(() => window.__booted === true && Boolean(window.leitorDaPrancheta), null, { timeout: 10000 });
     assert.equal(await pagina.evaluate(() => window.leitorDaPrancheta.lado), 'direita');
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Livro de teste.epub' }).click();
+    await abrirPelaBiblioteca(pagina, 'Livro de teste.epub');
     await pagina.waitForFunction(() => /primeiro capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
     assert.equal((await medir()).direita, 1200);
     await pagina.click('#leitor [data-acao="lado"]');
@@ -143,7 +144,7 @@ test('o EPUB abre ao lado do quadro, vira as páginas, lembra a posição e pass
     await pagina.click('#leitor [data-acao="fechar"]');
     assert.equal(await pagina.evaluate(() => document.getElementById('leitor').hidden), true);
     assert.equal(await pagina.evaluate(() => document.body.classList.contains('leitor-lado')), false);
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Livro de teste.epub' }).click();
+    await abrirPelaBiblioteca(pagina, 'Livro de teste.epub');
     await pagina.waitForFunction(() => /segundo capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
     assert.ok(!(await textoDoEpub(pagina)).includes('primeiro capítulo'));
     assert.deepEqual(await pagina.evaluate(() => window.__violacoes), []);
@@ -159,7 +160,7 @@ test('o PDF abre página a página, com o texto selecionável e a página no tre
   const contexto = await navegador.newContext({ viewport: TELA });
   try {
     const { pagina, erros } = await abrirPrancheta(contexto, vps.base);
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Documento.pdf' }).click();
+    await abrirPelaBiblioteca(pagina, 'Documento.pdf');
     await pagina.waitForFunction(() => /Primeira pagina/.test(document.querySelector('#leitor .textLayer')?.textContent || ''), null, { timeout: 15000 });
     assert.equal(await pagina.textContent('#leitor .lt-posicao'), 'p. 1 de 2');
     assert.ok(await pagina.evaluate(() => document.querySelector('#leitor canvas').width > 0));
@@ -187,7 +188,7 @@ test('o PDF abre página a página, com o texto selecionável e a página no tre
     await pagina.click('#leitor [data-acao="proxima"]');
     await pagina.waitForFunction(() => document.querySelector('#leitor .lt-posicao').textContent === 'p. 2 de 2');
     await pagina.click('#leitor [data-acao="fechar"]');
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Documento.pdf' }).click();
+    await abrirPelaBiblioteca(pagina, 'Documento.pdf');
     await pagina.waitForFunction(() => document.querySelector('#leitor .lt-posicao')?.textContent === 'p. 2 de 2', null, { timeout: 15000 });
     assert.deepEqual(await pagina.evaluate(() => window.__violacoes), []);
     assert.deepEqual(erros, []);
@@ -202,7 +203,7 @@ test('sem rede, um livro guardado abre do aparelho; em tela estreita, o leitor o
   const contexto = await navegador.newContext({ viewport: TELA });
   try {
     const { pagina, erros } = await abrirPrancheta(contexto, vps.base);
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Livro de teste.epub' }).click();
+    await abrirPelaBiblioteca(pagina, 'Livro de teste.epub');
     await pagina.waitForFunction(() => /primeiro capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
     await pagina.click('#leitor [data-acao="fechar"]');
 

@@ -19,7 +19,7 @@
 
 importScripts('compat/banco-local.js');
 
-const VERSAO = 'prancheta-app-672cee9d9f8e';
+const VERSAO = 'prancheta-app-7e36ee33e043';
 const ARQUIVOS = [
   'index.html',
   'compat/banco-local.js',
@@ -27,6 +27,7 @@ const ARQUIVOS = [
   'compat/cifra.js',
   'compat/sincronizacao.js',
   'compat/biblioteca.js',
+  'compat/tela-da-biblioteca.js',
   'compat/leitor.js',
   'compat/marcacoes.js',
   'compat/claude.js',

@@ -1,7 +1,9 @@
-// Biblioteca de livros, etapa 03 do plano 005: a seção "Biblioteca" do painel
-// lateral lista os livros que o servidor entrega, guarda cada livro aberto
-// num banco próprio, fora da sincronização dos quadros, e continua mostrando
-// a lista e os livros guardados sem rede. A página e o servidor ficam num só
+// Biblioteca de livros, etapa 03 do plano 005: a biblioteca lista os livros
+// que o servidor entrega, guarda cada livro aberto num banco próprio, fora da
+// sincronização dos quadros, e continua mostrando a lista e os livros
+// guardados sem rede. Desde a etapa 01 do plano 008, a lista fica na tela da
+// biblioteca, testada em tela-da-biblioteca.test.cjs, e a seção do painel
+// lateral tem o botão que a abre. A página e o servidor ficam num só
 // endereço, como na VPS.
 // Executar a partir da raiz do repositório: node --test web/testes/*.test.cjs
 
@@ -18,6 +20,7 @@ const { Armazem } = require('../../servidor/armazem.cjs');
 const { criarServidor } = require('../../servidor/servidor.cjs');
 const { criarServidorDaPagina } = require('../../servidor/pagina.cjs');
 const { Biblioteca } = require('../../servidor/biblioteca.cjs');
+const { esperarLista, abrirABiblioteca, abrirPelaBiblioteca } = require('./apoio/biblioteca.cjs');
 
 const CHAVE = 'chave-de-teste-da-biblioteca-0123456789abcdef';
 const TELA = { width: 1200, height: 800 };
@@ -73,8 +76,8 @@ async function abrir(contexto, base) {
   return { pagina, erros };
 }
 
-const aviso = (pagina) => pagina.textContent('#biblioteca .bib-aviso');
-const estados = (pagina) => pagina.$$eval('#biblioteca .bib-livro', (linhas) => linhas.map((l) => `${l.querySelector('.nm').textContent}: ${l.querySelector('.bib-estado').textContent}`));
+// O título e a situação de cada livro, na ordem da tela da biblioteca.
+const estados = (pagina) => pagina.$$eval('#tela-biblioteca .tb-livro', (linhas) => linhas.map((l) => `${l.querySelector('.tb-titulo').textContent}: ${l.querySelector('.tb-estado').textContent}`));
 
 test('a biblioteca lista os livros, guarda o livro aberto fora dos quadros e funciona sem rede', async () => {
   const { pasta, livros } = montarLivros();
@@ -87,16 +90,18 @@ test('a biblioteca lista os livros, guarda o livro aberto fora dos quadros e fun
     assert.deepEqual(vps.pedidosDeLivros, []);
 
     await pagina.evaluate(([endereco, chave]) => window.sincronizacaoDaPrancheta.configurar({ endereco, chave }), [vps.base, CHAVE]);
-    await pagina.locator('#biblioteca .bib-livro').nth(1).waitFor();
-    assert.deepEqual(await estados(pagina), ['Manual de leitura.pdf: 0,4 MB', 'Dom Casmurro.epub: 0,0 MB']);
-    assert.deepEqual(await pagina.$$eval('#biblioteca .bib-pasta', (p) => p.map((x) => x.textContent)), ['Romances']);
+    await esperarLista(pagina, 2);
+    await abrirABiblioteca(pagina);
+    assert.deepEqual(await estados(pagina), ['Dom Casmurro: 0,0 MB', 'Manual de leitura: 0,4 MB']);
+    assert.deepEqual(await pagina.$$eval('#tela-biblioteca .tb-grupo', (p) => p.map((x) => x.firstChild.textContent)), ['Romances', 'Sem autor']);
     // Listar não baixa nenhum livro.
     assert.deepEqual(vps.pedidosDeLivros.filter((u) => /\/sync\/biblioteca\/[0-9a-f]{32}/.test(u)), []);
 
     // Tocar no livro o baixa e o guarda neste aparelho.
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Manual de leitura.pdf' }).click();
-    await pagina.waitForFunction(() => /foi guardado neste aparelho/.test(document.querySelector('#biblioteca .bib-aviso').textContent));
-    assert.deepEqual(await estados(pagina), ['Manual de leitura.pdf: guardado', 'Dom Casmurro.epub: 0,0 MB']);
+    await abrirPelaBiblioteca(pagina, 'Manual de leitura.pdf');
+    await pagina.waitForFunction(() => window.bibliotecaDaPrancheta.estado.guardados.size === 1);
+    await abrirABiblioteca(pagina);
+    assert.deepEqual(await estados(pagina), ['Dom Casmurro: 0,0 MB', 'Manual de leitura: guardado']);
     const guardado = await pagina.evaluate(async () => {
       const b = window.bibliotecaDaPrancheta;
       const id = b.estado.lista.find((l) => l.nome === 'Manual de leitura.pdf').id;
@@ -119,8 +124,8 @@ test('a biblioteca lista os livros, guarda o livro aberto fora dos quadros e fun
 
     // Tocar de novo num livro guardado, ou pedir para guardá-lo, não o baixa outra vez.
     const antes = vps.pedidosDeLivros.length;
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Manual de leitura.pdf' }).click();
-    await pagina.waitForFunction(() => /está guardado neste aparelho/.test(document.querySelector('#biblioteca .bib-aviso').textContent));
+    await abrirPelaBiblioteca(pagina, 'Manual de leitura.pdf');
+    await pagina.locator('#tela-biblioteca').waitFor({ state: 'hidden' });
     const deNovo = await pagina.evaluate(async () => {
       const b = window.bibliotecaDaPrancheta;
       return (await b.guardar(b.estado.lista.find((l) => l.nome === 'Manual de leitura.pdf').id)).bytes;
@@ -131,14 +136,16 @@ test('a biblioteca lista os livros, guarda o livro aberto fora dos quadros e fun
     // A seção continua no painel quando a lista de quadros é redesenhada.
     await pagina.evaluate(() => newBoard(null, 'Quadro novo'));
     await pagina.locator('#tree', { hasText: 'Quadro novo' }).waitFor();
-    assert.equal(await pagina.locator('#biblioteca .bib-livro').count(), 2);
+    assert.equal(await pagina.locator('#biblioteca .bib-abrir').count(), 1);
+    assert.equal(await pagina.textContent('#biblioteca .bib-abrir .bib-estado'), '2');
 
     // Sem rede, a página reabre da cópia guardada, com a lista e o livro guardado.
     await contexto.setOffline(true);
     await pagina.reload();
     await pagina.waitForFunction(() => window.__booted === true && Boolean(window.bibliotecaDaPrancheta), null, { timeout: 10000 });
     await pagina.waitForFunction(() => /Sem rede/.test(document.querySelector('#biblioteca .bib-aviso').textContent), null, { timeout: 15000 });
-    assert.deepEqual(await estados(pagina), ['Manual de leitura.pdf: guardado', 'Dom Casmurro.epub: 0,0 MB']);
+    await abrirABiblioteca(pagina);
+    assert.deepEqual(await estados(pagina), ['Dom Casmurro: 0,0 MB', 'Manual de leitura: guardado']);
     const semRede = await pagina.evaluate(async () => {
       const b = window.bibliotecaDaPrancheta;
       const livro = await b.livro(b.estado.lista.find((l) => l.nome === 'Manual de leitura.pdf').id);
@@ -146,16 +153,19 @@ test('a biblioteca lista os livros, guarda o livro aberto fora dos quadros e fun
     });
     assert.equal(semRede, livros['Manual de leitura.pdf'].length);
     // Um livro ainda não guardado avisa que precisa de rede.
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Dom Casmurro.epub' }).click();
-    await pagina.waitForFunction(() => /Sem rede: "Dom Casmurro.epub" ainda não está guardado/.test(document.querySelector('#biblioteca .bib-aviso').textContent));
+    await abrirPelaBiblioteca(pagina, 'Dom Casmurro.epub');
+    await pagina.waitForFunction(() => /Sem rede: "Dom Casmurro" ainda não está guardado/.test(document.querySelector('#biblioteca .bib-aviso').textContent));
+    // A tela continua aberta, com o mesmo aviso.
+    assert.match(await pagina.textContent('#tela-biblioteca .tb-aviso'), /Sem rede: "Dom Casmurro" ainda não está guardado/);
 
     // A rede volta, e o outro livro é guardado.
     await contexto.setOffline(false);
-    await pagina.locator('#biblioteca [data-acao="atualizar"]').click();
+    await pagina.locator('#tela-biblioteca [data-acao="atualizar"]').click();
     await pagina.waitForFunction(() => window.bibliotecaDaPrancheta.estado.situacao === 'atualizada', null, { timeout: 15000 });
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Dom Casmurro.epub' }).click();
-    await pagina.waitForFunction(() => /"Dom Casmurro.epub" foi guardado/.test(document.querySelector('#biblioteca .bib-aviso').textContent));
-    assert.deepEqual(await estados(pagina), ['Manual de leitura.pdf: guardado', 'Dom Casmurro.epub: guardado']);
+    await abrirPelaBiblioteca(pagina, 'Dom Casmurro.epub');
+    await pagina.waitForFunction(() => window.bibliotecaDaPrancheta.estado.guardados.size === 2);
+    await abrirABiblioteca(pagina);
+    assert.deepEqual(await estados(pagina), ['Dom Casmurro: guardado', 'Manual de leitura: guardado']);
     assert.deepEqual(erros, []);
   } finally {
     await contexto.close();
@@ -171,10 +181,13 @@ test('com a chave recusada, a biblioteca avisa e não mostra livros', async () =
     const { pagina, erros } = await abrir(contexto, vps.base);
     await pagina.evaluate(([endereco]) => window.sincronizacaoDaPrancheta
       .configurar({ endereco, chave: 'chave-errada-com-mais-de-32-caracteres-000' }).catch(() => {}), [vps.base]);
-    await pagina.locator('#biblioteca [data-acao="atualizar"]').click();
-    await pagina.waitForFunction(() => /recusou a chave/.test(document.querySelector('#biblioteca .bib-aviso').textContent), null, { timeout: 15000 });
-    assert.equal(await pagina.locator('#biblioteca .bib-livro').count(), 0);
-    assert.match(await aviso(pagina), /Não foi possível atualizar a lista/);
+    await abrirABiblioteca(pagina);
+    await pagina.locator('#tela-biblioteca [data-acao="atualizar"]').click();
+    // O aviso aparece no painel e na tela; durante cada tentativa, ele sai por um instante.
+    await pagina.waitForFunction(() => ['#biblioteca .bib-aviso', '#tela-biblioteca .tb-aviso']
+      .every((onde) => /Não foi possível atualizar a lista: o servidor recusou a chave/.test(document.querySelector(onde).textContent))
+      && window.bibliotecaDaPrancheta.estado.situacao === 'erro', null, { timeout: 15000 });
+    assert.equal(await pagina.locator('#tela-biblioteca .tb-livro').count(), 0);
     assert.deepEqual(erros, []);
   } finally {
     await contexto.close();

@@ -15,6 +15,11 @@
 //   nunca vem do pedido, e o arquivo é conferido dentro da pasta na hora de abrir.
 // - A lista é refeita no máximo a cada `validade` ms, e o resumo de cada
 //   arquivo só é recalculado quando o tamanho ou a data dele mudam.
+// - Cada livro vai com título e autor, etapa 01 do plano 008: os de um EPUB
+//   são lidos de dentro do arquivo, por servidor/epub.cjs, junto com o
+//   resumo; um PDF, e um EPUB sem esses dados ou que não pôde ser lido, ficam
+//   com o nome do arquivo, sem a extensão, como título, e com a primeira
+//   pasta do caminho, que na biblioteca do autor é a do autor da obra.
 
 'use strict';
 
@@ -22,6 +27,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { lerDadosDoEpub } = require('./epub.cjs');
 
 const TIPOS = { '.pdf': 'application/pdf', '.epub': 'application/epub+zip' };
 const ID_DE_LIVRO = /^[0-9a-f]{32}$/;
@@ -65,7 +71,7 @@ class Biblioteca {
   /** Os livros, na ordem das pastas e dos nomes, sem o caminho completo na VPS. */
   async listar() {
     const indice = await this._indice();
-    return [...indice.values()].map(({ id, nome, pasta, tipo, bytes, modificadoEm }) => ({ id, nome, pasta, tipo, bytes, modificadoEm }));
+    return [...indice.values()].map(({ id, nome, pasta, tipo, bytes, modificadoEm, titulo, autor }) => ({ id, nome, pasta, tipo, bytes, modificadoEm, titulo, autor }));
   }
 
   // O índice por identificador, refeito quando passa da validade.
@@ -132,6 +138,7 @@ class Biblioteca {
           } catch (e) {
             continue;
           }
+          resumo.dados = (tipo === TIPOS['.epub'] && await lerDadosDoEpub(completo)) || {};
           this._resumos.set(completo, resumo);
         }
         // O mesmo conteúdo em dois lugares aparece uma vez, no primeiro encontrado.
@@ -143,6 +150,8 @@ class Biblioteca {
           tipo,
           bytes: estado.size,
           modificadoEm: Math.round(estado.mtimeMs),
+          titulo: resumo.dados.titulo || path.basename(entrada.name, path.extname(entrada.name)),
+          autor: resumo.dados.autor || relativa.split('/')[0],
           caminho: completo,
         });
       }
