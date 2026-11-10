@@ -6,6 +6,18 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · A barra de destaque confirmada no iPad
+
+### Feito
+
+- Mesclado o PR #52, com o quadro do e-book que deixa código rodar, as duas travas contra o código do livro, a vigia da seleção e a barra abaixo do trecho nas telas de toque. A publicação na VPS passou, e a casca 0.19.0 foi publicada como `casca-31`.
+- O autor confirmou que a barra de destaque apareceu no iPad. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+
+### Pendências
+
+- O teste do autor no iPad e no iPhone do toque nos terços da página, de um link do livro e do toque num destaque.
+- Os testes no Boox da casca 0.19.0, o da ficha do livro, os do KOReader e os do plano 006; o registro do iPhone; a exclusão do ramo antigo, pelo autor.
+
 ## 2026-11-10 · O quadro do livro deixa código rodar, com duas travas contra o código do livro
 
 ### Feito
