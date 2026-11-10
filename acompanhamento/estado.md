@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-10
 fase: Progresso de leitura com o KOReader
 plano_ativo: acompanhamento/planos/007-progresso-do-koreader/plano.md
-etapa_atual: acompanhamento/planos/007-progresso-do-koreader/etapas/01-servidor-recebe-o-progresso.md
+etapa_atual: acompanhamento/planos/007-progresso-do-koreader/etapas/02-prancheta-abre-onde-o-koreader-parou.md
 bloqueios: []
 ---
 
@@ -38,11 +38,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 007, progresso de leitura com o KOReader, aberto em 2026-11-10: a etapa 01, o servidor recebe e devolve o progresso pelo protocolo KOSync, em `/sync/kosync/`, está implementada e espera o roteiro na VPS e o teste do autor no KOReader do Boox; as etapas 02, a Prancheta abre o livro onde o KOReader parou, e 03, a Prancheta envia a posição dela, serão detalhadas com ele. O plano 006, melhorias do leitor, tem as duas etapas implementadas, à espera do teste do autor no Boox, com a casca 0.11.0: leitor à esquerda, destaques editáveis ao toque, toque nas laterais, sumário, busca, destaques invertidos, barra da seleção flutuante acima do trecho e ícones nos botões. As funções seguem o comportamento do Readest e o protocolo do KOReader, descritos em palavras e implementados sem copiar código, porque ambos são AGPL. Os planos 001 a 005 estão concluídos.
+Plano 007, progresso de leitura com o KOReader, aberto em 2026-11-10, com duas etapas implementadas, à espera do roteiro na VPS e do teste do autor: 01, o servidor recebe e devolve o progresso pelo protocolo KOSync, em `/sync/kosync/`; 02, na casca 0.12.0, o leitor consulta o último progresso ao abrir um livro e, se ele é mais novo e está em outro lugar, mostra um aviso com um botão que leva até lá, sem pular sozinho. A etapa 03, a Prancheta envia a posição dela, será detalhada com o autor. O plano 006, melhorias do leitor, tem as duas etapas implementadas, também à espera do teste no Boox: leitor à esquerda, destaques editáveis, toque nas laterais, sumário, busca, destaques invertidos, barra da seleção flutuante e ícones nos botões. As barras de baixo do leitor ficam por cima do rodapé da página, sem mudar a altura dela. As funções seguem o comportamento do Readest e o protocolo do KOReader, descritos em palavras e implementados sem copiar código, porque ambos são AGPL. Os planos 001 a 005 estão concluídos.
 
 ## Próximo passo
 
-Mesclar o ajuste do leitor e a etapa 01 do plano 007. Depois, o autor: atualiza a casca para a 0.11.0 e testa no Boox as duas etapas do plano 006, inclusive a barra da seleção, que o menu de seleção do Android pode cobrir; roda de novo o roteiro na VPS, cria o usuário com `prancheta-kosync novo leitor`, sem que a senha passe por uma sessão do Claude, e configura o KOReader, como em `servidor/implantacao/LEIA-ME.md`. Com as confirmações, concluir as etapas e detalhar a etapa 02 do plano 007. Antes de rodar os testes da página depois de compilar a casca, encerrar o Gradle com `./gradlew --stop`. No início da próxima sessão em contêiner novo, verificar se `/opt/android-sdk` existe.
+Mesclar a etapa 02 do plano 007. Depois, o autor: atualiza a casca para a 0.12.0 e testa no Boox as duas etapas do plano 006, inclusive a barra da seleção, que o menu de seleção do Android pode cobrir; roda de novo o roteiro na VPS, cria o usuário com `prancheta-kosync novo leitor`, sem que a senha passe por uma sessão do Claude, e configura o KOReader, como em `servidor/implantacao/LEIA-ME.md`; lê um livro no KOReader, envia o progresso e abre o mesmo livro na Prancheta, num EPUB e num PDF. Com as confirmações, concluir as etapas e detalhar a etapa 03 do plano 007. Antes de rodar os testes da página depois de compilar a casca, encerrar o Gradle com `./gradlew --stop`. No início da próxima sessão em contêiner novo, verificar se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

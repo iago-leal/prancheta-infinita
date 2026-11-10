@@ -12,6 +12,8 @@
 // - GET  /sync/arquivos/<id>               → devolve um arquivo enviado
 // - GET  /sync/biblioteca                  → os livros da biblioteca, por servidor/biblioteca.cjs
 // - GET  /sync/biblioteca/<id>             → um livro da biblioteca
+// - GET  /sync/progresso/<id>              → { progresso }: o último progresso de
+//   leitura do livro gravado pelo KOReader, ou null
 //
 // À parte, em /sync/kosync/, o progresso de leitura do KOReader, com a
 // credencial própria dele em vez da chave de um aparelho, por servidor/kosync.cjs.
@@ -63,6 +65,7 @@ const LIMITE_DO_ARQUIVO = 25 * 1024 * 1024;
 const LIMITE_DA_LISTA = 500;
 const DISPOSITIVO = /^[0-9a-f]{8,64}$/;
 const ROTA_DO_KOSYNC = '/sync/kosync/';
+const ID_DE_LIVRO = /^[0-9a-f]{32}$/;
 const CABECALHOS_PERMITIDOS = 'Authorization, Content-Type, X-Prancheta-Dispositivo, X-Prancheta-Criado-Em';
 
 const SEGURANCA = {
@@ -292,6 +295,14 @@ function criarServidor({ armazem, chave, verificar, origens = [], biblioteca = n
       res.on('close', () => aberto.fluxo.destroy());
       aberto.fluxo.pipe(res);
       return undefined;
+    }
+
+    // O último progresso de leitura de um livro, gravado pelo KOReader, para o
+    // leitor da Prancheta continuar de lá; com a chave do aparelho, como as outras rotas.
+    const lido = rota.match(/^\/sync\/progresso\/([^/]+)$/);
+    if (lido && req.method === 'GET') {
+      if (!ID_DE_LIVRO.test(lido[1])) return responder(res, 400, { erro: 'livro_invalido' }, origem);
+      return responder(res, 200, { progresso: kosync ? await kosync.ultimo(lido[1]) : null }, origem);
     }
 
     return responder(res, 404, { erro: 'rota_inexistente' }, origem);

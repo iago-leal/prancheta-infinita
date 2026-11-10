@@ -107,6 +107,27 @@
       return r ? r.posicao : undefined;
     }
 
+    /** A última posição lida de um livro neste aparelho, com o horário da gravação, ou undefined. */
+    async lerPosicaoComHora(id) {
+      const idb = await this._banco;
+      const r = await operar(idb, 'meta', 'readonly', (d) => d.get(`posicao:${id}`));
+      return r ? { posicao: r.posicao, em: r.em || 0 } : undefined;
+    }
+
+    /**
+     * O último progresso de leitura do livro gravado pelo KOReader, pedido ao
+     * servidor com a chave deste aparelho; null sem rede, sem servidor ou sem progresso.
+     */
+    async progressoRemoto(id) {
+      try {
+        const resposta = await this._pedir(`/sync/progresso/${id}`);
+        const progresso = resposta && resposta.progresso;
+        return progresso && typeof progresso === 'object' ? progresso : null;
+      } catch (e) {
+        return null;
+      }
+    }
+
     async gravarPosicao(id, posicao) {
       const idb = await this._banco;
       await operar(idb, 'meta', 'readwrite', (d) => d.put({ chave: `posicao:${id}`, posicao, em: Date.now() }));

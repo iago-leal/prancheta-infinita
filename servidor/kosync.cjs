@@ -164,6 +164,28 @@ class Kosync {
     return guardado ? { document: documento, ...guardado } : null;
   }
 
+  /**
+   * O progresso mais recente de um livro, de qualquer usuário, para o leitor
+   * da Prancheta continuar de onde o KOReader parou; null se não há nenhum.
+   */
+  async ultimo(documento) {
+    if (!DOCUMENTO.test(documento)) return null;
+    let arquivos = [];
+    try {
+      arquivos = await fs.promises.readdir(this.pasta);
+    } catch (e) {
+      if (e.code !== 'ENOENT') throw e;
+    }
+    let recente = null;
+    for (const arquivo of arquivos) {
+      const usuario = arquivo.endsWith('.json') ? arquivo.slice(0, -'.json'.length) : '';
+      if (!USUARIO.test(usuario)) continue;
+      const guardado = await this.progresso(usuario, documento);
+      if (guardado && (!recente || guardado.timestamp > recente.timestamp)) recente = guardado;
+    }
+    return recente;
+  }
+
   /** Grava o progresso de um livro e devolve o horário, em segundos. */
   async gravar(usuario, documento, progresso) {
     const livros = await this._livrosDe(usuario);

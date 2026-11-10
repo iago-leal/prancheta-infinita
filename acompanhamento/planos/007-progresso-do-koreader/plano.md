@@ -32,10 +32,10 @@ O plano 006 deixou o leitor confortável no Boox e só espera o teste do autor. 
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-servidor-recebe-o-progresso.md) | O servidor recebe e devolve o progresso do KOReader | em_andamento |
-| 02 | A Prancheta abre o livro onde o KOReader parou | pendente |
+| [02](etapas/02-prancheta-abre-onde-o-koreader-parou.md) | A Prancheta abre o livro onde o KOReader parou | em_andamento |
 | 03 | A Prancheta envia a posição dela, para o KOReader e para o outro aparelho | pendente |
 
-As etapas 02 e 03 serão detalhadas com o autor antes de começarem.
+As etapas 01 e 02 estão implementadas e esperam o teste do autor; a etapa 03 será detalhada com ele antes de começar.
 
 ## Riscos
 
