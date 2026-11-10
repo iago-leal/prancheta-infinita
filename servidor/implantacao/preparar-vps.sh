@@ -34,10 +34,11 @@
 #  1. confere a conta prancheta, criada junto com o canal de publicação, que
 #     ela não está no grupo docker e que nenhum arquivo do administrador, em
 #     /root e /etc, tem o mesmo dono numérico que ela;
-#  2. instala o comando da publicação, prancheta-publicar, e o das chaves,
-#     prancheta-chave;
+#  2. instala o comando da publicação, prancheta-publicar, o das chaves,
+#     prancheta-chave, e o dos usuários do progresso do KOReader, prancheta-kosync;
 #  3. cria as pastas: o código publicado, em /home/prancheta/publicado; os
-#     dados, em /var/lib/prancheta; os resumos das chaves, em /etc/prancheta/acesso;
+#     dados, em /var/lib/prancheta; os resumos das chaves e dos usuários do
+#     KOSync, em /etc/prancheta/acesso;
 #     e o login do Tailscale, em /var/lib/prancheta-tailscale;
 #  4. grava /etc/prancheta/ambiente, com o número da conta prancheta e, se
 #     houver, a subpasta de livros, com a permissão extra de leitura para a
@@ -93,7 +94,7 @@ while (( $# > 0 )); do
       ;;
   esac
 done
-for arquivo in prancheta-publicar prancheta-chave prancheta-biblioteca prancheta-biblioteca.service prancheta-biblioteca.timer compose.yml tailscale-serve.json; do
+for arquivo in prancheta-publicar prancheta-chave prancheta-kosync prancheta-biblioteca prancheta-biblioteca.service prancheta-biblioteca.timer compose.yml tailscale-serve.json; do
   [[ -f "$AQUI/$arquivo" ]] || falhar "falta $arquivo ao lado do roteiro; copie a pasta servidor/implantacao inteira"
 done
 command -v docker > /dev/null || falhar "docker não encontrado"
@@ -118,8 +119,9 @@ fi
 passo "2. Comandos"
 install -o root -g root -m 0755 "$AQUI/prancheta-publicar" /usr/local/bin/prancheta-publicar
 install -o root -g root -m 0700 "$AQUI/prancheta-chave" /usr/local/sbin/prancheta-chave
+install -o root -g root -m 0700 "$AQUI/prancheta-kosync" /usr/local/sbin/prancheta-kosync
 install -o root -g root -m 0700 "$AQUI/prancheta-biblioteca" /usr/local/sbin/prancheta-biblioteca
-echo "instalados /usr/local/bin/prancheta-publicar, /usr/local/sbin/prancheta-chave e /usr/local/sbin/prancheta-biblioteca"
+echo "instalados /usr/local/bin/prancheta-publicar e, em /usr/local/sbin, prancheta-chave, prancheta-kosync e prancheta-biblioteca"
 if ! grep -qs 'command="/usr/local/bin/prancheta-publicar"' "$CASA/.ssh/authorized_keys"; then
   echo "AVISO: a chave do GitHub em $CASA/.ssh/authorized_keys não usa o comando /usr/local/bin/prancheta-publicar"
 fi
@@ -130,6 +132,7 @@ install -d -o prancheta -g prancheta -m 0700 /var/lib/prancheta
 install -d -o root -g root -m 0755 /etc/prancheta /opt/prancheta
 install -d -o root -g prancheta -m 0750 /etc/prancheta/acesso
 [[ -f /etc/prancheta/acesso/chaves ]] || install -o root -g prancheta -m 0640 /dev/null /etc/prancheta/acesso/chaves
+[[ -f /etc/prancheta/acesso/kosync ]] || install -o root -g prancheta -m 0640 /dev/null /etc/prancheta/acesso/kosync
 install -d -o root -g root -m 0700 /var/lib/prancheta-tailscale
 install -d -o root -g root -m 0755 /var/lib/prancheta-biblioteca-vazia
 echo "código em $CASA/publicado, dados em /var/lib/prancheta, chaves em /etc/prancheta/acesso/chaves"
@@ -336,6 +339,11 @@ if [[ ! -s /etc/prancheta/acesso/chaves ]] || ! grep -qv '^#' /etc/prancheta/ace
   echo "    prancheta-chave nova boox"
   echo "    prancheta-chave nova computador"
   echo "    prancheta-chave nova copia      (para a cópia de segurança no computador)"
+fi
+if [[ ! -s /etc/prancheta/acesso/kosync ]] || ! grep -qv '^#' /etc/prancheta/acesso/kosync; then
+  echo "- para o KOReader sincronizar o progresso de leitura com a Prancheta, crie o usuário dele:"
+  echo "    prancheta-kosync novo leitor"
+  echo "  e informe no KOReader o endereço da Prancheta seguido de /sync/kosync, o usuário e a senha"
 fi
 if [[ ! -L "$CASA/publicado/atual" ]]; then
   echo "- faça a primeira publicação: no GitHub, Actions, Publicar na VPS, Run workflow;"

@@ -6,6 +6,25 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Ajuste do leitor e plano 007: progresso do KOReader
+
+### Feito
+
+- Mesclado o PR #43, da etapa 02 do plano 006, com a casca 0.10.0 publicada.
+- A pedido do autor, dois ajustes no leitor, registrados na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md), com a casca 0.11.0: os botões de destacar e de levar ao quadro aparecem numa barra flutuante acima do trecho selecionado, sem transcrever o trecho, e somem ao tocar fora dele; e todos os botões do leitor mostram ícones no lugar das palavras.
+- Aberto o [plano 007](planos/007-progresso-do-koreader/plano.md), escolhido pelo autor, e implementada a [etapa 01](planos/007-progresso-do-koreader/etapas/01-servidor-recebe-o-progresso.md): o servidor fala o protocolo KOSync em `/sync/kosync/`, com uma credencial própria, criada na VPS pelo comando `prancheta-kosync`, e guarda o progresso à parte dos quadros. 6 testes novos e 31 mutações acusadas; os testes do servidor são 43.
+
+### Decidido
+
+- **Exceção à cifra para o progresso de leitura.** O KOReader não conhece a chave da cifra; o progresso dele fica legível na VPS, só com o resumo do livro, a posição, a porcentagem, o aparelho e o horário.
+- **Credencial própria e cadastro fechado no KOSync.** O protocolo envia um resumo MD5 da senha, mais fraco que a chave de um aparelho; por isso a credencial só abre o progresso, e o usuário é criado na VPS, não pelo KOReader.
+- **Troca de progresso nos dois sentidos, em etapas**, com o KOReader no próprio Boox, pela rede privada.
+
+### Pendências
+
+- O autor testar no Boox o plano 006, com a casca 0.11.0, rodar o roteiro na VPS, criar o usuário do KOSync e configurar o KOReader.
+- Encerrar o Gradle antes dos testes da página: com ele parado na memória, o teste de sincronização entre dois perfis falhou 2 vezes em 6.
+
 ## 2026-11-10 · Plano 006: leitura no e-ink
 
 ### Feito

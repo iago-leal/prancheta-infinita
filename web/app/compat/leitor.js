@@ -176,6 +176,46 @@
     depois: `${a.depois}${a.depois.length >= CONTEXTO_DO_ACHADO ? '…' : ''}`.trimEnd(),
   });
 
+  // Os ícones dos botões do leitor, no traço dos ícones da Prancheta; cada
+  // botão leva o nome da ação no rótulo, para leitores de tela e para a dica
+  // que o computador mostra ao parar o mouse sobre ele.
+  const ICONES = {
+    fechar: '<path d="M6 6l12 12M18 6L6 18"/>',
+    anterior: '<path d="M15 6l-6 6 6 6"/>',
+    proxima: '<path d="M9 6l6 6-6 6"/>',
+    sumario: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="18" r=".8"/>',
+    buscar: '<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5l-4.5-4.5"/>',
+    cartao: '<path d="M13 6H6a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-5"/><path d="M7 12h6M7 16h4M19 2v6M16 5h6"/>',
+    lado: '<path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/>',
+    tela: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+    dividida: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/>',
+    realce: '<path d="M9 11l-6 6v3h9l3-3M22 12l-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+    sublinhado: '<path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"/>',
+    guardar: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    apagar: '<path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>',
+  };
+  const icone = (nome) => `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${ICONES[nome]}</svg>`;
+  // Um botão só com o ícone, com o nome da ação no rótulo e na dica.
+  const botao = (acao, nome, rotulo, tipo = 'button') => `<button type="${tipo}"${acao ? ` data-acao="${acao}"` : ''} title="${rotulo}" aria-label="${rotulo}">${icone(nome)}</button>`;
+
+  // O retângulo que envolve as partes de uma seleção que estão à vista, em
+  // relação à área do livro; `desloca` é a posição, na tela, do quadro em que
+  // as partes foram medidas. Devolve null se nenhuma parte está à vista.
+  function retanguloAVista(partes, area, desloca = { left: 0, top: 0 }) {
+    let r = null;
+    for (const parte of partes) {
+      const esquerda = desloca.left + parte.left - area.left;
+      const direita = desloca.left + parte.right - area.left;
+      const topo = desloca.top + parte.top - area.top;
+      const base = desloca.top + parte.bottom - area.top;
+      if (parte.width < 1 || direita <= 0 || esquerda >= area.width || base <= 0 || topo >= area.height) continue;
+      r = r ? {
+        esquerda: Math.min(r.esquerda, esquerda), direita: Math.max(r.direita, direita), topo: Math.min(r.topo, topo), base: Math.max(r.base, base),
+      } : { esquerda, direita, topo, base };
+    }
+    return r;
+  }
+
   const resumir = (texto, limite = 160) => {
     const limpo = String(texto || '').replace(/\s+/g, ' ').trim();
     return limpo.length > limite ? `${limpo.slice(0, limite - 1)}…` : limpo;
@@ -233,6 +273,10 @@
         conteudo.document.addEventListener('pointerdown', () => {
           this._haviaSelecao = !conteudo.window.getSelection().isCollapsed;
         }, true);
+        // A epub.js só avisa de uma seleção feita; a desfeita, por um toque fora dela, é avisada aqui.
+        conteudo.document.addEventListener('selectionchange', () => {
+          if (conteudo.window.getSelection().isCollapsed) this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
+        });
         conteudo.document.addEventListener('click', (e) => {
           const elo = e.target.closest && e.target.closest('a[href]');
           if (!elo) return;
@@ -244,7 +288,10 @@
       this.vista.on('click', (e, conteudo) => this._clicou(e, conteudo));
       this.vista.on('selected', (cfiRange, conteudo) => {
         const texto = conteudo && conteudo.window ? conteudo.window.getSelection().toString() : '';
-        this.aoMudar({ tipo: 'selecao', selecao: texto.trim() ? { texto: texto.trim(), posicao: { cfi: cfiRange } } : null });
+        this.aoMudar({
+          tipo: 'selecao',
+          selecao: texto.trim() ? { texto: texto.trim(), posicao: { cfi: cfiRange }, retangulo: this._retanguloDaSelecao(conteudo) } : null,
+        });
       });
       await this.vista.display(posicao && posicao.cfi ? posicao.cfi : undefined);
       this._travarRolagem();
@@ -320,6 +367,19 @@
       });
     }
 
+    // Onde a seleção está na área do livro, para a barra dela aparecer acima do trecho.
+    _retanguloDaSelecao(conteudo) {
+      const selecao = conteudo.window.getSelection();
+      const quadro = conteudo.document.defaultView.frameElement;
+      if (!selecao.rangeCount || !quadro) return null;
+      return retanguloAVista(selecao.getRangeAt(0).getClientRects(), this.conteudo.getBoundingClientRect(), quadro.getBoundingClientRect());
+    }
+
+    /** Diz se há um trecho selecionado no livro. */
+    temSelecao() {
+      return Boolean(this.vista) && this.vista.getContents().some((c) => c.window && !c.window.getSelection().isCollapsed);
+    }
+
     // Leva ao capítulo e ao ponto de um link interno; um endereço de fora do
     // livro não é aberto, porque o leitor não sai do livro.
     _seguirLink(endereco, conteudo) {
@@ -333,7 +393,10 @@
       } catch (e) {
         return;
       }
-      if (this.livro.spine.get(alvo)) Promise.resolve(this.vista.display(alvo)).catch(() => {});
+      if (!this.livro.spine.get(alvo)) return;
+      this.limparSelecao();
+      this.aoMudar({ tipo: 'selecao', selecao: null });
+      Promise.resolve(this.vista.display(alvo)).catch(() => {});
     }
 
     // Um toque na página, fora de um link, de um destaque e de uma seleção,
@@ -490,6 +553,8 @@
       this.pagina = Math.min(Math.max(1, Number(posicao && posicao.pagina) || 1), this.total);
       this.conteudo.classList.add('lt-pdf');
       document.addEventListener('selectionchange', this._aoSelecionar);
+      // Ao rolar a página, a barra da seleção acompanha o trecho.
+      this.conteudo.addEventListener('scroll', this._aoSelecionar);
       this.conteudo.addEventListener('click', this._aoTocar);
       this.conteudo.addEventListener('pointerdown', this._aoBaixar, true);
       await this._desenhar();
@@ -607,7 +672,11 @@
 
     _selecionou() {
       const selecao = document.getSelection();
-      if (!selecao || selecao.isCollapsed || !selecao.anchorNode || !selecao.rangeCount) return;
+      if (!selecao || selecao.isCollapsed || !selecao.anchorNode || !selecao.rangeCount) {
+        // Uma seleção desfeita, por um toque fora dela, tira a barra da seleção.
+        this.aoMudar({ tipo: 'selecao', selecao: null, desfeita: true });
+        return;
+      }
       const no = selecao.anchorNode.nodeType === 1 ? selecao.anchorNode : selecao.anchorNode.parentElement;
       const camada = this.conteudo.querySelector('.textLayer');
       if (!no || !camada || !camada.contains(no)) return;
@@ -620,7 +689,15 @@
       antes.setEnd(intervalo.startContainer, intervalo.startOffset);
       const inicio = antes.toString().length;
       const posicao = { pagina: this.pagina, inicio, fim: inicio + bruto.length };
-      this.aoMudar({ tipo: 'selecao', selecao: texto ? { texto, posicao } : null });
+      const retangulo = retanguloAVista(intervalo.getClientRects(), this.conteudo.getBoundingClientRect());
+      this.aoMudar({ tipo: 'selecao', selecao: texto ? { texto, posicao, retangulo } : null });
+    }
+
+    /** Diz se há um trecho selecionado na página. */
+    temSelecao() {
+      const selecao = document.getSelection();
+      const camada = this.conteudo.querySelector('.textLayer');
+      return Boolean(selecao && !selecao.isCollapsed && camada && selecao.anchorNode && camada.contains(selecao.anchorNode));
     }
 
     rotuloParaCartao() {
@@ -693,6 +770,7 @@
 
     destruir() {
       document.removeEventListener('selectionchange', this._aoSelecionar);
+      this.conteudo.removeEventListener('scroll', this._aoSelecionar);
       this.conteudo.removeEventListener('click', this._aoTocar);
       this.conteudo.removeEventListener('pointerdown', this._aoBaixar, true);
       this.conteudo.classList.remove('lt-pdf');
@@ -725,8 +803,9 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
 #leitor .lt-posicao{flex:none;font-size:12.5px;color:var(--muted,#7F7C76);font-variant-numeric:tabular-nums}
 #leitor .lt-barra button{flex:none;font:inherit;font-size:13px;min-width:34px;height:34px;padding:0 8px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 #leitor .lt-barra{flex-wrap:wrap}
-#leitor .lt-quebra{flex-basis:100%;height:0}
-#leitor .lt-posicao{min-width:64px;text-align:center}
+#leitor svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;display:block;margin:auto}
+#leitor .lt-barra button{padding:0}
+#leitor .lt-posicao{min-width:52px;text-align:center}
 #leitor .lt-meio{flex:1;min-height:0;position:relative;display:flex}
 #leitor .lt-conteudo{flex:1;min-width:0;min-height:0;position:relative;overflow:hidden}
 #leitor .lt-painel{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--panel,#fff);overflow:auto;font-size:14px}
@@ -735,6 +814,7 @@ body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
 #leitor .lt-busca{display:flex;gap:8px}
 #leitor .lt-busca input{flex:1;min-width:0;font:inherit;height:38px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit}
 #leitor .lt-painel button{font:inherit;font-size:13px;min-height:38px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+#leitor .lt-painel-topo button,#leitor .lt-busca button{min-width:38px;padding:0}
 #leitor .lt-painel-aviso{margin:0;font-size:13px;color:var(--muted,#7F7C76)}
 #leitor .lt-painel-aviso:empty{display:none}
 #leitor .lt-painel-lista{display:flex;flex-direction:column;gap:4px}
@@ -759,14 +839,15 @@ html.casca #leitor .textLayer span.lt-destacado{background:#fff;mix-blend-mode:d
 html.casca #leitor .textLayer mark.lt-achado{background:transparent}
 html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
 #leitor .lt-marca{flex:none;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-top:1px solid var(--line,#E3E1DD);font-size:13px}
-#leitor .lt-marca .lt-marca-trecho{flex:1 1 100%;min-width:0}
+#leitor .lt-marca .lt-marca-trecho{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#leitor .lt-marca{position:relative}
 #leitor .lt-marca label{flex:1 1 180px;display:flex;align-items:center;gap:6px;min-width:0}
 #leitor .lt-marca input{flex:1;min-width:0;font:inherit;font-size:13px;height:34px;padding:0 8px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit}
-#leitor .lt-marca button{font:inherit;font-size:13px;height:34px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
-#leitor .lt-selecao{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-#leitor .lt-selecao .lt-trecho{flex:1 1 200px;min-width:0}
-#leitor .lt-selecao button,#leitor .lt-aviso button{font:inherit;font-size:13px;height:34px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
-#leitor .lt-selecao{flex:none;padding:8px 10px;border-top:1px solid var(--line,#E3E1DD);font-size:13px}
+#leitor .lt-marca button{font:inherit;font-size:13px;min-width:38px;height:34px;padding:0;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+#leitor .lt-selecao{position:absolute;z-index:2;display:flex;padding:3px;background:var(--panel,#fff);border:1.5px solid currentColor;border-radius:10px;font-size:13px;white-space:nowrap}
+#leitor .lt-selecao button{font:inherit;font-size:13px;width:46px;height:38px;padding:0;border:0;border-radius:7px;background:transparent;color:inherit;cursor:pointer}
+#leitor .lt-selecao button+button{border-left:1px solid var(--line,#E3E1DD);border-radius:0 7px 7px 0}
+#leitor .lt-aviso button{font:inherit;font-size:13px;height:34px;padding:0 10px;border:1px solid var(--line,#E3E1DD);border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 #leitor .lt-aviso{flex:none;margin:0;padding:6px 10px;font-size:12.5px;color:var(--muted,#7F7C76)}
 #leitor .lt-aviso:empty{display:none}
 #leitor [hidden]{display:none}
@@ -790,6 +871,9 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this.painel = null;
       this._achados = { consulta: '', itens: [], aviso: '' };
       this._busca = 0;
+      // Quando um botão da barra da seleção foi tocado pela última vez.
+      this._tocouBarraEm = 0;
+      this._aLargar = null;
       this._ouvintes = new Set();
     }
 
@@ -978,6 +1062,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const item = painel && painel.itens[indice];
       if (!item || !this.vista) return;
       this.painel = null;
+      this._largarSelecao();
       this._avisar();
       if (painel.tipo === 'busca') await this.vista.mostrarAchado(item.alvo);
       else await this.vista.irPara(item.alvo);
@@ -1009,6 +1094,13 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
     _mudou(vista, mudanca) {
       if (vista !== this.vista) return;
       if (mudanca.tipo === 'selecao') {
+        clearTimeout(this._aLargar);
+        // A seleção desfeita tira a barra logo depois, e não na hora: o toque
+        // num botão da barra pode desfazer a seleção antes de chegar ao botão.
+        if (mudanca.desfeita) {
+          if (this.selecao) this._aLargar = setTimeout(() => this._largarSeDesfeita(vista), 300);
+          return;
+        }
         this.selecao = mudanca.selecao;
         if (mudanca.selecao) this.destaqueAberto = null;
       }
@@ -1029,11 +1121,33 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       this._avisar();
     }
 
+    // Tira a barra de uma seleção desfeita, a não ser que um botão dela esteja sendo tocado.
+    _largarSeDesfeita(vista) {
+      if (vista !== this.vista || !this.selecao) return;
+      if (Date.now() - this._tocouBarraEm < 700) {
+        this._aLargar = setTimeout(() => this._largarSeDesfeita(vista), 700);
+        return;
+      }
+      if (vista.temSelecao()) return;
+      this.selecao = null;
+      this._avisar();
+    }
+
+    // Ao sair da página, a seleção fica para trás, e a barra dela some.
+    _largarSelecao() {
+      if (!this.selecao) return;
+      if (this.vista) this.vista.limparSelecao();
+      this.selecao = null;
+      this._avisar();
+    }
+
     proxima() {
+      this._largarSelecao();
       return this.vista ? this.vista.proxima() : undefined;
     }
 
     anterior() {
+      this._largarSelecao();
       return this.vista ? this.vista.anterior() : undefined;
     }
 
@@ -1101,36 +1215,35 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       painel.setAttribute('aria-label', 'Leitor');
       painel.innerHTML = `
 <div class="lt-barra">
-  <button type="button" data-acao="fechar" title="Fechar o livro" aria-label="Fechar o livro">✕</button>
+  ${botao('fechar', 'fechar', 'Fechar o livro')}
   <span class="lt-titulo"></span>
-  <span class="lt-quebra"></span>
-  <button type="button" data-acao="anterior" title="Página anterior" aria-label="Página anterior">‹</button>
+  ${botao('anterior', 'anterior', 'Página anterior')}
   <span class="lt-posicao"></span>
-  <button type="button" data-acao="proxima" title="Próxima página" aria-label="Próxima página">›</button>
-  <button type="button" data-acao="sumario">Sumário</button>
-  <button type="button" data-acao="buscar">Buscar</button>
-  <button type="button" data-acao="ao-quadro" title="Levar esta posição ao quadro, sem destacar">Ao quadro</button>
-  <button type="button" data-acao="lado" title="Passar o leitor para o outro lado do quadro" aria-label="Passar o leitor para o outro lado do quadro">⇄</button>
+  ${botao('proxima', 'proxima', 'Próxima página')}
+  ${botao('sumario', 'sumario', 'Sumário')}
+  ${botao('buscar', 'buscar', 'Buscar no livro')}
+  ${botao('ao-quadro', 'cartao', 'Levar esta posição ao quadro, sem destacar')}
+  ${botao('lado', 'lado', 'Passar o leitor para o outro lado do quadro')}
   <button type="button" data-acao="modo"></button>
 </div>
 <div class="lt-meio">
   <div class="lt-conteudo"></div>
   <div class="lt-painel" hidden>
-    <div class="lt-painel-topo"><b class="lt-painel-titulo"></b><button type="button" data-acao="painel-fechar">Fechar</button></div>
-    <form class="lt-busca" hidden><input name="busca" type="search" autocomplete="off" spellcheck="false" aria-label="Termo a procurar"><button type="submit">Procurar</button></form>
+    <div class="lt-painel-topo"><b class="lt-painel-titulo"></b>${botao('painel-fechar', 'fechar', 'Fechar')}</div>
+    <form class="lt-busca" hidden><input name="busca" type="search" autocomplete="off" spellcheck="false" aria-label="Termo a procurar">${botao('', 'buscar', 'Procurar', 'submit')}</form>
     <p class="lt-painel-aviso" role="status"></p>
     <div class="lt-painel-lista"></div>
   </div>
+  <div class="lt-selecao" role="toolbar" aria-label="Trecho selecionado" hidden>${botao('destacar', 'realce', 'Destacar')}${botao('levar', 'cartao', 'Destacar e levar ao quadro')}</div>
 </div>
-<div class="lt-selecao" hidden><span class="lt-trecho"></span><button type="button" data-acao="destacar">Destacar</button><button type="button" data-acao="levar">Levar ao quadro</button></div>
 <div class="lt-marca" hidden>
   <span class="lt-marca-trecho"></span>
   <label>Nota<input name="nota" type="text" autocomplete="off" maxlength="4000"></label>
-  <button type="button" data-acao="marca-nota">Guardar nota</button>
+  ${botao('marca-nota', 'guardar', 'Guardar a nota')}
   <button type="button" data-acao="marca-estilo"></button>
-  <button type="button" data-acao="marca-levar">Levar ao quadro</button>
-  <button type="button" data-acao="marca-apagar">Apagar</button>
-  <button type="button" data-acao="marca-fechar">Fechar</button>
+  ${botao('marca-levar', 'cartao', 'Levar o destaque ao quadro')}
+  ${botao('marca-apagar', 'apagar', 'Apagar o destaque')}
+  ${botao('marca-fechar', 'fechar', 'Fechar')}
 </div>
 <p class="lt-aviso" role="status"></p>`;
       document.body.appendChild(painel);
@@ -1139,7 +1252,27 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const posicao = painel.querySelector('.lt-posicao');
       const modo = painel.querySelector('[data-acao="modo"]');
       const selecao = painel.querySelector('.lt-selecao');
-      const trecho = painel.querySelector('.lt-trecho');
+      const meio = painel.querySelector('.lt-meio');
+      // A barra da seleção fica acima do trecho; sem espaço ali, abaixo dele,
+      // depois das alças da seleção, quando a tela é de toque.
+      const posicionarBarra = (r) => {
+        const area = meio.getBoundingClientRect();
+        const alvo = r || { esquerda: area.width / 2, direita: area.width / 2, topo: area.height / 2, base: area.height / 2 };
+        const largura = selecao.offsetWidth;
+        const altura = selecao.offsetHeight;
+        const abaixo = global.matchMedia && global.matchMedia('(pointer: coarse)').matches ? 34 : 10;
+        let topo = alvo.topo - altura - 10;
+        if (topo < 4) topo = Math.min(alvo.base + abaixo, area.height - altura - 4);
+        const esquerda = Math.min(Math.max(4, (alvo.esquerda + alvo.direita) / 2 - largura / 2), area.width - largura - 4);
+        // No e-ink, cada mudança de posição atualiza a região: só escreve o que mudou.
+        const lugar = { left: `${Math.round(esquerda)}px`, top: `${Math.round(Math.max(4, topo))}px` };
+        for (const lado of ['left', 'top']) if (selecao.style[lado] !== lugar[lado]) selecao.style[lado] = lugar[lado];
+      };
+      // O toque num botão da barra não tira o foco nem a seleção do livro.
+      selecao.addEventListener('pointerdown', (e) => {
+        this._tocouBarraEm = Date.now();
+        e.preventDefault();
+      });
       const aviso = painel.querySelector('.lt-aviso');
       const lado = painel.querySelector('[data-acao="lado"]');
       const marca = painel.querySelector('.lt-marca');
@@ -1162,18 +1295,28 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       const escrever = (elemento, texto) => {
         if (elemento.textContent !== texto) elemento.textContent = texto;
       };
+      // Troca o ícone e o rótulo de um botão que muda de função, também só quando mudam.
+      const rotular = (elemento, nome, rotulo) => {
+        if (elemento.dataset.icone === nome) return;
+        elemento.dataset.icone = nome;
+        elemento.innerHTML = icone(nome);
+        elemento.title = rotulo;
+        elemento.setAttribute('aria-label', rotulo);
+      };
       this.aoMudar(() => {
         escrever(titulo, this.livro ? this.livro.nome : '');
         escrever(posicao, this.vista ? this.vista.rotulo : '');
         const estreita = global.innerWidth < LARGURA_MINIMA_LADO_A_LADO;
         modo.hidden = estreita;
-        escrever(modo, this.modo === 'tela' ? 'Lado a lado' : 'Tela inteira');
+        if (this.modo === 'tela') rotular(modo, 'dividida', 'Lado a lado');
+        else rotular(modo, 'tela', 'Tela inteira');
         lado.hidden = estreita || this.modo === 'tela';
         const aberto = this.destaque;
         marca.hidden = !aberto;
         if (aberto) {
           escrever(trechoDaMarca, `Destaque: “${resumir(aberto.trecho)}”`);
-          escrever(estiloDaMarca, aberto.estilo === 'sublinhado' ? 'Realçar' : 'Sublinhar');
+          if (aberto.estilo === 'sublinhado') rotular(estiloDaMarca, 'realce', 'Realçar');
+          else rotular(estiloDaMarca, 'sublinhado', 'Sublinhar');
           if (notaDe !== aberto.id) nota.value = aberto.nota || '';
         }
         notaDe = aberto ? aberto.id : null;
@@ -1214,8 +1357,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
           }
         }
         selecao.hidden = !this.selecao;
-        const onde = this.selecao && this.selecao.posicao.pagina ? ` (p. ${this.selecao.posicao.pagina})` : '';
-        escrever(trecho, this.selecao ? `Selecionado: “${resumir(this.selecao.texto)}”${onde}` : '');
+        if (this.selecao) posicionarBarra(this.selecao.retangulo);
       });
       this.aviso = (texto) => escrever(aviso, texto || '');
       sobre.busca.addEventListener('submit', (e) => {

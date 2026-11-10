@@ -323,6 +323,112 @@ test('no EPUB, a rolagem que o navegador faz para mostrar a ponta de uma seleç�
   }
 });
 
+// Onde estão, na tela, a barra da seleção e o trecho selecionado, e o que a barra mostra.
+const barraDaSelecao = (pagina) => pagina.evaluate(() => {
+  const barra = document.querySelector('#leitor .lt-selecao');
+  const quadro = document.querySelector('#leitor iframe');
+  const selecao = quadro ? quadro.contentDocument.getSelection() : document.getSelection();
+  const desloca = quadro ? quadro.getBoundingClientRect() : { left: 0, top: 0 };
+  const trecho = selecao.rangeCount && !selecao.isCollapsed ? selecao.getRangeAt(0).getBoundingClientRect() : null;
+  const b = barra.getBoundingClientRect();
+  const area = document.querySelector('#leitor .lt-meio').getBoundingClientRect();
+  return {
+    visivel: !barra.hidden, texto: barra.textContent, botoes: [...barra.querySelectorAll('button')].map((x) => x.getAttribute('aria-label')),
+    icones: barra.querySelectorAll('button > svg').length,
+    barra: { esquerda: b.left, direita: b.right, topo: b.top, base: b.bottom },
+    trecho: trecho && { esquerda: desloca.left + trecho.left, direita: desloca.left + trecho.right, topo: desloca.top + trecho.top, base: desloca.top + trecho.bottom },
+    area: { esquerda: area.left, direita: area.right, topo: area.top, base: area.bottom },
+    dentro: barra.parentElement.classList.contains('lt-meio'),
+  };
+});
+const barraSome = (pagina) => pagina.waitForFunction(() => document.querySelector('#leitor .lt-selecao').hidden, null, { timeout: 5000 });
+
+test('a barra da seleção flutua acima do trecho, só com os botões, e some ao tocar fora dele', async () => {
+  const { contexto, pagina, erros } = await abrirPrancheta();
+  try {
+    // EPUB: a barra aparece logo acima do trecho, centrada nele, só com os dois botões.
+    await abrirLivro(pagina, 'Livro rico.epub');
+    await noCapitulo(pagina, /primeiro capítulo/);
+    assert.equal((await barraDaSelecao(pagina)).visivel, false);
+    await selecionarNoEpub(pagina, 'p1', 9, 26);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    let m = await barraDaSelecao(pagina);
+    assert.deepEqual([m.dentro, m.botoes, m.icones, m.texto], [true, ['Destacar', 'Destacar e levar ao quadro'], 2, ''], 'a barra fica sobre o livro, com um ícone em cada botão, e não transcreve o trecho');
+    assert.ok(m.barra.base <= m.trecho.topo && m.trecho.topo - m.barra.base < 24, `a barra fica logo acima do trecho: ${JSON.stringify(m)}`);
+    const meio = (r) => (r.esquerda + r.direita) / 2;
+    assert.ok(Math.abs(meio(m.barra) - meio(m.trecho)) < 2, `a barra fica centrada no trecho: ${JSON.stringify(m)}`);
+    // Todos os botões do leitor mostram um ícone, sem palavras, e dizem a ação no rótulo e na dica.
+    const botoes = await pagina.evaluate(() => [...document.querySelectorAll('#leitor button')].filter((b) => !b.closest('.lt-painel-lista'))
+      .map((b) => ({ acao: b.dataset.acao || b.type, texto: b.textContent.trim(), icone: b.querySelectorAll(':scope > svg.i').length, rotulo: b.getAttribute('aria-label'), dica: b.title })));
+    assert.equal(botoes.length, 17);
+    for (const b of botoes.filter((x) => x.acao !== 'marca-estilo')) {
+      assert.ok(b.texto === '' && b.icone === 1 && b.rotulo && b.rotulo === b.dica, `botão com ícone e rótulo: ${JSON.stringify(b)}`);
+    }
+    // Com os ícones, a barra do alto do leitor cabe numa linha só.
+    const alturas = await pagina.evaluate(() => [...document.querySelectorAll('#leitor .lt-barra > *')].map((e) => Math.round(e.getBoundingClientRect().top + e.getBoundingClientRect().height / 2)));
+    assert.equal(new Set(alturas).size, 1, `a barra do leitor numa linha: ${alturas}`);
+    // Tocar fora do trecho desfaz a seleção e tira a barra, sem virar a página.
+    await pagina.mouse.click(...await pontoNoLivro(pagina, 0.5));
+    await barraSome(pagina);
+    assert.equal(await pagina.evaluate(() => window.leitorDaPrancheta.selecao), null);
+    assert.match(await textoDoEpub(pagina), /primeiro capítulo/);
+
+    // Sem espaço acima, no alto da página, a barra vai para baixo do trecho; na borda, não sai do livro.
+    await pagina.evaluate(() => {
+      const doc = document.querySelector('#leitor iframe').contentDocument;
+      const titulo = doc.querySelector('h1').firstChild;
+      const intervalo = doc.createRange();
+      intervalo.setStart(titulo, 0);
+      intervalo.setEnd(titulo, 3);
+      doc.getSelection().removeAllRanges();
+      doc.getSelection().addRange(intervalo);
+    });
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    m = await barraDaSelecao(pagina);
+    assert.ok(m.barra.topo >= m.trecho.base, `sem espaço acima, a barra fica abaixo do trecho: ${JSON.stringify(m)}`);
+    assert.ok(m.barra.esquerda >= m.area.esquerda && m.barra.direita <= m.area.direita && m.barra.topo >= m.area.topo, `a barra não sai da área do livro: ${JSON.stringify(m)}`);
+    // Virar a página deixa a seleção para trás, e a barra some.
+    await pagina.click('#leitor [data-acao="proxima"]');
+    await noCapitulo(pagina, /segundo capítulo/);
+    await barraSome(pagina);
+
+    // O botão da barra destaca o trecho, e a barra some com a seleção.
+    await selecionarNoEpub(pagina, 'p2', 2, 18);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    await pagina.click('#leitor .lt-selecao [data-acao="destacar"]');
+    await pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque').length === 1);
+    await barraSome(pagina);
+    // Uma seleção desfeita com o botão ainda apertado não tira a barra antes do toque terminar.
+    await selecionarNoEpub(pagina, 'p5', 3, 16);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    const botao = await pagina.locator('#leitor .lt-selecao [data-acao="destacar"]').boundingBox();
+    await pagina.mouse.move(botao.x + botao.width / 2, botao.y + botao.height / 2);
+    await pagina.mouse.down();
+    await pagina.evaluate(() => document.querySelector('#leitor iframe').contentDocument.getSelection().removeAllRanges());
+    await pagina.waitForTimeout(450);
+    assert.equal((await barraDaSelecao(pagina)).visivel, true, 'a barra espera o toque no botão terminar');
+    await pagina.mouse.up();
+    await pagina.waitForFunction(() => document.querySelectorAll('#leitor g.lt-destaque').length === 2);
+    await barraSome(pagina);
+
+    // PDF: a barra acima do trecho, e tocar fora a tira.
+    await abrirLivro(pagina, 'Marcado.pdf');
+    await naPagina(pagina, 'p. 1 de 2');
+    await pagina.waitForFunction(() => /Primeira/.test(document.querySelector('#leitor .textLayer')?.textContent || ''));
+    await selecionarAPaginaDoPdf(pagina);
+    await pagina.locator('#leitor .lt-selecao').waitFor();
+    m = await barraDaSelecao(pagina);
+    assert.deepEqual([m.dentro, m.texto], [true, '']);
+    assert.ok(m.barra.base <= m.trecho.topo && m.trecho.topo - m.barra.base < 24, `no PDF, a barra fica logo acima do trecho: ${JSON.stringify(m)}`);
+    await pagina.mouse.click(...await pontoNoLivro(pagina, 0.5));
+    await barraSome(pagina);
+    assert.equal(await pagina.textContent('#leitor .lt-posicao'), 'p. 1 de 2');
+    assert.deepEqual(erros, []);
+  } finally {
+    await contexto.close();
+  }
+});
+
 test('no PDF, tocar no terço direito avança e no esquerdo volta; o meio, um destaque e o fim de uma seleção não viram a página', async () => {
   const { contexto, pagina, erros } = await abrirPrancheta();
   try {
@@ -507,7 +613,7 @@ test('a busca acha o termo no livro inteiro, sem distinguir maiúsculas nem acen
     assert.equal(await pagina.textContent('#leitor .textLayer'), 'Segunda PÁGINA do PDF', 'o texto da página continua o mesmo');
     // Com a marca do termo na página, selecionar e destacar continuam a contar as posições do mesmo jeito.
     await selecionarAPaginaDoPdf(pagina);
-    await pagina.waitForFunction(() => /Selecionado: “Segunda PÁGINA do PDF” \(p\. 2\)/.test(document.querySelector('#leitor .lt-trecho').textContent));
+    await pagina.waitForFunction(() => window.leitorDaPrancheta.selecao?.texto === 'Segunda PÁGINA do PDF' && window.leitorDaPrancheta.selecao.posicao.pagina === 2);
     await destacarSelecao(pagina);
     await pagina.locator('#leitor .textLayer span.lt-destacado').first().waitFor();
     assert.equal(await pagina.textContent('#leitor .textLayer mark.lt-achado'), 'PÁGINA');
