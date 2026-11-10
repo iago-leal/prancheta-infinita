@@ -107,11 +107,14 @@
       return r ? r.posicao : undefined;
     }
 
-    /** A última posição lida de um livro neste aparelho, com o horário da gravação, ou undefined. */
+    /**
+     * A última posição de um livro neste aparelho, com o horário da última
+     * leitura nele, que é quando o leitor virou a página pela última vez, ou undefined.
+     */
     async lerPosicaoComHora(id) {
       const idb = await this._banco;
       const r = await operar(idb, 'meta', 'readonly', (d) => d.get(`posicao:${id}`));
-      return r ? { posicao: r.posicao, em: r.em || 0 } : undefined;
+      return r ? { posicao: r.posicao, em: Number.isFinite(r.lidoEm) ? r.lidoEm : (r.em || 0) } : undefined;
     }
 
     /**
@@ -128,9 +131,37 @@
       }
     }
 
-    async gravarPosicao(id, posicao) {
+    /** O identificador deste aparelho, o mesmo da sincronização dos quadros. */
+    get dispositivo() {
+      return this.sincronizacao.banco.dispositivo;
+    }
+
+    /**
+     * Grava no servidor a posição a que o leitor deste aparelho chegou, com a
+     * porcentagem, para o outro aparelho continuar de lá. Devolve se gravou;
+     * sem rede ou sem servidor, não gravou, e nada falha.
+     */
+    async gravarProgressoRemoto(id, { posicao, porcentagem }) {
+      const naCasca = typeof document !== 'undefined' && document.documentElement.classList.contains('casca');
+      try {
+        await this._pedir(`/sync/progresso/${id}`, {
+          metodo: 'PUT', corpo: { posicao, porcentagem, aparelho: naCasca ? 'Boox' : 'computador', dispositivo: this.dispositivo },
+        });
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    /**
+     * Guarda a posição de um livro neste aparelho. `lidoEm` é o horário da
+     * última leitura, que não muda quando o livro só é aberto e fechado; sem
+     * ele, vale o horário desta gravação.
+     */
+    async gravarPosicao(id, posicao, lidoEm) {
       const idb = await this._banco;
-      await operar(idb, 'meta', 'readwrite', (d) => d.put({ chave: `posicao:${id}`, posicao, em: Date.now() }));
+      const agora = Date.now();
+      await operar(idb, 'meta', 'readwrite', (d) => d.put({ chave: `posicao:${id}`, posicao, em: agora, lidoEm: Number.isFinite(lidoEm) ? lidoEm : agora }));
     }
 
     // A lista guardada da última vez, para mostrar logo e sem rede.
@@ -139,7 +170,7 @@
       return operar(idb, 'meta', 'readonly', (d) => d.get(LISTA));
     }
 
-    async _pedir(rota, { comoFluxo = false } = {}) {
+    async _pedir(rota, { comoFluxo = false, metodo = 'GET', corpo } = {}) {
       const configuracao = await this.sincronizacao.configuracao();
       if (!configuracao || !configuracao.endereco) throw erro('sem_servidor', 'sincronização não configurada');
       const controle = new AbortController();
@@ -147,7 +178,9 @@
       let resposta;
       try {
         resposta = await this._fetch(`${configuracao.endereco}${rota}`, {
-          headers: { Authorization: `Bearer ${configuracao.chave}` },
+          method: metodo,
+          headers: { Authorization: `Bearer ${configuracao.chave}`, ...(corpo === undefined ? {} : { 'Content-Type': 'application/json' }) },
+          ...(corpo === undefined ? {} : { body: JSON.stringify(corpo) }),
           cache: 'no-store',
           signal: controle.signal,
         });

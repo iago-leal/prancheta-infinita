@@ -116,6 +116,16 @@ class PonteCasca(private val webView: WebView) {
         }.getOrElse { "falhou: ${it.javaClass.simpleName}" }
     }
 
+    /**
+     * A página avisa, a cada toque, se ele começou no leitor de livros. Lá, a
+     * barra da seleção é a da Prancheta, e o menu de seleção do Android não
+     * aparece, como descrito em [WebViewDaCasca].
+     */
+    @JavascriptInterface
+    fun toqueNoLeitor(noLeitor: Boolean) {
+        (webView as? WebViewDaCasca)?.toqueNoLeitor = noLeitor
+    }
+
     /** A página pede que a tela inteira seja redesenhada, por exemplo depois de apagar traços. */
     @JavascriptInterface
     fun redesenharTela() {

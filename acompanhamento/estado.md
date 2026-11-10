@@ -3,7 +3,7 @@ tipo: estado
 atualizado_em: 2026-11-10
 fase: Progresso de leitura com o KOReader
 plano_ativo: acompanhamento/planos/007-progresso-do-koreader/plano.md
-etapa_atual: acompanhamento/planos/007-progresso-do-koreader/etapas/02-prancheta-abre-onde-o-koreader-parou.md
+etapa_atual: acompanhamento/planos/007-progresso-do-koreader/etapas/03-posicao-entre-os-aparelhos.md
 bloqueios: []
 ---
 
@@ -38,11 +38,11 @@ A Prancheta Infinita nasceu como artefato do claude.ai, um `index.html` de cerca
 
 ## Em andamento
 
-Plano 007, progresso de leitura com o KOReader, aberto em 2026-11-10, com duas etapas implementadas, à espera do roteiro na VPS e do teste do autor: 01, o servidor recebe e devolve o progresso pelo protocolo KOSync, em `/sync/kosync/`; 02, na casca 0.12.0, o leitor consulta o último progresso ao abrir um livro e, se ele é mais novo e está em outro lugar, mostra um aviso com um botão que leva até lá, sem pular sozinho. A etapa 03, a Prancheta envia a posição dela, será detalhada com o autor. O plano 006, melhorias do leitor, tem as duas etapas implementadas, também à espera do teste no Boox: leitor à esquerda, destaques editáveis, toque nas laterais, sumário, busca, destaques invertidos, barra da seleção flutuante e ícones nos botões. As barras de baixo do leitor ficam por cima do rodapé da página, sem mudar a altura dela. As funções seguem o comportamento do Readest e o protocolo do KOReader, descritos em palavras e implementados sem copiar código, porque ambos são AGPL. Os planos 001 a 005 estão concluídos.
+Plano 007, progresso de leitura com o KOReader, aberto em 2026-11-10, com três etapas implementadas, à espera do roteiro na VPS e do teste do autor: 01, o servidor recebe e devolve o progresso pelo protocolo KOSync, em `/sync/kosync/`; 02, o leitor consulta o último progresso e, se ele é mais novo e está em outro lugar, mostra um aviso com um botão que leva até lá, sem pular sozinho; 03, na casca 0.13.0, o leitor grava a posição exata dele ao virar páginas, e o outro aparelho da Prancheta continua de lá. A etapa 04, o KOReader recebe a posição da Prancheta, espera o teste da 02 com o KOReader de verdade. O plano 006, melhorias do leitor, tem as duas etapas implementadas, também à espera do teste no Boox; depois do primeiro teste da barra da seleção, a casca passou a esconder o menu de seleção do Android dentro do leitor, e a barra ganhou "Copiar". As barras de baixo do leitor ficam por cima do rodapé da página. As funções seguem o comportamento do Readest e o protocolo do KOReader, descritos em palavras e implementados sem copiar código, porque ambos são AGPL. Os planos 001 a 005 estão concluídos.
 
 ## Próximo passo
 
-Mesclar a etapa 02 do plano 007. Depois, o autor: atualiza a casca para a 0.12.0 e testa no Boox as duas etapas do plano 006, inclusive a barra da seleção, que o menu de seleção do Android pode cobrir; roda de novo o roteiro na VPS, cria o usuário com `prancheta-kosync novo leitor`, sem que a senha passe por uma sessão do Claude, e configura o KOReader, como em `servidor/implantacao/LEIA-ME.md`; lê um livro no KOReader, envia o progresso e abre o mesmo livro na Prancheta, num EPUB e num PDF. Com as confirmações, concluir as etapas e detalhar a etapa 03 do plano 007. Antes de rodar os testes da página depois de compilar a casca, encerrar o Gradle com `./gradlew --stop`. No início da próxima sessão em contêiner novo, verificar se `/opt/android-sdk` existe.
+O autor: atualiza a casca para a 0.13.0 e testa no Boox se o menu de seleção do Android sumiu dentro do leitor e se a seleção continua de pé, além das duas etapas do plano 006; lê num aparelho, abre o livro no outro e continua de lá; roda de novo o roteiro na VPS, cria o usuário com `prancheta-kosync novo leitor`, sem que a senha passe por uma sessão do Claude, configura o KOReader, como em `servidor/implantacao/LEIA-ME.md`, e testa a etapa 02 num EPUB e num PDF. Com as confirmações, concluir as etapas e detalhar a etapa 04 do plano 007. Antes de rodar os testes da página depois de compilar a casca, encerrar o Gradle com `./gradlew --stop`. No início da próxima sessão em contêiner novo, verificar se `/opt/android-sdk` existe.
 
 ## Planos previstos
 

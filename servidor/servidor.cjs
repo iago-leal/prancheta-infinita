@@ -13,7 +13,8 @@
 // - GET  /sync/biblioteca                  → os livros da biblioteca, por servidor/biblioteca.cjs
 // - GET  /sync/biblioteca/<id>             → um livro da biblioteca
 // - GET  /sync/progresso/<id>              → { progresso }: o último progresso de
-//   leitura do livro gravado pelo KOReader, ou null
+//   leitura do livro, gravado pelo KOReader ou por um aparelho da Prancheta, ou null
+// - PUT  /sync/progresso/<id>              → grava a posição do leitor de um aparelho
 //
 // À parte, em /sync/kosync/, o progresso de leitura do KOReader, com a
 // credencial própria dele em vez da chave de um aparelho, por servidor/kosync.cjs.
@@ -55,7 +56,7 @@ const path = require('node:path');
 const { Armazem, ID_DE_ARQUIVO } = require('./armazem.cjs');
 const { Biblioteca } = require('./biblioteca.cjs');
 const { criarVerificador } = require('./chaves.cjs');
-const { Kosync } = require('./kosync.cjs');
+const { Kosync, lerProgressoDaPrancheta } = require('./kosync.cjs');
 const { criarServidorDaPagina } = require('./pagina.cjs');
 
 const LIMITE_DO_JSON = 25 * 1024 * 1024;
@@ -66,6 +67,7 @@ const LIMITE_DA_LISTA = 500;
 const DISPOSITIVO = /^[0-9a-f]{8,64}$/;
 const ROTA_DO_KOSYNC = '/sync/kosync/';
 const ID_DE_LIVRO = /^[0-9a-f]{32}$/;
+const LIMITE_DO_PROGRESSO = 16 * 1024;
 const CABECALHOS_PERMITIDOS = 'Authorization, Content-Type, X-Prancheta-Dispositivo, X-Prancheta-Criado-Em';
 
 const SEGURANCA = {
@@ -305,6 +307,22 @@ function criarServidor({ armazem, chave, verificar, origens = [], biblioteca = n
       return responder(res, 200, { progresso: kosync ? await kosync.ultimo(lido[1]) : null }, origem);
     }
 
+    // A posição de um livro lido num aparelho da Prancheta, para o outro aparelho continuar de lá.
+    if (lido && req.method === 'PUT') {
+      if (!ID_DE_LIVRO.test(lido[1])) return responder(res, 400, { erro: 'livro_invalido' }, origem);
+      if (!kosync) return responder(res, 404, { erro: 'progresso_desligado' }, origem);
+      let pedido;
+      try {
+        pedido = JSON.parse((await lerCorpo(req, LIMITE_DO_PROGRESSO)).toString('utf8'));
+      } catch (e) {
+        if (e.status === 413) return responder(res, 413, { erro: 'pedido_grande_demais' }, origem);
+        return responder(res, 400, { erro: 'json_invalido' }, origem);
+      }
+      const progresso = lerProgressoDaPrancheta(pedido);
+      if (!progresso) return responder(res, 400, { erro: 'progresso_invalido' }, origem);
+      return responder(res, 200, { timestamp: await kosync.gravarDaPrancheta(lido[1], progresso) }, origem);
+    }
+
     return responder(res, 404, { erro: 'rota_inexistente' }, origem);
   }
 
@@ -395,7 +413,8 @@ async function iniciar(ambiente = process.env) {
   const diasDeHistorico = Number(ambiente.PRANCHETA_HISTORICO_DIAS || 30);
   const armazem = await Armazem.abrir(pasta, { diasDeHistorico });
   const biblioteca = new Biblioteca(ambiente.PRANCHETA_BIBLIOTECA || null);
-  const kosync = ambiente.PRANCHETA_KOSYNC_ARQUIVO ? new Kosync({ pasta, arquivo: ambiente.PRANCHETA_KOSYNC_ARQUIVO }) : null;
+  // Sem o arquivo dos usuários, o KOReader não entra, mas os aparelhos da Prancheta trocam o progresso entre si.
+  const kosync = new Kosync({ pasta, arquivo: ambiente.PRANCHETA_KOSYNC_ARQUIVO || undefined });
   const servidores = [];
   const servidor = criarServidor({ armazem, verificar, origens, biblioteca, kosync });
   await ouvir(servidor, porta, endereco);
