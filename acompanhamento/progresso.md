@@ -6,6 +6,25 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · A barra flutuante na seleção do laço
+
+### Feito
+
+- Mesclado o PR #50, com a correção do agrupamento por autor; casca 0.17.0. O autor confirmou no Boox que o agrupamento deu certo.
+- A pedido do autor, a seleção feita com o laço passou a mostrar a mesma barra flutuante da seleção comum, na casca 0.18.0. O registro está na [etapa 03 do plano 004](planos/004-modo-e-ink/etapas/03-formas-e-laco.md).
+- O autor perguntou se os wikilinks já funcionam. Funcionam, vindos do artefato original: um experimento no computador e numa casca simulada mostrou o link para o quadro, o apelido, o quadro criado pelo link pendente, os backlinks e o link que continua valendo depois de o quadro ser renomeado. A suíte não tem teste para eles.
+
+### Ideias guardadas
+
+- Testes automáticos para os wikilinks, se algum defeito aparecer no uso.
+- Ler o autor e o título de dentro dos PDFs.
+
+### Pendências
+
+- O autor dizer se, além do agrupamento, achou um livro pela busca e o abriu, para o critério 9 da etapa 01 do plano 008; e o teste da ficha do livro, para o critério 8 da etapa 02.
+- Os testes do autor com o KOReader, do plano 007, e os do plano 006 no Boox.
+- A exclusão do ramo antigo `claude/canal-publicacao-vps`, pelo autor.
+
 ## 2026-11-10 · Plano 008: o agrupamento por autor, corrigido
 
 ### Feito

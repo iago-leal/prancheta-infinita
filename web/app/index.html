@@ -1406,7 +1406,7 @@ const edgeRoute=e=>e.route==='straight'||(e.pts&&e.pts.length)?'straight':e.rout
 const btnA=(a,ic,t,on)=>`<button class="btn" data-a="${a}" title="${t}" aria-label="${t}"${on==null?'':` aria-pressed="${on}"`}>${icon(ic)}</button>`;
 function renderSelbar(){
   const list=[...S.sel].map(id=>S.items.get(id)).filter(Boolean);
-  if(S.ro||!list.length||S.tool!=='select'){selbar.hidden=true;selKey='';return}
+  if(S.ro||!list.length||(S.tool!=='select'&&S.tool!=='lasso')){selbar.hidden=true;selKey='';return}
   let html='',key='';
   if(S.editing){
     key='edit';

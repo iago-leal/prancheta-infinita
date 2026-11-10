@@ -58,5 +58,6 @@ Trocar a lista do painel lateral por uma tela própria da biblioteca, em que cad
   - Vários autores no mesmo livro passam a vir separados por ponto e vírgula, porque a vírgula aparece dentro de um nome. O livro fica no grupo do primeiro autor, e os outros aparecem na linha dele.
   - Limite: os PDFs não trazem o autor lido de dentro do arquivo; numa biblioteca com pastas que são identificadores, eles ficam todos em "Sem autor".
   - Testes: o teste de unidade do agrupamento foi refeito com pastas que são identificadores, a biblioteca do teste no navegador ganhou duas dessas pastas, e o do servidor confere 7 identificadores, 10 nomes e a pasta com nome depois de um identificador. As 21 mutações desta correção foram acusadas, e a execução de controle passou. A suíte da página tem 118 testes, e a do servidor, 50, todos passando.
+- Mesclado o PR #50, com a correção; casca 0.17.0. O autor confirmou no Boox que o agrupamento por autores deu certo. O critério 9 continua aberto até ele dizer se também achou um livro pela busca e o abriu.
 
 ## Resultado

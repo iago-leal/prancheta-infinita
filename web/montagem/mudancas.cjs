@@ -196,6 +196,11 @@ function lassoSelect(p,base){const ids=new Set(base||[]);if(p.length>=6){const d
     para: `<dt>Selecionar, laço, mão</dt><dd>V, A, H</dd>`,
   },
   {
+    motivo: 'A pedido do autor, a seleção feita com o laço mostra a mesma barra flutuante da seleção comum, com as cores, as ações e o menu dos itens; antes, a barra só aparecia com a ferramenta de seleção, e quem circulava os itens com o laço precisava trocar de ferramenta para agir sobre eles.',
+    de: `if(S.ro||!list.length||S.tool!=='select'){selbar.hidden=true;selKey='';return}`,
+    para: `if(S.ro||!list.length||(S.tool!=='select'&&S.tool!=='lasso')){selbar.hidden=true;selKey='';return}`,
+  },
+  {
     motivo: 'A pedido do autor, os pontos do fundo ficam 15% mais espaçados em todos os níveis de zoom: o passo continua dobrando e caindo à metade com o zoom, e o resultado é multiplicado por 1,15.',
     de: `let s=24*v.k;while(s<14)s*=2;while(s>44)s/=2;`,
     para: `let s=24*v.k;while(s<14)s*=2;while(s>44)s/=2;s*=1.15;`,

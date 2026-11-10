@@ -36,6 +36,12 @@ Enxugar a barra de ferramentas, juntando num só botão as formas, a linha e os 
 - Testes: 3 testes novos no Chromium, 68 na web, que acusam as 8 mutações introduzidas no painel e no laço; o teste da faixa segue conferindo uma linha só em 860 px. O detector da skill Impeccable aponta, na página, a fonte Inter e o brilho colorido do roteiro guiado, ambos do artefato original; o brilho já some na casca. Versão 0.3.9 da casca, código 13.
 - Os critérios 1, 2, 3 e 5 foram verificados pelos testes "o botão de formas abre um painel com as quatro formas e os sete símbolos elétricos", "o laço seleciona os traços pela maioria dos pontos e os demais itens pelo centro", em que a caneta desenha o laço, e "o que o laço seleciona pode ser movido, copiado e apagado como numa seleção comum". Faltam a verificação no Boox, do critério 4, e a confirmação do autor.
 
+### 2026-11-10
+
+- Pedido do autor, depois de a etapa ter sido concluída: a seleção feita com o laço não mostrava a barra flutuante da seleção comum, com as cores, duplicar e excluir. A barra só aparecia com a ferramenta de seleção. Ajuste, na casca 0.18.0, sem mudar os critérios: a barra aparece também com o laço, junto dos itens selecionados; ela some enquanto um laço novo é desenhado e quando não há seleção, e os botões dela agem sobre os itens sem tirar o laço da mão.
+- A mudança é a de número 33 em `web/montagem/mudancas.cjs`. O teste "o que o laço seleciona pode ser movido, copiado e apagado como numa seleção comum" passou a conferir a barra: visível com o laço, com os mesmos botões da seleção comum, junto da seleção e dentro da tela, escondida durante o laço, indo junto ao mover os itens, e com a cor, duplicar e excluir agindo sobre eles. Duas mutações foram acusadas: a barra sem o laço, e a barra com qualquer ferramenta e sem seleção. A suíte da página tem 118 testes, todos passando.
+- O detector da skill `impeccable` aponta no `index.html` os mesmos 2 itens de antes da mudança, que vêm do artefato original.
+
 ## Resultado
 
 Etapa concluída em 2026-11-09, com a casca 0.3.9. Cada critério foi verificado assim:
