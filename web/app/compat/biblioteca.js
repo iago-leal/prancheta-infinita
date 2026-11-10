@@ -14,6 +14,12 @@
 //   livro abre em seguida. A última posição lida de cada livro também fica
 //   neste banco, só neste aparelho.
 //
+// - Etapa 01 do plano 008: a lista completa passa para uma tela própria, em
+//   compat/tela-da-biblioteca.js, com busca, ordenação e filtro, feitos aqui
+//   por organizar(). No painel lateral ficam o botão que abre a tela e os
+//   livros lidos por último. Cada livro vem do servidor com título e autor, e
+//   a porcentagem lida fica guardada junto com a posição, neste aparelho.
+//
 // Deve ser carregado depois de compat/sincronizacao.js; compat/claude.js liga
 // a biblioteca à sincronização em window.bibliotecaDaPrancheta.
 
@@ -63,6 +69,84 @@
     return mb >= 10 ? `${Math.round(mb)} MB` : `${mb.toFixed(1).replace('.', ',')} MB`;
   }
 
+  // ---- Título, autor e a organização da lista ----
+
+  const semExtensao = (nome) => String(nome || '').replace(/\.(pdf|epub)$/i, '');
+
+  /** O título de um livro: o que veio de dentro dele, ou o nome do arquivo. */
+  const tituloDe = (livro) => (livro && (livro.titulo || semExtensao(livro.nome))) || '';
+
+  /**
+   * O autor sob o qual um livro é agrupado: a primeira pasta do caminho, que
+   * na biblioteca do autor é a do autor da obra, ou, fora de pasta, o autor
+   * escrito no livro.
+   */
+  const grupoDe = (livro) => String((livro && livro.pasta) || '').split('/')[0] || (livro && livro.autor) || '';
+
+  /** Sem acentos, sem maiúsculas e com os espaços juntados, para buscar e comparar. */
+  const normalizar = (texto) => String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  const comparar = (a, b) => normalizar(a).localeCompare(normalizar(b), 'pt') || String(a).localeCompare(String(b), 'pt');
+
+  /** O autor escrito no livro, quando não é o mesmo nome do grupo. */
+  function autorProprio(livro) {
+    const autor = (livro && livro.autor) || '';
+    return autor && normalizar(autor) !== normalizar(grupoDe(livro)) ? autor : '';
+  }
+
+  /**
+   * As linhas da lista da biblioteca, na ordem pedida, depois da busca e do
+   * filtro: [{ tipo: 'grupo', nome, quantos }, { tipo: 'livro', livro, autor }].
+   * - consulta: cada palavra precisa estar no título, no autor, na pasta ou no
+   *   nome do arquivo, sem distinguir maiúsculas nem acentos.
+   * - ordem: 'autor', com os livros agrupados; 'titulo'; ou 'recentes', com os
+   *   lidos por último primeiro, pelas leituras deste aparelho.
+   * - soGuardados: só os livros de `guardados`, o conjunto dos guardados neste aparelho.
+   */
+  function organizar(lista, { consulta = '', ordem = 'autor', soGuardados = false, guardados = new Set(), leituras = new Map() } = {}) {
+    const palavras = normalizar(consulta).split(' ').filter(Boolean);
+    const escolhidos = (lista || []).filter((livro) => {
+      if (soGuardados && !guardados.has(livro.id)) return false;
+      if (!palavras.length) return true;
+      const onde = normalizar([tituloDe(livro), livro.autor, livro.pasta, livro.nome].filter(Boolean).join(' '));
+      return palavras.every((palavra) => onde.includes(palavra));
+    });
+    const porTitulo = (a, b) => comparar(tituloDe(a), tituloDe(b)) || comparar(a.nome, b.nome);
+    if (ordem === 'titulo' || ordem === 'recentes') {
+      const quando = (livro) => (leituras.get(livro.id) || {}).em || 0;
+      const ordenados = [...escolhidos].sort(ordem === 'titulo' ? porTitulo : (a, b) => quando(b) - quando(a) || porTitulo(a, b));
+      return ordenados.map((livro) => ({ tipo: 'livro', livro, autor: grupoDe(livro) || livro.autor || '' }));
+    }
+    const grupos = new Map();
+    for (const livro of escolhidos) {
+      const chave = normalizar(grupoDe(livro));
+      if (!grupos.has(chave)) grupos.set(chave, { nome: grupoDe(livro), livros: [] });
+      grupos.get(chave).livros.push(livro);
+    }
+    const linhas = [];
+    // Os livros sem autor vão para o fim, sob "Sem autor".
+    const ordenados = [...grupos.values()].sort((a, b) => (a.nome ? 0 : 1) - (b.nome ? 0 : 1) || comparar(a.nome, b.nome));
+    for (const grupo of ordenados) {
+      linhas.push({ tipo: 'grupo', nome: grupo.nome || 'Sem autor', quantos: grupo.livros.length });
+      for (const livro of grupo.livros.sort(porTitulo)) linhas.push({ tipo: 'livro', livro, autor: autorProprio(livro) });
+    }
+    return linhas;
+  }
+
+  /** O que a linha de um livro diz sobre ele neste aparelho: o download, guardado ou o tamanho, e a porcentagem lida. */
+  function situacaoDe(livro, estado, baixando) {
+    const andamento = baixando && baixando.get(livro.id);
+    if (andamento) {
+      const { recebidos, total } = andamento.andamento;
+      // De 10 em 10%, para não redesenhar o e-ink a cada pedaço.
+      return `baixando ${total ? `${Math.floor((recebidos / total) * 10) * 10}%` : megabytes(recebidos)}`;
+    }
+    const partes = [estado.guardados.has(livro.id) ? 'guardado' : megabytes(livro.bytes || 0)];
+    const leitura = estado.leituras && estado.leituras.get(livro.id);
+    if (leitura && Number.isFinite(leitura.porcentagem)) partes.push(`${Math.round(leitura.porcentagem * 100)}%`);
+    return partes.join(' · ');
+  }
+
   class Biblioteca {
     constructor(sincronizacao, opcoes = {}) {
       this.sincronizacao = sincronizacao;
@@ -70,7 +154,7 @@
       this._banco = abrirBanco(opcoes.nomeDoBanco || NOME_DO_BANCO);
       this._ouvintes = new Set();
       this.baixando = new Map();
-      this.estado = { situacao: 'inicio', mensagem: '', lista: [], guardados: new Set(), recebidaEm: null };
+      this.estado = { situacao: 'inicio', mensagem: '', aviso: '', lista: [], guardados: new Set(), leituras: new Map(), recebidaEm: null };
     }
 
     aoMudar(ouvinte) {
@@ -115,6 +199,23 @@
       const idb = await this._banco;
       const r = await operar(idb, 'meta', 'readonly', (d) => d.get(`posicao:${id}`));
       return r ? { posicao: r.posicao, em: Number.isFinite(r.lidoEm) ? r.lidoEm : (r.em || 0) } : undefined;
+    }
+
+    /**
+     * As leituras deste aparelho: de cada livro com posição guardada, o
+     * horário da última leitura e a porcentagem lida, quando foi guardada.
+     */
+    async leituras() {
+      const idb = await this._banco;
+      const registros = await operar(idb, 'meta', 'readonly', (d) => d.getAll(IDBKeyRange.bound('posicao:', 'posicao:\uffff')));
+      const leituras = new Map();
+      for (const r of registros || []) {
+        leituras.set(String(r.chave).slice('posicao:'.length), {
+          em: Number.isFinite(r.lidoEm) ? r.lidoEm : (r.em || 0),
+          ...(Number.isFinite(r.porcentagem) ? { porcentagem: r.porcentagem } : {}),
+        });
+      }
+      return leituras;
     }
 
     /**
@@ -177,12 +278,55 @@
     /**
      * Guarda a posição de um livro neste aparelho. `lidoEm` é o horário da
      * última leitura, que não muda quando o livro só é aberto e fechado; sem
-     * ele, vale o horário desta gravação.
+     * ele, vale o horário desta gravação. `porcentagem`, de 0 a 1, é até onde
+     * o livro foi lido, para a lista da biblioteca.
      */
-    async gravarPosicao(id, posicao, lidoEm) {
+    async gravarPosicao(id, posicao, lidoEm, porcentagem) {
       const idb = await this._banco;
       const agora = Date.now();
-      await operar(idb, 'meta', 'readwrite', (d) => d.put({ chave: `posicao:${id}`, posicao, em: agora, lidoEm: Number.isFinite(lidoEm) ? lidoEm : agora }));
+      const lido = Number.isFinite(lidoEm) ? lidoEm : agora;
+      const parte = Number.isFinite(porcentagem) && porcentagem >= 0 && porcentagem <= 1 ? { porcentagem } : {};
+      await operar(idb, 'meta', 'readwrite', (d) => d.put({ chave: `posicao:${id}`, posicao, em: agora, lidoEm: lido, ...parte }));
+      const leituras = new Map(this.estado.leituras);
+      leituras.set(String(id), { em: lido, ...parte });
+      this._mudar({ leituras });
+    }
+
+    /**
+     * Abre um livro da lista no leitor, baixando-o antes, se preciso, e deixa
+     * em `estado.aviso` o que aconteceu. `aoAbrir` é chamado quando o livro já
+     * está neste aparelho e vai para o leitor. Devolve se abriu.
+     */
+    async abrirNoLeitor(id, aoAbrir) {
+      const livro = this.estado.lista.find((l) => l.id === id);
+      if (!livro) return false;
+      const titulo = tituloDe(livro);
+      if (!this.estado.guardados.has(id)) {
+        this._mudar({ aviso: '' });
+        try {
+          await this.guardar(id);
+          this._mudar({ aviso: `"${titulo}" foi guardado neste aparelho e fica disponível sem rede.` });
+        } catch (e) {
+          this._mudar({
+            aviso: e.code === 'sem_rede'
+              ? `Sem rede: "${titulo}" ainda não está guardado neste aparelho.`
+              : `Não foi possível guardar "${titulo}": ${e.message}.`,
+          });
+          return false;
+        }
+      } else {
+        this._mudar({ aviso: `"${titulo}" está guardado neste aparelho.` });
+      }
+      const leitor = global.leitorDaPrancheta;
+      if (!leitor) return false;
+      if (aoAbrir) aoAbrir();
+      try {
+        await leitor.abrir(id);
+        return true;
+      } catch (e) {
+        this._mudar({ aviso: `Não foi possível abrir "${titulo}": ${e.message}.` });
+        return false;
+      }
     }
 
     // A lista guardada da última vez, para mostrar logo e sem rede.
@@ -234,11 +378,11 @@
 
     /** Mostra a lista guardada e pede a atual ao servidor, se houver rede. */
     async atualizar() {
-      const [guardada, guardados] = await Promise.all([this._listaGuardada(), this.guardados()]);
+      const [guardada, guardados, leituras] = await Promise.all([this._listaGuardada(), this.guardados(), this.leituras()]);
       if (guardada && this.estado.situacao === 'inicio') {
-        this._mudar({ situacao: 'guardada', lista: guardada.livros, recebidaEm: guardada.em, guardados });
+        this._mudar({ situacao: 'guardada', lista: guardada.livros, recebidaEm: guardada.em, guardados, leituras });
       } else {
-        this._mudar({ guardados });
+        this._mudar({ guardados, leituras });
       }
       const configuracao = await this.sincronizacao.configuracao();
       if (!configuracao || !configuracao.endereco) {
@@ -337,17 +481,19 @@
 
   // ---- Seção "Biblioteca" do painel lateral ----
 
+  const LIDOS_NO_PAINEL = 5;
+
   const ESTILO = `
 #biblioteca{flex:none;max-height:45%;overflow-y:auto;padding:0 8px 14px;border-top:1px solid var(--line,#E3E1DD);overscroll-behavior:contain}
 #biblioteca .bib-aviso{margin:0;padding:2px 8px 6px;font-size:12.5px;color:var(--muted,#7F7C76)}
 #biblioteca .bib-aviso:empty{display:none}
-#biblioteca .bib-pasta{padding:8px 8px 2px;font-size:12px;color:var(--muted,#7F7C76);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#biblioteca .bib-rotulo{padding:8px 8px 2px;font-size:12px;color:var(--muted,#7F7C76)}
 #biblioteca .bib-estado{flex:none;font-size:12.5px;color:var(--muted,#7F7C76);font-variant-numeric:tabular-nums}
 #biblioteca .row{padding-left:4px}
 `;
 
   const ICONE_DO_LIVRO = '<svg class="i" viewBox="0 0 24 24"><path d="M6 4h9a3 3 0 0 1 3 3v13H9a3 3 0 0 1-3-3z"></path><path d="M6 17a3 3 0 0 1 3-3h9"></path></svg>';
-  const ICONE_DE_ATUALIZAR = '<svg class="i" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path><path d="M20 4v5h-5"></path></svg>';
+  const ICONE_DA_ESTANTE = '<svg class="i" viewBox="0 0 24 24"><path d="M5 4v16"></path><path d="M9 4v16"></path><path d="m13 6 4 14"></path><path d="M3 20h18"></path></svg>';
 
   function montarInterface(biblioteca) {
     const lateral = document.getElementById('side');
@@ -355,55 +501,46 @@
     const estilo = document.createElement('style');
     estilo.textContent = ESTILO;
     document.head.appendChild(estilo);
+    const tela = global.TelaDaBibliotecaPrancheta ? global.TelaDaBibliotecaPrancheta.montar(biblioteca) : null;
+    biblioteca.tela = tela;
 
     const secao = document.createElement('section');
     secao.id = 'biblioteca';
     secao.setAttribute('aria-label', 'Biblioteca');
     secao.innerHTML = `
-<div class="slabel"><span>Biblioteca</span><button type="button" data-acao="atualizar" title="Atualizar a lista" aria-label="Atualizar a lista">${ICONE_DE_ATUALIZAR}</button></div>
+<div class="slabel"><span>Biblioteca</span></div>
+<div class="row bib-abrir" role="button" tabindex="0" data-acao="abrir-a-biblioteca"><span class="ic">${ICONE_DA_ESTANTE}</span><span class="nm">Abrir a biblioteca</span><span class="bib-estado"></span></div>
 <p class="bib-aviso" role="status"></p>
 <div class="bib-lista"></div>`;
     lateral.appendChild(secao);
     const aviso = secao.querySelector('.bib-aviso');
     const listaEl = secao.querySelector('.bib-lista');
-    let avisoProprio = '';
+    const conta = secao.querySelector('.bib-abrir .bib-estado');
 
-    function textoDoEstado(livro, estado) {
-      const baixando = biblioteca.baixando.get(livro.id);
-      if (baixando) {
-        const { recebidos, total } = baixando.andamento;
-        // De 10 em 10%, para não redesenhar o e-ink a cada pedaço.
-        return total ? `${Math.floor((recebidos / total) * 10) * 10}%` : megabytes(recebidos);
-      }
-      if (estado.guardados.has(livro.id)) return 'guardado';
-      return megabytes(livro.bytes || 0);
-    }
+    // Os livros da lista lidos por último neste aparelho, os mais recentes primeiro.
+    const lidosPorUltimo = (estado) => organizar(estado.lista.filter((l) => estado.leituras.has(l.id)), { ordem: 'recentes', leituras: estado.leituras })
+      .slice(0, LIDOS_NO_PAINEL).map((linha) => linha.livro);
 
-    function desenhar(estado) {
-      aviso.textContent = avisoProprio || estado.mensagem || (estado.situacao === 'atualizada' && !estado.lista.length ? 'Nenhum livro na biblioteca.' : '');
+    function desenhar(estado, lidos) {
+      aviso.textContent = estado.aviso || estado.mensagem || (estado.situacao === 'atualizada' && !estado.lista.length ? 'Nenhum livro na biblioteca.' : '');
+      conta.textContent = estado.lista.length ? String(estado.lista.length) : '';
       const linhas = [];
-      let pastaAtual = null;
-      const ordenada = [...estado.lista].sort((a, b) => (a.pasta || '').localeCompare(b.pasta || '') || a.nome.localeCompare(b.nome));
-      for (const livro of ordenada) {
-        const pasta = livro.pasta || '';
-        if (pasta !== pastaAtual) {
-          pastaAtual = pasta;
-          if (pasta) {
-            const titulo = document.createElement('div');
-            titulo.className = 'bib-pasta';
-            titulo.textContent = pasta.split('/').join(' / ');
-            linhas.push(titulo);
-          }
-        }
+      if (lidos.length) {
+        const rotulo = document.createElement('div');
+        rotulo.className = 'bib-rotulo';
+        rotulo.textContent = 'Lidos por último';
+        linhas.push(rotulo);
+      }
+      for (const livro of lidos) {
         const linha = document.createElement('div');
         linha.className = 'row bib-livro';
         linha.dataset.id = livro.id;
+        linha.dataset.arquivo = livro.nome;
         linha.tabIndex = 0;
         linha.setAttribute('role', 'button');
-        linha.innerHTML = `<span class="ic">${ICONE_DO_LIVRO}</span><span class="nm"></span><span class="bib-estado"></span>`;
-        linha.querySelector('.nm').textContent = livro.nome;
-        linha.querySelector('.nm').title = livro.nome;
-        linha.querySelector('.bib-estado').textContent = textoDoEstado(livro, estado);
+        linha.innerHTML = `<span class="ic">${ICONE_DO_LIVRO}</span><span class="nm"></span>`;
+        linha.querySelector('.nm').textContent = tituloDe(livro);
+        linha.title = [tituloDe(livro), grupoDe(livro) || livro.autor].filter(Boolean).join(', ');
         linhas.push(linha);
       }
       listaEl.replaceChildren(...linhas);
@@ -412,59 +549,27 @@
     // No e-ink, cada troca de texto atualiza a região: só redesenha o que mudou.
     let ultimo = '';
     biblioteca.aoMudar((estado) => {
-      const marca = JSON.stringify([avisoProprio, estado.mensagem, estado.situacao, estado.lista.map((l) => [l.id, textoDoEstado(l, estado)])]);
+      const lidos = lidosPorUltimo(estado);
+      const marca = JSON.stringify([estado.aviso, estado.mensagem, estado.situacao, estado.lista.length, lidos.map((l) => [l.id, tituloDe(l)])]);
       if (marca === ultimo) return;
       ultimo = marca;
-      desenhar(estado);
+      desenhar(estado, lidos);
     });
-    const redesenhar = () => {
-      ultimo = '';
-      biblioteca._mudar({});
-    };
 
-    async function abrir(id) {
-      const livro = biblioteca.estado.lista.find((l) => l.id === id);
-      if (!livro) return;
-      if (!biblioteca.estado.guardados.has(id)) {
-        avisoProprio = '';
-        try {
-          await biblioteca.guardar(id);
-          avisoProprio = `"${livro.nome}" foi guardado neste aparelho e fica disponível sem rede.`;
-        } catch (e) {
-          avisoProprio = e.code === 'sem_rede'
-            ? `Sem rede: "${livro.nome}" ainda não está guardado neste aparelho.`
-            : `Não foi possível guardar "${livro.nome}": ${e.message}.`;
-          redesenhar();
-          return;
-        }
-      } else {
-        avisoProprio = `"${livro.nome}" está guardado neste aparelho.`;
-      }
-      redesenhar();
-      const leitor = global.leitorDaPrancheta;
-      if (!leitor) return;
-      try {
-        await leitor.abrir(id);
-      } catch (e) {
-        avisoProprio = `Não foi possível abrir "${livro.nome}": ${e.message}.`;
-        redesenhar();
-      }
-    }
-
-    secao.addEventListener('click', (e) => {
-      if (e.target.closest('[data-acao="atualizar"]')) {
-        avisoProprio = '';
-        biblioteca.atualizar().catch(() => {});
+    const acionar = (alvo) => {
+      if (alvo.closest('[data-acao="abrir-a-biblioteca"]')) {
+        if (tela) tela.abrir();
         return;
       }
-      const linha = e.target.closest('.bib-livro');
-      if (linha) abrir(linha.dataset.id);
-    });
+      const linha = alvo.closest('.bib-livro');
+      if (linha) biblioteca.abrirNoLeitor(linha.dataset.id);
+    };
+    secao.addEventListener('click', (e) => acionar(e.target));
     secao.addEventListener('keydown', (e) => {
-      const linha = e.target.closest && e.target.closest('.bib-livro');
-      if (linha && (e.key === 'Enter' || e.key === ' ')) {
+      const linha = e.target.closest && e.target.closest('.row');
+      if (linha && e.target === linha && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
-        abrir(linha.dataset.id);
+        acionar(linha);
       }
     });
   }
@@ -480,5 +585,5 @@
     return biblioteca;
   }
 
-  global.BibliotecaPrancheta = Object.freeze({ Biblioteca, ligar, NOME_DO_BANCO });
+  global.BibliotecaPrancheta = Object.freeze({ Biblioteca, ligar, NOME_DO_BANCO, organizar, tituloDe, grupoDe, situacaoDe, normalizar });
 })(typeof window !== 'undefined' ? window : globalThis);

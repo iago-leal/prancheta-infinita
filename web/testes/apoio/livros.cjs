@@ -5,7 +5,8 @@
 // espaços a mais, para a busca, links internos e um sumário com um subitem;
 // com semSumario, fica sem o documento de navegação; com longo, ganha um
 // terceiro capítulo, de várias páginas; com paginas, que pede longo, traz
-// as páginas do livro marcadas, de 1 a 5. O PDF aceita marcadores,
+// as páginas do livro marcadas, de 1 a 5; com autor, traz o autor escrito
+// no livro. O PDF aceita marcadores,
 // um por página, letras acentuadas, escritas em octal, como \\341 para o á, e
 // mais de uma linha por página, separadas por \\n.
 
@@ -19,7 +20,7 @@ const xhtml = (titulo, corpo) => `<?xml version="1.0" encoding="UTF-8"?>
 <body>${corpo}</body>
 </html>`;
 
-async function criarEpub({ titulo = 'Livro de teste', rico = false, semSumario = false, longo = false, paginas = false } = {}) {
+async function criarEpub({ titulo = 'Livro de teste', autor = '', rico = false, semSumario = false, longo = false, paginas = false } = {}) {
   const zip = new JSZip();
   zip.file('mimetype', 'application/epub+zip', { compression: 'STORE' });
   zip.file('META-INF/container.xml', `<?xml version="1.0"?>
@@ -31,6 +32,7 @@ async function criarEpub({ titulo = 'Livro de teste', rico = false, semSumario =
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="uid">urn:uuid:00000000-0000-4000-8000-000000000001</dc:identifier>
     <dc:title>${titulo}</dc:title>
+    ${autor ? `<dc:creator>${autor}</dc:creator>` : ''}
     <dc:language>pt</dc:language>
     <meta property="dcterms:modified">2026-01-01T00:00:00Z</meta>
   </metadata>

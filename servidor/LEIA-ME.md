@@ -95,16 +95,17 @@ O corpo é o arquivo, com `Content-Type`, `X-Prancheta-Dispositivo` e, se houver
 A biblioteca de livros, da etapa 03 do plano 005, por `servidor/biblioteca.cjs`. A lista traz os PDFs e EPUBs da pasta de `PRANCHETA_BIBLIOTECA`, contando as subpastas:
 
 ```json
-{ "livros": [{ "id": "<32 algarismos hexadecimais>", "nome": "Dom Casmurro.epub", "pasta": "Romances", "tipo": "application/epub+zip", "bytes": 401234, "modificadoEm": 1762600000000 }] }
+{ "livros": [{ "id": "<32 algarismos hexadecimais>", "nome": "dc-1899.epub", "pasta": "Machado de Assis", "tipo": "application/epub+zip", "bytes": 401234, "modificadoEm": 1762600000000, "titulo": "Dom Casmurro", "autor": "Machado de Assis" }] }
 ```
 
 - `id` é o mesmo resumo parcial MD5 que o KOReader calcula, sobre trechos de 1 KB do começo do arquivo e das posições 1 KB, 4 KB, 16 KB e assim por diante, até 1 GB. Ele não muda quando o livro é renomeado ou trocado de pasta.
 - `pasta` é relativa à biblioteca; o caminho na VPS nunca aparece.
+- `titulo` e `autor`, da etapa 01 do plano 008: os de um EPUB são lidos de dentro do arquivo, por `servidor/epub.cjs`, que abre só o índice do ZIP e os dois arquivos que dizem o título e os autores, até três, com limites de tamanho e sem bibliotecas de terceiros. Um PDF, e um EPUB sem esses dados, estragado, cifrado ou grande demais, ficam com o nome do arquivo, sem a extensão, como título, e com a primeira pasta do caminho como autor; fora de pasta, o autor fica vazio. Eles são lidos junto com o resumo, só quando o arquivo muda.
 - A pasta é percorrida sem seguir atalhos, e as pastas ocultas e as `.sdr` do KOReader ficam de fora. A lista é refeita no máximo a cada 30 segundos.
 
 `GET /sync/biblioteca/<id>` entrega o livro, só se ele estiver na lista, com o tipo dele, `nosniff` e, para o EPUB, isolado e como anexo, como os arquivos enviados. Um livro cuja pasta, ou ele mesmo, virou atalho depois de listado não é entregue. Sem a biblioteca configurada, a lista é vazia.
 
-Nos aparelhos, a seção "Biblioteca" do painel lateral, de `web/app/compat/biblioteca.js`, mostra a lista e guarda cada livro aberto num banco próprio, `prancheta-biblioteca`, separado do banco dos quadros: os livros não sobem ao servidor nem passam pela cifra. A última lista recebida fica guardada para o uso sem rede.
+Nos aparelhos, a tela da biblioteca, de `web/app/compat/tela-da-biblioteca.js`, mostra a lista, agrupada pela primeira pasta, que na biblioteca do autor é a do autor de cada obra, com busca, ordenação e filtro; a seção "Biblioteca" do painel lateral, de `web/app/compat/biblioteca.js`, tem o botão que abre a tela e os livros lidos por último. Cada livro aberto fica guardado num banco próprio, `prancheta-biblioteca`, separado do banco dos quadros: os livros não sobem ao servidor nem passam pela cifra. A última lista recebida fica guardada para o uso sem rede.
 
 ### Progresso do KOReader, em `/sync/kosync/`
 

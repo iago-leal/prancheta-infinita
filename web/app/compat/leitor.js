@@ -1522,7 +1522,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       if (mudanca.tipo === 'posicao' && this.livro) {
         const posicao = vista.posicao();
         if (this._leu) this._lidoEm = Date.now();
-        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao, this._lidoEm).catch(() => {});
+        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao, this._lidoEm, vista.porcentagem()).catch(() => {});
         if (this._leu) this._agendarEnvio();
       }
       this._avisar();
@@ -1609,7 +1609,7 @@ html.casca #leitor .textLayer span.lt-sublinhado{box-shadow:0 2px 0 #000}
       // mudança, e a posição que ainda esperava para ir ao servidor vai agora.
       if (this.vista && this.livro) {
         const posicao = this.vista.posicao();
-        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao, this._lidoEm).catch(() => {});
+        if (posicao) this.biblioteca.gravarPosicao(this.livro.id, posicao, this._lidoEm, this.vista.porcentagem()).catch(() => {});
         this._enviarProgresso();
       }
       clearTimeout(this._aEnviar);

@@ -6,6 +6,28 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-10 · Plano 008: a tela da biblioteca
+
+### Feito
+
+- Implementada a [etapa 01 do plano 008](planos/008-biblioteca-organizada/etapas/01-tela-da-biblioteca.md), com a casca 0.15.0: o servidor lê o título e o autor de cada EPUB de dentro do arquivo, e a biblioteca abre numa tela própria, por cima do quadro, em lista por autor, com busca sem acentos, três ordens, o filtro dos guardados neste aparelho e a porcentagem lida. No painel lateral ficaram o botão que abre a tela e os cinco livros lidos por último.
+- 4 testes novos no servidor e 6 na página; 88 mutações, todas acusadas depois de os testes serem reforçados em 2 pontos. A suíte da página tem 114 testes, e a do servidor, 50.
+
+### Decidido
+
+- **O grupo de cada livro é a primeira pasta do caminho, e não o autor escrito no EPUB.** A pasta é a organização do autor, e o nome escrito no arquivo pode vir grafado de outro jeito e dividir o mesmo autor em dois grupos. O autor escrito no livro aparece na linha quando difere e vale na busca.
+- **Com a tela aberta, as teclas, o copiar e o colar não chegam ao quadro.** Sem isso, um atalho trocaria a ferramenta, e um texto colado viraria um cartão no quadro coberto.
+
+### Ideias guardadas
+
+- Usar o título do livro, e não o nome do arquivo, no alto do leitor e nos cartões levados ao quadro.
+
+### Pendências
+
+- O teste do autor no Boox, com a casca 0.15.0, para o critério 9 da etapa 01.
+- A etapa 02 do plano 008, a ficha do livro, já aprovada.
+- Os testes do autor com o KOReader, do plano 007, e os do plano 006 no Boox.
+
 ## 2026-11-10 · Etapa 03 do plano 007 concluída, e o pedido da biblioteca organizada
 
 ### Feito

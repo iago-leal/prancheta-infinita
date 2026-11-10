@@ -20,6 +20,7 @@ const { criarServidor } = require('../../servidor/servidor.cjs');
 const { criarServidorDaPagina } = require('../../servidor/pagina.cjs');
 const { Biblioteca } = require('../../servidor/biblioteca.cjs');
 const { criarEpub, criarPdf } = require('./apoio/livros.cjs');
+const { esperarLista, abrirPelaBiblioteca } = require('./apoio/biblioteca.cjs');
 
 globalThis.crypto ??= crypto.webcrypto;
 require('../app/compat/cifra.js');
@@ -64,7 +65,7 @@ async function abrirPrancheta(contexto, base, chaveDaCifra) {
     if (cifra) await window.sincronizacaoDaPrancheta.usarChaveDaCifra(cifra);
     await window.sincronizacaoDaPrancheta.configurar({ endereco, chave });
   }, [base, CHAVE, chaveDaCifra]);
-  await pagina.locator('#biblioteca .bib-livro').nth(1).waitFor();
+  await esperarLista(pagina, 2);
   return { pagina, erros };
 }
 
@@ -113,7 +114,7 @@ test('o destaque e a posição vão ao quadro, e o link reabre o livro, também 
   const contextoB = await navegador.newContext({ viewport: TELA });
   try {
     const a = await abrirPrancheta(contextoA, vps.base, chaveDaCifra);
-    await a.pagina.locator('#biblioteca .bib-livro', { hasText: 'Livro de teste.epub' }).click();
+    await abrirPelaBiblioteca(a.pagina, 'Livro de teste.epub');
     await a.pagina.waitForFunction(() => /primeiro capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
     await a.pagina.click('#leitor [data-acao="proxima"]');
     await a.pagina.waitForFunction(() => /segundo capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
@@ -197,7 +198,7 @@ test('no PDF, o destaque sombreia o trecho na página, reaparece ao reabrir, e o
   const contexto = await navegador.newContext({ viewport: TELA });
   try {
     const { pagina, erros } = await abrirPrancheta(contexto, vps.base);
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Documento.pdf' }).click();
+    await abrirPelaBiblioteca(pagina, 'Documento.pdf');
     await pagina.waitForFunction(() => /Primeira pagina/.test(document.querySelector('#leitor .textLayer')?.textContent || ''), null, { timeout: 15000 });
     await pagina.click('#leitor [data-acao="proxima"]');
     await pagina.waitForFunction(() => /Segunda pagina/.test(document.querySelector('#leitor .textLayer')?.textContent || ''), null, { timeout: 15000 });
@@ -260,7 +261,7 @@ test('tocar num destaque do EPUB abre apagar, estilo e nota, e as mudanças cheg
   const contextoB = await navegador.newContext({ viewport: TELA });
   try {
     const a = await abrirPrancheta(contextoA, vps.base, chaveDaCifra);
-    await a.pagina.locator('#biblioteca .bib-livro', { hasText: 'Livro de teste.epub' }).click();
+    await abrirPelaBiblioteca(a.pagina, 'Livro de teste.epub');
     await a.pagina.waitForFunction(() => /primeiro capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
     await a.pagina.click('#leitor [data-acao="proxima"]');
     await a.pagina.waitForFunction(() => /segundo capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
@@ -355,7 +356,7 @@ test('tocar num destaque do PDF abre apagar, estilo e nota', async () => {
   const contexto = await navegador.newContext({ viewport: TELA });
   try {
     const { pagina, erros } = await abrirPrancheta(contexto, vps.base);
-    await pagina.locator('#biblioteca .bib-livro', { hasText: 'Documento.pdf' }).click();
+    await abrirPelaBiblioteca(pagina, 'Documento.pdf');
     await pagina.waitForFunction(() => /Primeira pagina/.test(document.querySelector('#leitor .textLayer')?.textContent || ''), null, { timeout: 15000 });
     await pagina.evaluate(() => {
       const intervalo = document.createRange();
