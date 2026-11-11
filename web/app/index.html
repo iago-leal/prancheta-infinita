@@ -11,6 +11,7 @@
 <script src="compat/claude.js"></script>
 <script src="compat/casca.js"></script>
 <script src="compat/traco-onyx.js"></script>
+<script src="compat/editor-md.js"></script>
 <link rel="stylesheet" href="fontes/inter.css">
 <style>
 /* Layout: mesa infinita em tela cheia, com o título fixo no canto e ferramentas flutuando nas bordas. */
@@ -483,7 +484,7 @@ addEventListener('error',fail);setTimeout(fail,8000);
     <dt>Conversar com Claude</dt><dd>C</dd>
     <dt>Quadros e pastas</dt><dd>B</dd>
     <dt>Tarefa dentro do cartão</dt><dd>[] e espaço</dd>
-    <dt>Marcar tarefa</dt><dd>Ctrl+Enter</dd>
+    <dt>Marcar tarefa</dt><dd>Ctrl+Enter</dd><dt>Recuar a linha, desfazer o recuo</dt><dd>Tab, Shift+Tab</dd><dt>Negrito, itálico, código, link no cartão</dt><dd>Ctrl+B, I, E, K</dd><dt>Imagem dentro do cartão</dt><dd>colar ou soltar durante a edição</dd>
     <dt>Texto marcado</dt><dd>==texto==</dd>
     <dt>Marcação colorida</dt><dd>=={verde}texto==</dd>
     <dt>Texto colorido</dt><dd>{azul}texto{/}</dd>
@@ -683,19 +684,13 @@ function webA(url,label){
 const COLORS={amarelo:'yellow',yellow:'yellow',laranja:'amber',amber:'amber',vermelho:'red',red:'red',verde:'green',green:'green',azul:'blue',blue:'blue',rosa:'pink',pink:'pink',roxo:'violet',violeta:'violet',violet:'violet'};
 const stripMarkup=t=>t.replace(/==(\{[a-zà-ú]+\})?|\{[a-zà-ú]+\}|\{\/\}/g,'');
 const colorEl=(tag,c,cls)=>{const k=COLORS[c];if(!k)return null;const e=document.createElement(tag);e.className=`c-${k}${cls}`;return e};
-const INLINE=[
- {re:/`([^`\n]+)`/,mk:()=>document.createElement('code'),g:1,raw:1},
- {re:/==(?:\{([a-zà-ú]+)\})?([^=\n]+?)==/,mk:m=>colorEl('mark',m[1]||'amarelo',''),g:2},
- {re:/\{([a-zà-ú]+)\}([^{}\n]+?)\{\/\}/,mk:m=>colorEl('span',m[1],' tc'),g:2},
- {re:/\*\*([^*\n]+?)\*\*/,mk:()=>document.createElement('strong'),g:1},
- {re:/~~([^~\n]+?)~~/,mk:()=>document.createElement('del'),g:1},
- {re:/(?<![\w*])\*([^*\s](?:[^*\n]*[^*\s])?)\*(?![\w*])/,mk:()=>document.createElement('em'),g:1}
-];
+const INLINE=EditorMd.INLINE;
 function decorateText(n){
   const t=n.data;let best=null;for(const r of INLINE){const m=r.re.exec(t);if(m&&(!best||m.index<best.m.index))best={m,r}}
   if(!best){linkText(n);return}
   const{m,r}=best,e=r.mk(m),pre=document.createTextNode(t.slice(0,m.index)),post=document.createTextNode(t.slice(m.index+m[0].length));
   if(!e){const raw=document.createTextNode(m[0]);n.replaceWith(pre,raw,post);linkText(pre);linkText(raw);decorateText(post);return}
+  if(r.img){n.replaceWith(pre,e,post);linkText(pre);decorateText(post);return}
   const inner=document.createTextNode(m[r.g]);e.append(inner);n.replaceWith(pre,e,post);linkText(pre);if(!r.raw)decorateText(inner);decorateText(post);
 }
 function linkText(n){
@@ -710,24 +705,14 @@ function linkText(n){
   f.append(t.slice(i));n.replaceWith(f);
 }
 function decorate(html){const t=document.createElement('template');t.innerHTML=html;(function w(n){for(const c of[...n.childNodes]){if(c.nodeType===3)decorateText(c);else if(c.nodeType===1&&c.tagName!=='CODE'&&c.tagName!=='PRE')w(c)}})(t.content);return t.innerHTML}
-function readBlocks(ed){return[...ed.children].map(c=>{let h=clean(c.innerHTML).replace(/(<br>)+$/,'');const o={h};if(c.dataset.k&&c.dataset.k!=='p')o.k=c.dataset.k;if(c.dataset.d==='1')o.d=1;return o})}
+function readBlocks(ed){return EditorMd.lerBlocos(ed)}
 const blocksEmpty=bs=>!bs.some(b=>b.h&&b.h.replace(/<[^>]+>/g,'').trim());
-function blocksFromText(text){
-  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');let fence=false;
-  return text.replace(/\r/g,'').split('\n').map(l=>{let m;
-    if(/^\s*```/.test(l)){fence=!fence;return{h:esc(l)}}if(fence)return{h:esc(l)};
-    if(m=l.match(/^\s*(?:[-*]\s+)?\[( |x|X)?\]\s+(.*)$/))return{k:'todo',h:esc(m[2]),...(m[1]&&m[1]!==' '?{d:1}:{})};
-    if(m=l.match(/^\s*[-*•]\s+(.*)$/))return{k:'li',h:esc(m[1])};
-    if(m=l.match(/^\s*\d+[.)]\s+(.*)$/))return{k:'ol',h:esc(m[1])};
-    if(m=l.match(/^(#{1,6})\s+(.*)$/))return{k:'h'+m[1].length,h:esc(m[2])};
-    if(m=l.match(/^>\s?(.*)$/))return{k:'quote',h:esc(m[1])};
-    return{h:esc(l)}}).filter((b,i,a)=>b.h!==''||(i&&a[i-1].h!==''))
-}
+function blocksFromText(text){return EditorMd.blocosDoTexto(text)}
 /* apresentação no padrão do GitHub: agrupa linhas em tabela, código, regra e alerta */
 const ALERTS={NOTE:['note','Nota'],TIP:['tip','Dica'],IMPORTANT:['important','Importante'],WARNING:['warning','Aviso'],CAUTION:['caution','Cuidado']};
 function displayHTML(blocks){
   const B=blocks&&blocks.length?blocks:[{h:''}],o=[],esc=x=>x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),plain=b=>strip(b.h),isP=b=>!b.k||b.k==='p';
-  const line=(b,i)=>{const k=KINDS.has(b.k)?b.k:'p',h=clean(b.h);return`<div class="b" data-k="${k}" data-i="${i}"${b.d?' data-d="1"':''}>${h||'<br>'}</div>`};
+  const NUM=EditorMd.numeros(B),line=(b,i)=>{const k=KINDS.has(b.k)?b.k:'p',h=clean(b.h),n=EditorMd.nivel(b);return`<div class="b" data-k="${k}" data-i="${i}"${b.d?' data-d="1"':''}${n?` data-n="${n}"`:''}${NUM[i]?` data-num="${NUM[i]}"`:''}>${h||'<br>'}</div>`};
   for(let i=0;i<B.length;i++){
     const b=B[i],t=plain(b).trim();
     if(isP(b)&&/^```/.test(t)){let j=i+1;const c=[];while(j<B.length&&!/^```/.test(plain(B[j]).trim()))c.push(plain(B[j])),j++;o.push(`<pre><code>${esc(c.join('\n'))}</code></pre>`);i=j;continue}
@@ -972,7 +957,7 @@ function enterEdit(id,x,y,isNew=false,extra=[]){
   const it=S.items.get(id);if(!it||it.type!=='card')return;
   exitEdit();select([id]);
   const el=doms.get(id),ed=$('.editor',el);
-  ed.innerHTML=blocksHTML(it.blocks);el._html=null;
+  EditorMd.preparar(ed,it.blocks);el._html=null;
   S.editing=id;S.editBefore=isNew?null:ser(it);S.editNew=isNew;S.editExtra=extra;
   ed.contentEditable='true';ed.focus({preventScroll:true});placeCaret(x,y,ed);markEmpty(ed);
   try{document.execCommand('defaultParagraphSeparator',false,'div');document.execCommand('styleWithCSS',false,false)}catch{}
@@ -1007,8 +992,8 @@ function normalizeEditor(ed){
   if(!ed.children.length){const d=document.createElement('div');d.className='b';d.dataset.k='p';d.innerHTML='<br>';ed.appendChild(d);caretEnd(ed)}
 }
 function mdShortcut(b){
-  if(!b||(b.dataset.k&&b.dataset.k!=='p'))return;
-  const t=b.textContent.replace(/ /g,' ');const m=t.match(/^(#{1,6}|[-*]|\[ ?\]|\[x\]|>|\d+\.) /i);if(!m)return;
+  if(!b)return;EditorMd.tarefaDaLista(b);if(b.dataset.k&&b.dataset.k!=='p')return;
+  const t=b.textContent.replace(/ /g,' ');const m=t.match(/^(#{1,6}|[-*+]|\[ ?\]|\[x\]|>|\d+[.)]) /i);if(!m)return;
   const fn=b.firstChild;if(!fn||fn.nodeType!==3)return;
   fn.deleteData(0,m[0].length);if(!b.textContent)b.innerHTML='<br>';
   const key=m[1].toLowerCase();b.dataset.k=key[0]==='#'?'h'+key.length:key==='>'?'quote':key[0]==='['?'todo':/\d/.test(key)?'ol':'li';
@@ -1021,7 +1006,7 @@ cardsEl.addEventListener('input',e=>{
   const b=curBlock();
   if(e.inputType==='insertParagraph'&&b){if(/^h\d/.test(b.dataset.k||''))b.dataset.k='p';delete b.dataset.d}
   else mdShortcut(b);
-  markEmpty(ed);clearTimeout(editT);editT=setTimeout(persistEdit,900);wikiCheck();
+  EditorMd.aoDigitar(ed,e);markEmpty(ed);clearTimeout(editT);editT=setTimeout(persistEdit,900);wikiCheck();
 });
 cardsEl.addEventListener('keydown',e=>{
   if(!e.target.closest('.editor'))return;
@@ -1033,15 +1018,14 @@ cardsEl.addEventListener('keydown',e=>{
   if(e.key==='Backspace'&&b&&b.dataset.k&&b.dataset.k!=='p'&&atStart(b)){e.preventDefault();b.dataset.k='p';delete b.dataset.d;return}
 });
 cardsEl.addEventListener('paste',e=>{
-  if(!e.target.closest('.editor'))return;e.preventDefault();e.stopPropagation();
-  document.execCommand('insertText',false,e.clipboardData.getData('text/plain'));
+  if(!e.target.closest('.editor'))return;EditorMd.colar(e);
 });
 function setKind(k){
   const s=getSelection();if(!s.rangeCount||!S.editing)return;const ed=$('.editor',doms.get(S.editing)),r=s.getRangeAt(0);
   const list=[...ed.children].filter(c=>r.intersectsNode(c));
   const same=list.every(c=>c.dataset.k===k);
-  for(const c of list){c.dataset.k=same?'p':k;delete c.dataset.d}
-  markEmpty(ed);persistEdit();renderSelbar();
+  EditorMd.guardar(ed,'op');for(const c of list){c.dataset.k=same?'p':k;delete c.dataset.d}
+  EditorMd.atualizar(ed);markEmpty(ed);persistEdit();renderSelbar();
 }
 
 /* ---------- ponteiro ---------- */
@@ -1411,7 +1395,7 @@ function renderSelbar(){
   if(S.editing){
     key='edit';
     html=[['h1','T1'],['h2','T2'],['li','list'],['todo','todo'],['quote','quote']].map(([k,l])=>`<button class="btn" data-kind="${k}" title="${{h1:'Título',h2:'Subtítulo',li:'Tópicos',todo:'Tarefa',quote:'Citação'}[k]}" aria-label="${k}">${I[l]?icon(l):l}</button>`).join('')+
-    '<span class="sep"></span><button class="btn" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>N</b></button><button class="btn" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></button><button class="btn" data-cmd="strikeThrough" title="Riscado" aria-label="Riscado"><s>R</s></button><span class="sep"></span><button class="btn" data-fmt="mark" title="Marcar texto" aria-label="Marcar texto">'+icon('hl')+'</button><button class="btn" data-fmt="text" title="Cor do texto" aria-label="Cor do texto">A</button>';
+    EditorMd.botoes()+'<span class="sep"></span><button class="btn" data-fmt="mark" title="Marcar texto" aria-label="Marcar texto">'+icon('hl')+'</button><button class="btn" data-fmt="text" title="Cor do texto" aria-label="Cor do texto">A</button>';
   }else{
     const one=list.length===1?list[0]:null,hasColor=list.some(i=>i.type!=='image'&&i.type!=='file'),eye=one&&canPreview(one);
     const cur=one?(one.c||(one.type==='stroke'?'ink':'none')):'';
@@ -1447,7 +1431,7 @@ selbar.addEventListener('pointerdown',e=>e.preventDefault());
 selbar.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;const d=t.dataset;
   if(d.fmt){colorMenu(t,d.fmt);return}
-  if(d.kind)setKind(d.kind);else if(d.cmd){document.execCommand(d.cmd)}
+  if(d.kind)setKind(d.kind);else if(d.cmd){EditorMd.comando(d.cmd)}
   else if(d.color)setColor(d.color);else if(d.v)setVariant(d.v);else if(d.ends)setEdgeStyle({ends:d.ends});else if(d.tip)setEdgeStyle({tip:d.tip});else if(d.route){begin();for(const it of selOf())if(it.type==='edge'){touch(it.id);delete it.pts;edgePut(it,{route:d.route});renderItem(it)}commit();renderSelbar()}
   else if(d.a==='dash')setEdgeStyle({dash:!selOf()[0].dash});else if(d.a==='weight')setEdgeStyle({w:{1:2,2:3,3:4,4:1}[selOf()[0].w||2]});else if(d.a==='point')addPoint();else if(d.a==='lp')cycleLp();else if(d.a==='rot')rotateSel();else if(d.a==='solid')toggleSolid();else if(d.a==='fundo')toggleFundo();
   else if(d.a==='label')editEdgeLabel([...S.sel][0]);else if(d.a==='eye')previewSel(t);else if(d.a==='dup')duplicate([...S.sel]);else if(d.a==='del')deleteIds([...S.sel]);
@@ -1561,7 +1545,7 @@ addEventListener('paste',e=>{
   if(!list.length)list=[...cd.items].filter(i=>i.kind==='file'&&i.type.startsWith('image/')).map(i=>i.getAsFile()).filter(Boolean);
   if(!list.length)return;
   e.preventDefault();e.stopImmediatePropagation();
-  if(e.target&&e.target.closest&&e.target.closest('#chat')){attachChat(list);return}
+  if(e.target&&e.target.closest&&e.target.closest('#chat')){attachChat(list);return}const ed=e.target&&e.target.closest&&e.target.closest('.editor[contenteditable=true]');if(ed){EditorMd.colarImagens(ed,list);return}
   const p=center();addImages(list,p.x,p.y);
 },true);
 $('#imgInput').addEventListener('change',e=>{const f=[...e.target.files].filter(x=>x.type.startsWith('image/')||!x.type);e.target.value='';addImages(f,visC(),innerHeight/2)});
@@ -1588,6 +1572,7 @@ function drawBlock(ctx,b,ox,oy,k){
   if(k2==='ol'){ctx.fillStyle=cs.color;ctx.font=`${fs}px ${cs.fontFamily}`;ctx.textAlign='right';ctx.fillText((b._n||1)+'.',x0+fs*1.6,y0+lh*.5+fs*.35);ctx.textAlign='left'}
   if(k2==='todo'){const bs=getComputedStyle(b,'::before'),by=y0+lh*.5-8;ctx.beginPath();ctx.roundRect(x0,by,16,16,3);ctx.fillStyle=bs.backgroundColor;ctx.fill();ctx.strokeStyle=bs.borderTopColor;ctx.lineWidth=2;ctx.stroke();if(b.dataset.d==='1'){ctx.strokeStyle='#fff';ctx.lineWidth=2.6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x0+3.5,by+8.5);ctx.lineTo(x0+6.5,by+11.5);ctx.lineTo(x0+12.5,by+5);ctx.stroke()}}
   if(k2==='li'){ctx.fillStyle=getComputedStyle(b,'::before').backgroundColor;ctx.beginPath();ctx.arc(x0+fs*.95+2.5,y0+lh*.5,2.5,0,7);ctx.fill()}
+  for(const im of b.querySelectorAll('img.md-img'))if(im.complete&&im.naturalWidth){const q=im.getBoundingClientRect();ctx.drawImage(im,(q.left-ox)/k,(q.top-oy)/k,q.width/k,q.height/k)}
   if(k2==='quote'&&parseFloat(cs.borderLeftWidth)>0){ctx.fillStyle=cs.borderLeftColor;ctx.fillRect(x0,y0,4,rb.height/k)}
 }
 function renderCanvas(X,Y,W,H,sc,noImg=false){
@@ -1610,7 +1595,7 @@ function renderCanvas(X,Y,W,H,sc,noImg=false){
     const er=el.getBoundingClientRect(),ox=er.left-r.x*v.k,oy=er.top-r.y*v.k;
     let on=0;
     for(const bl of $('.editor',el).children){
-      if(bl.dataset.k==='ol')bl._n=++on;else on=0;
+      if(bl.dataset.k==='ol')bl._n=bl.dataset.num||++on;else on=0;
       const q=getComputedStyle(bl),box=bl.getBoundingClientRect(),X=(box.left-ox)/v.k,Y=(box.top-oy)/v.k,BW=box.width/v.k,BH=box.height/v.k;
       if(bl.tagName==='HR'){ctx.fillStyle=q.backgroundColor;ctx.fillRect(X,Y,BW,BH)}
       else if(bl.tagName==='PRE'){const c=$('code',bl),cq=getComputedStyle(c),fsz=parseFloat(cq.fontSize),lh=fsz*1.45;ctx.fillStyle=q.backgroundColor;ctx.beginPath();ctx.roundRect(X,Y,BW,BH,6);ctx.fill();ctx.fillStyle=cq.color;ctx.font=`${fsz}px ${cq.fontFamily}`;c.textContent.split('\n').forEach((l,i)=>ctx.fillText(l,X+16,Y+16+lh*i+fsz));}

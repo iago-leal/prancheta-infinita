@@ -14,7 +14,7 @@ module.exports = [
     para: `<link rel="stylesheet" href="fontes/inter.css">`,
   },
   {
-    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; vêm junto a sincronização com o servidor, a combinação item a item e a cifra ponta a ponta que ela usa, a biblioteca de livros, com a tela própria dela, o leitor deles e as marcações, o adaptador da casca Android, que não faz nada fora dela, e o desenho dos traços feitos no Boox.',
+    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; vêm junto a sincronização com o servidor, a combinação item a item e a cifra ponta a ponta que ela usa, a biblioteca de livros, com a tela própria dela, o leitor deles e as marcações, o adaptador da casca Android, que não faz nada fora dela, o desenho dos traços feitos no Boox e o editor de markdown dos cartões.',
     de: `<title>Prancheta Infinita</title>`,
     para: `<title>Prancheta Infinita</title>
 <script src="compat/banco-local.js"></script>
@@ -27,7 +27,8 @@ module.exports = [
 <script src="compat/marcacoes.js"></script>
 <script src="compat/claude.js"></script>
 <script src="compat/casca.js"></script>
-<script src="compat/traco-onyx.js"></script>`,
+<script src="compat/traco-onyx.js"></script>
+<script src="compat/editor-md.js"></script>`,
   },
   {
     motivo: 'O aviso de falha na inicialização oferecia restaurar uma versão anterior pela autopublicação do claude.ai, que não existe fora dele; o botão passa a recarregar a página, e os quadros continuam a salvo no banco local.',
@@ -204,5 +205,135 @@ function lassoSelect(p,base){const ids=new Set(base||[]);if(p.length>=6){const d
     motivo: 'A pedido do autor, os pontos do fundo ficam 15% mais espaçados em todos os níveis de zoom: o passo continua dobrando e caindo à metade com o zoom, e o resultado é multiplicado por 1,15.',
     de: `let s=24*v.k;while(s<14)s*=2;while(s>44)s/=2;`,
     para: `let s=24*v.k;while(s<14)s*=2;while(s>44)s/=2;s*=1.15;`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: a gramática da marcação dentro da linha passa a vir de compat/editor-md.js, a mesma para a edição e para a exibição. As regras do artefato ficam iguais, e entram o escape com barra, o negrito com itálico, o negrito e o itálico com sublinhado e a imagem guardada no aparelho, escrita como ![descrição](/_blob/<id>). A imagem não tem conteúdo de texto e entra inteira no lugar da marcação.',
+    de: `const INLINE=[
+ {re:/\`([^\`\\n]+)\`/,mk:()=>document.createElement('code'),g:1,raw:1},
+ {re:/==(?:\\{([a-zà-ú]+)\\})?([^=\\n]+?)==/,mk:m=>colorEl('mark',m[1]||'amarelo',''),g:2},
+ {re:/\\{([a-zà-ú]+)\\}([^{}\\n]+?)\\{\\/\\}/,mk:m=>colorEl('span',m[1],' tc'),g:2},
+ {re:/\\*\\*([^*\\n]+?)\\*\\*/,mk:()=>document.createElement('strong'),g:1},
+ {re:/~~([^~\\n]+?)~~/,mk:()=>document.createElement('del'),g:1},
+ {re:/(?<![\\w*])\\*([^*\\s](?:[^*\\n]*[^*\\s])?)\\*(?![\\w*])/,mk:()=>document.createElement('em'),g:1}
+];
+function decorateText(n){
+  const t=n.data;let best=null;for(const r of INLINE){const m=r.re.exec(t);if(m&&(!best||m.index<best.m.index))best={m,r}}
+  if(!best){linkText(n);return}
+  const{m,r}=best,e=r.mk(m),pre=document.createTextNode(t.slice(0,m.index)),post=document.createTextNode(t.slice(m.index+m[0].length));
+  if(!e){const raw=document.createTextNode(m[0]);n.replaceWith(pre,raw,post);linkText(pre);linkText(raw);decorateText(post);return}
+  const inner=document.createTextNode(m[r.g]);e.append(inner);n.replaceWith(pre,e,post);linkText(pre);if(!r.raw)decorateText(inner);decorateText(post);
+}
+`,
+    para: `const INLINE=EditorMd.INLINE;
+function decorateText(n){
+  const t=n.data;let best=null;for(const r of INLINE){const m=r.re.exec(t);if(m&&(!best||m.index<best.m.index))best={m,r}}
+  if(!best){linkText(n);return}
+  const{m,r}=best,e=r.mk(m),pre=document.createTextNode(t.slice(0,m.index)),post=document.createTextNode(t.slice(m.index+m[0].length));
+  if(!e){const raw=document.createTextNode(m[0]);n.replaceWith(pre,raw,post);linkText(pre);linkText(raw);decorateText(post);return}
+  if(r.img){n.replaceWith(pre,e,post);linkText(pre);decorateText(post);return}
+  const inner=document.createTextNode(m[r.g]);e.append(inner);n.replaceWith(pre,e,post);linkText(pre);if(!r.raw)decorateText(inner);decorateText(post);
+}
+`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: os blocos lidos de um texto, como o colado no quadro, guardam o recuo das listas, a cada dois espaços ou um Tab, e aceitam o marcador "+", pela mesma função que o editor usa ao colar.',
+    de: `function blocksFromText(text){
+  const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');let fence=false;
+  return text.replace(/\\r/g,'').split('\\n').map(l=>{let m;
+    if(/^\\s*\`\`\`/.test(l)){fence=!fence;return{h:esc(l)}}if(fence)return{h:esc(l)};
+    if(m=l.match(/^\\s*(?:[-*]\\s+)?\\[( |x|X)?\\]\\s+(.*)$/))return{k:'todo',h:esc(m[2]),...(m[1]&&m[1]!==' '?{d:1}:{})};
+    if(m=l.match(/^\\s*[-*•]\\s+(.*)$/))return{k:'li',h:esc(m[1])};
+    if(m=l.match(/^\\s*\\d+[.)]\\s+(.*)$/))return{k:'ol',h:esc(m[1])};
+    if(m=l.match(/^(#{1,6})\\s+(.*)$/))return{k:'h'+m[1].length,h:esc(m[2])};
+    if(m=l.match(/^>\\s?(.*)$/))return{k:'quote',h:esc(m[1])};
+    return{h:esc(l)}}).filter((b,i,a)=>b.h!==''||(i&&a[i-1].h!==''))
+}
+`,
+    para: `function blocksFromText(text){return EditorMd.blocosDoTexto(text)}
+`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: cada linha mostrada leva o nível de recuo, em data-n, e o número da lista numerada, em data-num, calculado por nível, como no GitHub, em algarismos, romanos e letras.',
+    de: `  const line=(b,i)=>{const k=KINDS.has(b.k)?b.k:'p',h=clean(b.h);return\`<div class="b" data-k="\${k}" data-i="\${i}"\${b.d?' data-d="1"':''}>\${h||'<br>'}</div>\`};`,
+    para: `  const NUM=EditorMd.numeros(B),line=(b,i)=>{const k=KINDS.has(b.k)?b.k:'p',h=clean(b.h),n=EditorMd.nivel(b);return\`<div class="b" data-k="\${k}" data-i="\${i}"\${b.d?' data-d="1"':''}\${n?\` data-n="\${n}"\`:''}\${NUM[i]?\` data-num="\${NUM[i]}"\`:''}>\${h||'<br>'}</div>\`};`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: ao gravar, o cartão em edição é lido pelo editor novo, que tira a decoração e guarda o markdown de cada linha, com o recuo.',
+    de: `function readBlocks(ed){return[...ed.children].map(c=>{let h=clean(c.innerHTML).replace(/(<br>)+$/,'');const o={h};if(c.dataset.k&&c.dataset.k!=='p')o.k=c.dataset.k;if(c.dataset.d==='1')o.d=1;return o})}`,
+    para: `function readBlocks(ed){return EditorMd.lerBlocos(ed)}`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: ao entrar na edição, o cartão é desenhado pelo editor novo, com a marcação já formatada; o negrito e o itálico guardados como HTML por versões anteriores viram a marcação equivalente.',
+    de: `ed.innerHTML=blocksHTML(it.blocks);el._html=null;`,
+    para: `EditorMd.preparar(ed,it.blocks);el._html=null;`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: numa linha de tópico, "[ ] " ou "[x] " no início a transforma em tarefa, como "- [ ] " no GitHub.',
+    de: `if(!b||(b.dataset.k&&b.dataset.k!=='p'))return;`,
+    para: `if(!b)return;EditorMd.tarefaDaLista(b);if(b.dataset.k&&b.dataset.k!=='p')return;`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: "+ " também começa um tópico, e "1) " também começa uma lista numerada, como no GitHub.',
+    de: `const m=t.match(/^(#{1,6}|[-*]|\\[ ?\\]|\\[x\\]|>|\\d+\\.) /i);`,
+    para: `const m=t.match(/^(#{1,6}|[-*+]|\\[ ?\\]|\\[x\\]|>|\\d+[.)]) /i);`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: a cada entrada, as linhas cuja forma mudou são redesenhadas com a marcação formatada, sem tocar nas demais, e o cursor volta ao mesmo ponto.',
+    de: `else mdShortcut(b);
+  markEmpty(ed);`,
+    para: `else mdShortcut(b);
+  EditorMd.aoDigitar(ed,e);markEmpty(ed);`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: colar no cartão passa pelo editor, que guarda as imagens coladas no cartão, transforma um endereço colado sobre um texto selecionado em link e distribui um texto de várias linhas em linhas do cartão, com os tipos e o recuo de cada uma.',
+    de: `cardsEl.addEventListener('paste',e=>{
+  if(!e.target.closest('.editor'))return;e.preventDefault();e.stopPropagation();
+  document.execCommand('insertText',false,e.clipboardData.getData('text/plain'));
+});
+`,
+    para: `cardsEl.addEventListener('paste',e=>{
+  if(!e.target.closest('.editor'))return;EditorMd.colar(e);
+});
+`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: mudar o tipo das linhas pela barra entra no desfazer do editor e redesenha a numeração e a forma das linhas.',
+    de: `const same=list.every(c=>c.dataset.k===k);
+  for(const c of list){c.dataset.k=same?'p':k;delete c.dataset.d}
+  markEmpty(ed);persistEdit();renderSelbar();`,
+    para: `const same=list.every(c=>c.dataset.k===k);
+  EditorMd.guardar(ed,'op');for(const c of list){c.dataset.k=same?'p':k;delete c.dataset.d}
+  EditorMd.atualizar(ed);markEmpty(ed);persistEdit();renderSelbar();`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: a barra da edição ganha código, link, os dois botões de recuo, para o iPad e o Boox sem teclado, e o botão de imagem no cartão; o negrito, o itálico e o riscado passam a escrever a marcação, em vez do HTML.',
+    de: `'<span class="sep"></span><button class="btn" data-cmd="bold" title="Negrito" aria-label="Negrito"><b>N</b></button><button class="btn" data-cmd="italic" title="Itálico" aria-label="Itálico"><i>I</i></button><button class="btn" data-cmd="strikeThrough" title="Riscado" aria-label="Riscado"><s>R</s></button>`,
+    para: `EditorMd.botoes()+'`,
+  },
+  {
+    motivo: 'Continuação da mudança anterior: os botões da barra da edição chamam os comandos do editor.',
+    de: `else if(d.cmd){document.execCommand(d.cmd)}`,
+    para: `else if(d.cmd){EditorMd.comando(d.cmd)}`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: na exportação em PNG, a lista numerada usa o número de cada nível, já calculado na exibição.',
+    de: `if(bl.dataset.k==='ol')bl._n=++on;else on=0;`,
+    para: `if(bl.dataset.k==='ol')bl._n=bl.dataset.num||++on;else on=0;`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: na exportação em PNG, as imagens dentro dos cartões entram no desenho, no lugar em que aparecem.',
+    de: `if(k2==='li'){ctx.fillStyle=getComputedStyle(b,'::before').backgroundColor;ctx.beginPath();ctx.arc(x0+fs*.95+2.5,y0+lh*.5,2.5,0,7);ctx.fill()}`,
+    para: `if(k2==='li'){ctx.fillStyle=getComputedStyle(b,'::before').backgroundColor;ctx.beginPath();ctx.arc(x0+fs*.95+2.5,y0+lh*.5,2.5,0,7);ctx.fill()}
+  for(const im of b.querySelectorAll('img.md-img'))if(im.complete&&im.naturalWidth){const q=im.getBoundingClientRect();ctx.drawImage(im,(q.left-ox)/k,(q.top-oy)/k,q.width/k,q.height/k)}`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: uma imagem colada com um cartão em edição vai para dentro do cartão, na linha seguinte à do cursor, em vez de virar uma imagem solta no quadro.',
+    de: `if(e.target&&e.target.closest&&e.target.closest('#chat')){attachChat(list);return}`,
+    para: `if(e.target&&e.target.closest&&e.target.closest('#chat')){attachChat(list);return}const ed=e.target&&e.target.closest&&e.target.closest('.editor[contenteditable=true]');if(ed){EditorMd.colarImagens(ed,list);return}`,
+  },
+  {
+    motivo: 'Editor de markdown do plano 009: a ajuda dos atalhos descreve o recuo com Tab, os atalhos de formatação do cartão e a imagem colada ou solta dentro dele.',
+    de: `<dt>Marcar tarefa</dt><dd>Ctrl+Enter</dd>`,
+    para: `<dt>Marcar tarefa</dt><dd>Ctrl+Enter</dd><dt>Recuar a linha, desfazer o recuo</dt><dd>Tab, Shift+Tab</dd><dt>Negrito, itálico, código, link no cartão</dt><dd>Ctrl+B, I, E, K</dd><dt>Imagem dentro do cartão</dt><dd>colar ou soltar durante a edição</dd>`,
   },
 ];
