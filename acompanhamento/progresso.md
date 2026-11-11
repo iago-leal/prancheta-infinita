@@ -6,6 +6,23 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-11 · Editor de markdown completo nos cartões
+
+### Feito
+
+- A pedido do autor, aberto o [plano 009](planos/009-editor-de-markdown/plano.md), com as três etapas implementadas para a casca 0.20.0: a [marcação formatada enquanto se escreve](planos/009-editor-de-markdown/etapas/01-pre-visualizacao.md), o [recuo com Tab](planos/009-editor-de-markdown/etapas/02-recuo.md) e as [imagens dentro do cartão](planos/009-editor-de-markdown/etapas/03-imagens-no-cartao.md).
+- O código novo está em `web/app/compat/editor-md.js`, ligado ao artefato por 16 mudanças novas em `web/montagem/mudancas.cjs`.
+- O autor pediu, durante o trabalho, o MCP do Chrome DevTools para ver o que era construído; ele não está conectado a esta sessão, e as capturas foram feitas no Chromium, pelo Playwright, e enviadas ao autor.
+
+### Decidido
+
+- **A pré-visualização fica dentro do editor atual, e o formato dos cartões não muda.** O Fable 5.2, conselheiro pedido pelo autor, comparou-a com o CodeMirror 6 e com a conversão da marcação ao fechar o marcador e recomendou-a, como esta sessão.
+
+### Pendências
+
+- O teste do autor no Boox e no computador, com o teclado de verdade, e a sincronização de um cartão com imagem.
+- Os testes já pendentes dos planos 006, 007 e 008.
+
 ## 2026-11-10 · A barra de destaque confirmada no iPad
 
 ### Feito
