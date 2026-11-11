@@ -3,10 +3,10 @@ tipo: etapa
 plano: "009"
 etapa: "02"
 titulo: "Recuo com Tab e listas aninhadas"
-status: em_andamento
+status: concluida
 depende_de: []
 iniciada_em: 2026-11-11
-concluida_em:
+concluida_em: 2026-11-11
 ---
 
 # Etapa 02: recuo com Tab e listas aninhadas
@@ -23,7 +23,7 @@ Fazer o Tab recuar as linhas do cartão, para aninhar listas como no GitHub, tam
 - [x] O recuo é guardado no cartão, e o texto colado no quadro ou no cartão guarda o recuo das listas.
 - [x] A barra da edição tem os dois botões de recuo.
 - [x] Os testes automáticos cobrem os itens acima.
-- [ ] O autor confirma no Boox e no computador que o Tab recua as linhas e que as listas aninhadas aparecem como espera.
+- [x] O autor confirma no Boox e no computador que o Tab recua as linhas e que as listas aninhadas aparecem como espera.
 
 ## Registro
 
@@ -36,3 +36,11 @@ Fazer o Tab recuar as linhas do cartão, para aninhar listas como no GitHub, tam
 ### 2026-11-11, depois da publicação
 
 - Mesclado o PR #54; a casca 0.20.0 foi publicada como `casca-32`, e a página, na VPS. O autor disse que testou e que "ficou muito bom", sem dizer em quais aparelhos; o critério do teste dele fica aberto até ele confirmar o Boox e o computador.
+
+### 2026-11-11, depois do teste do autor
+
+- O autor confirmou, depois de perguntado se o teste incluiu o Boox, o computador e a sincronização de um cartão com imagem: "Sim, todos os testes passaram. Deu tudo certo." Com isso, o critério do teste dele foi marcado.
+
+## Resultado
+
+Concluída em 2026-11-11. Os critérios automáticos foram verificados por `web/testes/editor-md.test.cjs` e pela rodada de 26 mutações, todas acusadas, registradas na [etapa 01](01-pre-visualizacao.md); o último, pelo teste do autor no Boox e no computador, confirmado por ele.

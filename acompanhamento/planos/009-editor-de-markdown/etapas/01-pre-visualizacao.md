@@ -3,10 +3,10 @@ tipo: etapa
 plano: "009"
 etapa: "01"
 titulo: "A marcação formatada enquanto se escreve"
-status: em_andamento
+status: concluida
 depende_de: []
 iniciada_em: 2026-11-11
-concluida_em:
+concluida_em: 2026-11-11
 ---
 
 # Etapa 01: a marcação formatada enquanto se escreve
@@ -25,7 +25,7 @@ Mostrar, durante a edição do cartão, a marcação do GitHub já formatada, co
 - [x] Os cartões guardados antes aparecem iguais; o negrito, o itálico, o riscado e o código guardados como HTML viram a marcação equivalente quando o cartão é editado.
 - [x] Durante a composição do teclado, as linhas não são redesenhadas.
 - [x] Os testes automáticos cobrem os itens acima e acusam mutações introduzidas no editor.
-- [ ] O autor escreve num cartão, no Boox e no computador, e confirma que a marcação aparece formatada enquanto escreve, sem atrapalhar o teclado.
+- [x] O autor escreve num cartão, no Boox e no computador, e confirma que a marcação aparece formatada enquanto escreve, sem atrapalhar o teclado.
 
 ## Registro
 
@@ -47,3 +47,11 @@ Mostrar, durante a edição do cartão, a marcação do GitHub já formatada, co
 ### 2026-11-11, depois da publicação
 
 - Mesclado o PR #54; a casca 0.20.0 foi publicada como `casca-32`, e a página, na VPS. O autor disse que testou e que "ficou muito bom", sem dizer em quais aparelhos; o critério do teste dele fica aberto até ele confirmar o Boox e o computador.
+
+### 2026-11-11, depois do teste do autor
+
+- O autor confirmou, depois de perguntado se o teste incluiu o Boox, o computador e a sincronização de um cartão com imagem: "Sim, todos os testes passaram. Deu tudo certo." Com isso, o critério do teste dele foi marcado.
+
+## Resultado
+
+Concluída em 2026-11-11. Os critérios 1 a 8 foram verificados pelos 9 testes de `web/testes/editor-md.test.cjs`, no Chromium, e pela rodada de 26 mutações, todas acusadas depois de um reforço no teste, como descrito no Registro. O critério 9 foi verificado pelo autor, que testou no Boox e no computador e confirmou que deu tudo certo.

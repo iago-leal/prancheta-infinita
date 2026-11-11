@@ -2,9 +2,9 @@
 tipo: plano
 id: "009"
 titulo: Editor de markdown completo nos cartões
-status: em_andamento
+status: concluido
 criado_em: 2026-11-11
-concluido_em:
+concluido_em: 2026-11-11
 ---
 
 # Plano 009: editor de markdown completo nos cartões
@@ -26,15 +26,15 @@ O autor pediu, em 2026-11-11, que a edição de markdown dentro dos cartões fos
 
 ## Critério de conclusão do plano
 
-- [ ] No Boox e no computador, o autor escreve num cartão com negrito, uma lista com recuo pelo Tab, uma tabela e uma imagem, vê a marcação formatada enquanto escreve e encontra o cartão igual no outro aparelho, depois da sincronização.
+- [x] No Boox e no computador, o autor escreve num cartão com negrito, uma lista com recuo pelo Tab, uma tabela e uma imagem, vê a marcação formatada enquanto escreve e encontra o cartão igual no outro aparelho, depois da sincronização.
 
 ## Etapas
 
 | Etapa | Título | Status |
 |---|---|---|
-| [01](etapas/01-pre-visualizacao.md) | A marcação formatada enquanto se escreve | em_andamento |
-| [02](etapas/02-recuo.md) | Recuo com Tab e listas aninhadas | em_andamento |
-| [03](etapas/03-imagens-no-cartao.md) | Imagens dentro do cartão | em_andamento |
+| [01](etapas/01-pre-visualizacao.md) | A marcação formatada enquanto se escreve | concluida |
+| [02](etapas/02-recuo.md) | Recuo com Tab e listas aninhadas | concluida |
+| [03](etapas/03-imagens-no-cartao.md) | Imagens dentro do cartão | concluida |
 
 ## Riscos
 
@@ -48,3 +48,7 @@ O autor pediu, em 2026-11-11, que a edição de markdown dentro dos cartões fos
 - Tabela editável célula a célula, realce de sintaxe no código, alça para redimensionar a imagem e imagens de endereços de fora.
 - HTML dentro do cartão, notas de rodapé, links por referência, títulos sublinhados, fórmulas e diagramas.
 - Listas e citações dentro de citações, e arrastar linhas para reordená-las.
+
+## Resultado
+
+Concluído em 2026-11-11, com as três etapas concluídas. O critério do plano foi verificado pelo autor, que confirmou ter testado no Boox e no computador, inclusive a sincronização de um cartão com imagem, e que deu tudo certo.
