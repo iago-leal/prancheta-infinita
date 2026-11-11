@@ -91,8 +91,10 @@ test('fora da casca, o adaptador não faz nada', async () => {
   const { contexto, pagina, erros } = await abrirNaCasca({ casca: false });
   assert.equal(await pagina.evaluate(() => typeof window.prancheta), 'undefined');
   assert.equal(await pagina.evaluate(() => document.documentElement.classList.contains('casca')), false);
+  // Desde 2026-11-11, a pedido do autor, o navegador tem a mesma faixa no alto
+  // da casca, montada por compat/faixa.js, e não pelo adaptador.
   const barra = await pagina.locator('#tools').boundingBox();
-  assert.ok(barra.y > TELA.height - 100, `no navegador, a barra continua embaixo: ${JSON.stringify(barra)}`);
+  assert.ok(barra.y < 56, `no navegador, a barra fica na faixa do alto: ${JSON.stringify(barra)}`);
   assert.deepEqual(erros, []);
   await contexto.close();
 });
@@ -338,7 +340,7 @@ test('na casca, os controles ficam numa faixa só, no alto da tela', async () =>
   const { contexto, pagina, erros } = await abrirNaCasca();
   await pagina.evaluate(() => prancheta.definirTinta('nativa'));
   assert.equal(await pagina.evaluate(() => document.documentElement.classList.contains('casca')), true);
-  const faixa = await pagina.locator('#faixa-casca').boundingBox();
+  const faixa = await pagina.locator('#faixa').boundingBox();
   assert.ok(faixa.y === 0 && faixa.height < 56, `uma faixa só, baixa, no alto: ${JSON.stringify(faixa)}`);
   const embaixo = faixa.y + faixa.height;
   for (const seletor of ['#bTitle', '#tools', '#sinc', '#bUndo', '#bRedo', '#zoomPct', '#bMore']) {
@@ -385,7 +387,7 @@ test('na casca, os controles ficam numa faixa só, no alto da tela', async () =>
   // A faixa inteira é área reservada: a caneta age sobre ela em vez de escrever.
   await esperar(pagina, () => {
     const areas = window.__chamadas.filter((c) => c[0] === 'areasReservadas').at(-1)[1];
-    const r = document.getElementById('faixa-casca').getBoundingClientRect();
+    const r = document.getElementById('faixa').getBoundingClientRect();
     return areas.some((a) => r.left + 1 >= a.x && r.right - 1 <= a.x + a.largura && r.top + 1 >= a.y && r.bottom - 1 <= a.y + a.altura);
   });
   assert.deepEqual(erros, []);
@@ -398,10 +400,10 @@ test('com o painel de quadros aberto numa tela estreita, a faixa ganha uma segun
   if (!(await pagina.evaluate(() => document.body.classList.contains('side')))) await pagina.keyboard.press('b');
   await esperar(pagina, () => document.body.classList.contains('side'));
   await pausa(300);
-  const faixa = await pagina.locator('#faixa-casca').boundingBox();
+  const faixa = await pagina.locator('#faixa').boundingBox();
   assert.ok(faixa.height > 56 && faixa.height < 100, `duas linhas: ${JSON.stringify(faixa)}`);
   assert.ok(await pagina.evaluate(() => { const t = document.getElementById('tools'); return t.scrollWidth <= t.clientWidth; }), 'as ferramentas cabem sem rolar');
-  const opcoes = await pagina.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--casca-faixa'));
+  const opcoes = await pagina.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--altura-da-faixa'));
   assert.equal(opcoes, `${Math.ceil(faixa.y + faixa.height)}px`, 'o que abre abaixo da faixa acompanha a altura dela');
   // Com o painel fechado, tudo cabe numa linha, mesmo numa página um pouco
   // mais estreita que a do Boox, que tem cerca de 900 px.
@@ -409,7 +411,7 @@ test('com o painel de quadros aberto numa tela estreita, a faixa ganha uma segun
   await esperar(pagina, () => !document.body.classList.contains('side'));
   await pagina.setViewportSize({ width: 860, height: 1150 });
   await pausa(300);
-  const sozinha = await pagina.locator('#faixa-casca').boundingBox();
+  const sozinha = await pagina.locator('#faixa').boundingBox();
   assert.ok(sozinha.height < 56, `uma linha só com o painel fechado: ${JSON.stringify(sozinha)}`);
   assert.ok(await pagina.evaluate(() => { const t = document.getElementById('tools'); return t.scrollWidth <= t.clientWidth; }), 'as ferramentas cabem sem rolar');
   assert.deepEqual(erros, []);
@@ -670,11 +672,11 @@ test('na casca, a página fica sem sombras, transições, animações e fundos t
 test('no navegador, a aparência continua com as sombras e o destaque de antes', async () => {
   const { contexto, pagina, erros } = await abrirNaCasca({ casca: false });
   const visto = await pagina.evaluate(() => ({
-    sombra: getComputedStyle(document.getElementById('tools')).boxShadow,
+    sombra: getComputedStyle(document.getElementById('selbar')).boxShadow,
     ativo: getComputedStyle(document.querySelector('#tools .btn[aria-pressed="true"]')).backgroundColor,
     transicao: getComputedStyle(document.getElementById('head')).transitionDuration,
   }));
-  assert.notEqual(visto.sombra, 'none', 'a barra mantém a sombra');
+  assert.notEqual(visto.sombra, 'none', 'a barra da seleção mantém a sombra');
   assert.equal(visto.ativo, 'rgb(233, 232, 251)', 'a ferramenta ativa mantém o fundo lilás');
   assert.notEqual(visto.transicao, '0s', 'as transições continuam');
   assert.deepEqual(erros, []);
@@ -691,11 +693,10 @@ test('o botão de formas abre um painel com as quatro formas e os sete símbolos
     await pagina.locator('#menu').waitFor();
     assert.equal(await pagina.locator('#menu [data-forma]').count(), 4, 'as quatro formas à vista');
     assert.equal(await pagina.locator('#menu [data-sym]').count(), 7, 'os sete símbolos à vista');
-    // O painel abre para baixo com a barra no alto, na casca, e para cima com ela embaixo.
+    // O painel abre para baixo, com a barra na faixa do alto, na casca e no navegador.
     const painel = await pagina.locator('#menu').boundingBox();
     const botao = await pagina.locator('#t-shapes').boundingBox();
-    if (naCasca) assert.ok(painel.y > botao.y + botao.height, `abre para baixo: ${JSON.stringify(painel)}`);
-    else assert.ok(painel.y + painel.height < botao.y, `abre para cima: ${JSON.stringify(painel)}`);
+    assert.ok(painel.y > botao.y + botao.height, `abre para baixo: ${JSON.stringify(painel)}`);
     // A forma escolhida fica ativa e aparece no ícone do botão.
     await pagina.locator('#menu [data-forma="ellipse"]').click();
     const estado = () => pagina.evaluate(() => ({ ferramenta: S.tool, ligado: document.getElementById('t-shapes').getAttribute('aria-pressed'), icone: document.getElementById('t-shapes').innerHTML }));

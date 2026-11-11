@@ -32,3 +32,7 @@ Fazer o Tab recuar as linhas do cartão, para aninhar listas como no GitHub, tam
 - O recuo é o campo `n` de cada linha, de 1 a 6, e aparece como `data-n`, com 2em de margem por nível; a numeração é calculada em `EditorMd.numeros` e mostrada por `data-num`. Uma linha de outro tipo encerra as listas do mesmo nível e dos mais fundos.
 - Um aparelho uma versão atrás ignora o recuo ao mostrar e o perde se editar o cartão.
 - Os critérios automáticos foram verificados pelos testes de `web/testes/editor-md.test.cjs` e pela rodada de mutações registrada na [etapa 01](01-pre-visualizacao.md). Falta o teste do autor.
+
+### 2026-11-11, depois da publicação
+
+- Mesclado o PR #54; a casca 0.20.0 foi publicada como `casca-32`, e a página, na VPS. O autor disse que testou e que "ficou muito bom", sem dizer em quais aparelhos; o critério do teste dele fica aberto até ele confirmar o Boox e o computador.

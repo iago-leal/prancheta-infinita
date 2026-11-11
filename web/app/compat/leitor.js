@@ -1335,15 +1335,15 @@ body.leitor-lado{--leitor-largura:clamp(320px,50vw,960px);--leitor-inicio:0px}
 @media (min-width:761px){body.leitor-lado.leitor-esquerda.side{--leitor-inicio:260px}}
 body.leitor-lado:not(.leitor-esquerda) #top,body.leitor-lado:not(.leitor-esquerda) #zoom{right:calc(var(--leitor-largura) + 16px)}
 body.leitor-lado:not(.leitor-esquerda) #bottom{padding-right:calc(var(--leitor-largura) + 16px)}
-html:not(.casca) body.leitor-lado:not(.leitor-esquerda) #head{width:max(80px,calc(100vw - var(--leitor-largura) - 284px - 280px))!important}
-html:not(.casca) body.leitor-lado:not(.leitor-esquerda):not(.side) #head{width:max(80px,calc(100vw - var(--leitor-largura) - 72px - 280px))!important}
+html:not(.faixa) body.leitor-lado:not(.leitor-esquerda) #head{width:max(80px,calc(100vw - var(--leitor-largura) - 284px - 280px))!important}
+html:not(.faixa) body.leitor-lado:not(.leitor-esquerda):not(.side) #head{width:max(80px,calc(100vw - var(--leitor-largura) - 72px - 280px))!important}
 body.leitor-lado.leitor-esquerda #bottom{padding-left:calc(var(--leitor-inicio) + var(--leitor-largura) + 16px)}
-@media (max-width:1400px){html:not(.casca) body.leitor-lado #zoom{display:none}}
-@media (max-width:1900px){html:not(.casca) body.leitor-lado.side #zoom{display:none}}
-html:not(.casca) body.leitor-lado.leitor-esquerda #sideBtn{left:calc(var(--leitor-largura) + 16px)}
-html:not(.casca) body.leitor-lado.leitor-esquerda #head{left:calc(var(--leitor-inicio) + var(--leitor-largura) + 72px)!important;width:max(80px,calc(100vw - var(--leitor-inicio) - var(--leitor-largura) - 72px - 250px))!important}
-html:not(.casca) body.leitor-lado.leitor-esquerda.side #head{left:calc(var(--leitor-inicio) + var(--leitor-largura) + 24px)!important}
-#leitor{position:fixed;top:var(--casca-faixa,0px);right:0;bottom:0;width:var(--leitor-largura,100vw);z-index:8;display:flex;flex-direction:column;background:var(--panel,#fff);color:var(--fg,#222);border-left:1px solid var(--line,#E3E1DD)}
+@media (max-width:1400px){html:not(.faixa) body.leitor-lado #zoom{display:none}}
+@media (max-width:1900px){html:not(.faixa) body.leitor-lado.side #zoom{display:none}}
+html:not(.faixa) body.leitor-lado.leitor-esquerda #sideBtn{left:calc(var(--leitor-largura) + 16px)}
+html:not(.faixa) body.leitor-lado.leitor-esquerda #head{left:calc(var(--leitor-inicio) + var(--leitor-largura) + 72px)!important;width:max(80px,calc(100vw - var(--leitor-inicio) - var(--leitor-largura) - 72px - 250px))!important}
+html:not(.faixa) body.leitor-lado.leitor-esquerda.side #head{left:calc(var(--leitor-inicio) + var(--leitor-largura) + 24px)!important}
+#leitor{position:fixed;top:var(--altura-da-faixa,0px);right:0;bottom:0;width:var(--leitor-largura,100vw);z-index:8;display:flex;flex-direction:column;background:var(--panel,#fff);color:var(--fg,#222);border-left:1px solid var(--line,#E3E1DD)}
 body.leitor-lado.leitor-esquerda #leitor{left:var(--leitor-inicio);right:auto;border-left:0;border-right:1px solid var(--line,#E3E1DD)}
 body.leitor-tela #leitor{left:0;right:0;width:100vw;border:0;z-index:10}
 #leitor[hidden]{display:none}

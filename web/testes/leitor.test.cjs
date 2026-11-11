@@ -75,28 +75,27 @@ test('o EPUB abre ao lado do quadro, vira as páginas, lembra a posição e pass
     await pagina.waitForFunction(() => /primeiro capítulo/.test(document.querySelector('#leitor iframe')?.contentDocument?.body?.innerText || ''), null, { timeout: 15000 });
     assert.equal(await pagina.textContent('#leitor .lt-titulo'), 'Livro de teste.epub');
     // Lado a lado, o leitor abre à esquerda do quadro, depois do painel dos
-    // quadros, e os controles do quadro ficam à direita dele.
+    // quadros e abaixo da faixa dos controles, que fica inteira acima dele.
     const medir = () => pagina.evaluate(() => {
       const r = (id) => document.getElementById(id).getBoundingClientRect();
       const leitor = r('leitor');
       return {
         lado: document.body.classList.contains('leitor-lado'), esquerdo: document.body.classList.contains('leitor-esquerda'),
         painel: r('side').right, esquerda: leitor.left, direita: leitor.right, largura: Math.round(leitor.width),
-        titulo: r('head').left, topo: [r('top').left, r('top').right], ferramentas: [r('tools').left, r('tools').right],
+        alto: leitor.top, faixa: r('faixa').bottom, controles: Math.max(...['head', 'top', 'tools'].map((id) => r(id).bottom)),
         guardado: localStorage.getItem('prancheta:leitor-lado'),
       };
     });
     let disposicao = await medir();
     assert.deepEqual({ lado: disposicao.lado, esquerdo: disposicao.esquerdo, largura: disposicao.largura }, { lado: true, esquerdo: true, largura: 600 });
     assert.equal(disposicao.esquerda, disposicao.painel, 'o leitor começa onde termina o painel dos quadros');
-    for (const [nome, inicio] of [['título', disposicao.titulo], ['controles', disposicao.topo[0]], ['ferramentas', disposicao.ferramentas[0]]]) {
-      assert.ok(inicio >= disposicao.direita, `${nome} do quadro à direita do leitor: ${JSON.stringify(disposicao)}`);
-    }
+    assert.equal(disposicao.alto, Math.ceil(disposicao.faixa), `o leitor começa abaixo da faixa: ${JSON.stringify(disposicao)}`);
+    assert.ok(disposicao.controles <= disposicao.alto, `os controles do quadro ficam acima do leitor: ${JSON.stringify(disposicao)}`);
     // O botão passa o leitor para a direita, e a escolha fica guardada no aparelho.
     await pagina.click('#leitor [data-acao="lado"]');
     disposicao = await medir();
     assert.deepEqual({ esquerdo: disposicao.esquerdo, direita: disposicao.direita, guardado: disposicao.guardado }, { esquerdo: false, direita: 1200, guardado: 'direita' });
-    assert.ok(disposicao.topo[1] <= disposicao.esquerda && disposicao.ferramentas[1] <= disposicao.esquerda, `controles do quadro à esquerda do leitor: ${JSON.stringify(disposicao)}`);
+    assert.ok(disposicao.controles <= disposicao.alto, `os controles do quadro continuam acima do leitor: ${JSON.stringify(disposicao)}`);
     await pagina.reload();
     await pagina.waitForFunction(() => window.__booted === true && Boolean(window.leitorDaPrancheta), null, { timeout: 10000 });
     assert.equal(await pagina.evaluate(() => window.leitorDaPrancheta.lado), 'direita');
