@@ -43,3 +43,7 @@ Mostrar, durante a edição do cartão, a marcação do GitHub já formatada, co
 - Critério 8: das 26 mutações introduzidas em `editor-md.js`, cobrindo as três etapas, 25 foram acusadas na primeira rodada. A que passou mostrou um caso sem teste, o sublinhado colado ao fim de uma palavra, como em `a_b_ c`; com o teste reforçado, ela foi acusada, e a execução de controle passou.
 - O detector da skill `impeccable` não apontou nada. A casca compila, e os testes nativos passam. A suíte da página tem 132 testes, e a do servidor, 50, todos passando; `web/index.html` continua igual ao artefato publicado.
 - Critérios 1 a 8 verificados pelos testes, como descrito acima. Falta, para o critério 9, o teste do autor no Boox e no computador, com a casca 0.20.0.
+
+### 2026-11-11, depois da publicação
+
+- Mesclado o PR #54; a casca 0.20.0 foi publicada como `casca-32`, e a página, na VPS. O autor disse que testou e que "ficou muito bom", sem dizer em quais aparelhos; o critério do teste dele fica aberto até ele confirmar o Boox e o computador.

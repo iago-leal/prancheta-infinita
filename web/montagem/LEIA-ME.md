@@ -20,6 +20,7 @@ Para mudar o código da Prancheta, acrescente uma entrada em `mudancas.cjs`, com
 | `compat/combinar.js` | combinação em três vias dos dados de um documento, item a item pelo id e campo a campo, usada pela sincronização e pela gravação da página |
 | `compat/sincronizacao.js` | sincronização do banco local com o servidor de `servidor/`, com o botão e o diálogo de configuração |
 | `compat/claude.js` | cliente de compatibilidade: responde por `window.claude.use(nome)` com o banco local e com equivalentes de `assets`, `downloads`, `user` e `permissions` |
+| `compat/faixa.js` | faixa dos controles no alto da tela, na casca e no navegador: o painel de quadros e o título, as ferramentas, a sincronização, desfazer, refazer, o zoom e mais opções, montada com os elementos do artefato |
 | `compat/casca.js` | adaptador da casca Android: liga a ponte da casca ao código do artefato e não faz nada fora dela |
 | `compat/traco-onyx.js` | desenho dos traços feitos no Boox, com a espessura de cada ponto calculada pelo motor de canetas da Onyx |
 | `compat/editor-md.js` | editor de markdown dos cartões, do plano 009: a gramática da marcação, a mesma na edição e na exibição, a marcação formatada enquanto se escreve, com os marcadores visíveis só na linha do cursor, o recuo com Tab, o desfazer próprio, o colar e as imagens dentro do cartão |

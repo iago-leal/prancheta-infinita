@@ -239,7 +239,8 @@ test('num EPUB, o leitor avisa do progresso mais novo do KOReader e só vai até
       const esquerda = quadro.getBoundingClientRect().left;
       return Number([...quadro.contentDocument.querySelectorAll('p[id^=l]')].find((e) => esquerda + e.getBoundingClientRect().left >= area.left - 1).id.slice(1));
     });
-    assert.ok(primeiro > 1 && primeiro < 40, `a página começa num parágrafo antes do 40: ${primeiro}`);
+    // Com a faixa dos controles no alto, a página pode começar no próprio 40.
+    assert.ok(primeiro > 1 && primeiro <= 40, `a página começa no 40 ou num parágrafo antes dele: ${primeiro}`);
     await fecharLivro(p);
     await vps.koreader('Livro longo.epub', `/body/DocFragment[3]/body/p[${primeiro}]/text().0`, 0.6);
     await abrirLivro(p, vps, 'Livro longo.epub');

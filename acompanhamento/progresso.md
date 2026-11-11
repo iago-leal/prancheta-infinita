@@ -6,6 +6,22 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-11 · A faixa dos controles também no navegador
+
+### Feito
+
+- Mesclado o PR #54, com o editor de markdown; a casca 0.20.0 foi publicada como `casca-32`, e a página, na VPS. O autor disse que testou e que "ficou muito bom", o que está anotado nas etapas do [plano 009](planos/009-editor-de-markdown/plano.md).
+- A pedido do autor, aberto o [plano 010](planos/010-faixa-no-navegador/plano.md): o navegador do computador e do iPad ganhou a mesma faixa de controles da casca, no alto, com tudo agrupado, na casca 0.21.0. O registro está na [etapa 01](planos/010-faixa-no-navegador/etapas/01-faixa-no-navegador.md).
+
+### Decidido
+
+- **O navegador tem a mesma faixa da casca, inclusive no que ela esconde**: a descrição do quadro, o aviso "Salvo" e os botões de aumentar e diminuir o zoom saem da tela também no computador. O pedido do autor foi deixar a barra igual à da casca.
+
+### Pendências
+
+- O teste do autor no navegador do computador e a confirmação dos aparelhos em que testou o plano 009.
+- Os testes já pendentes dos planos 006, 007 e 008.
+
 ## 2026-11-11 · Editor de markdown completo nos cartões
 
 ### Feito

@@ -32,3 +32,7 @@ Pôr imagens dentro de um cartão de nota, entre as linhas de texto, sincronizad
 - Imagens grandes, acima de 2 MB ou de 2400 pixels no lado maior, são reduzidas antes de guardar, para o cartão não pesar na sincronização.
 - Se a edição termina enquanto a imagem é guardada, a linha vai para o fim do cartão, pelo desfazer do quadro.
 - Os critérios automáticos foram verificados pelos testes de `web/testes/editor-md.test.cjs` e pela rodada de mutações registrada na [etapa 01](01-pre-visualizacao.md). Falta o teste do autor.
+
+### 2026-11-11, depois da publicação
+
+- Mesclado o PR #54; a casca 0.20.0 foi publicada como `casca-32`, e a página, na VPS. O autor disse que testou e que "ficou muito bom", sem dizer em quais aparelhos; o critério do teste dele fica aberto até ele confirmar o Boox e o computador.

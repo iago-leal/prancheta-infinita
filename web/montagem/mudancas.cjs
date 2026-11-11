@@ -14,7 +14,7 @@ module.exports = [
     para: `<link rel="stylesheet" href="fontes/inter.css">`,
   },
   {
-    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; vêm junto a sincronização com o servidor, a combinação item a item e a cifra ponta a ponta que ela usa, a biblioteca de livros, com a tela própria dela, o leitor deles e as marcações, o adaptador da casca Android, que não faz nada fora dela, o desenho dos traços feitos no Boox e o editor de markdown dos cartões.',
+    motivo: 'O banco local e o cliente de compatibilidade são carregados antes de todo o código do artefato, para que window.claude.use(nome) já exista quando ele procurar os recursos; vêm junto a sincronização com o servidor, a combinação item a item e a cifra ponta a ponta que ela usa, a biblioteca de livros, com a tela própria dela, o leitor deles e as marcações, a faixa dos controles no alto da tela, o adaptador da casca Android, que não faz nada fora dela, o desenho dos traços feitos no Boox e o editor de markdown dos cartões.',
     de: `<title>Prancheta Infinita</title>`,
     para: `<title>Prancheta Infinita</title>
 <script src="compat/banco-local.js"></script>
@@ -26,6 +26,7 @@ module.exports = [
 <script src="compat/leitor.js"></script>
 <script src="compat/marcacoes.js"></script>
 <script src="compat/claude.js"></script>
+<script src="compat/faixa.js"></script>
 <script src="compat/casca.js"></script>
 <script src="compat/traco-onyx.js"></script>
 <script src="compat/editor-md.js"></script>`,
@@ -335,5 +336,10 @@ function decorateText(n){
     motivo: 'Editor de markdown do plano 009: a ajuda dos atalhos descreve o recuo com Tab, os atalhos de formatação do cartão e a imagem colada ou solta dentro dele.',
     de: `<dt>Marcar tarefa</dt><dd>Ctrl+Enter</dd>`,
     para: `<dt>Marcar tarefa</dt><dd>Ctrl+Enter</dd><dt>Recuar a linha, desfazer o recuo</dt><dd>Tab, Shift+Tab</dd><dt>Negrito, itálico, código, link no cartão</dt><dd>Ctrl+B, I, E, K</dd><dt>Imagem dentro do cartão</dt><dd>colar ou soltar durante a edição</dd>`,
+  },
+  {
+    motivo: 'Com a faixa dos controles no alto da tela, na casca e no navegador, a barra da seleção de um item perto do alto abre abaixo dele, em vez de cobrir a faixa.',
+    de: `if(y<8)y=Math.min(sy+b.h*v.k+off,innerHeight-bh-90);`,
+    para: `if(y<8+(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--altura-da-faixa'))||0))y=Math.min(sy+b.h*v.k+off,innerHeight-bh-90);`,
   },
 ];
