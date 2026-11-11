@@ -6,6 +6,17 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-11 · Planos 009 e 010 concluídos
+
+### Feito
+
+- Mesclado o PR #55, com a faixa dos controles no navegador; a casca 0.21.0 foi publicada como `casca-33`, e a página, na VPS.
+- O autor confirmou que todos os testes passaram, no Boox e no computador, inclusive a sincronização de um cartão com imagem e a faixa no navegador. Com isso, foram concluídos o [plano 009](planos/009-editor-de-markdown/plano.md), editor de markdown completo nos cartões, e o [plano 010](planos/010-faixa-no-navegador/plano.md), faixa dos controles no navegador.
+
+### Pendências
+
+- Os testes já pendentes dos planos 006, 007 e 008.
+
 ## 2026-11-11 · A faixa dos controles também no navegador
 
 ### Feito

@@ -3,10 +3,10 @@ tipo: etapa
 plano: "009"
 etapa: "03"
 titulo: "Imagens dentro do cartão"
-status: em_andamento
+status: concluida
 depende_de: []
 iniciada_em: 2026-11-11
-concluida_em:
+concluida_em: 2026-11-11
 ---
 
 # Etapa 03: imagens dentro do cartão
@@ -23,7 +23,7 @@ Pôr imagens dentro de um cartão de nota, entre as linhas de texto, sincronizad
 - [x] Um endereço de fora numa imagem fica como link, sem requisição externa.
 - [x] A exportação em PNG desenha as imagens dos cartões.
 - [x] Os testes automáticos cobrem os itens acima.
-- [ ] O autor põe uma imagem num cartão no computador e a vê no Boox, depois da sincronização.
+- [x] O autor põe uma imagem num cartão no computador e a vê no Boox, depois da sincronização.
 
 ## Registro
 
@@ -36,3 +36,11 @@ Pôr imagens dentro de um cartão de nota, entre as linhas de texto, sincronizad
 ### 2026-11-11, depois da publicação
 
 - Mesclado o PR #54; a casca 0.20.0 foi publicada como `casca-32`, e a página, na VPS. O autor disse que testou e que "ficou muito bom", sem dizer em quais aparelhos; o critério do teste dele fica aberto até ele confirmar o Boox e o computador.
+
+### 2026-11-11, depois do teste do autor
+
+- O autor confirmou, depois de perguntado se o teste incluiu o Boox, o computador e a sincronização de um cartão com imagem: "Sim, todos os testes passaram. Deu tudo certo." Com isso, o critério do teste dele foi marcado.
+
+## Resultado
+
+Concluída em 2026-11-11. Os critérios automáticos foram verificados por `web/testes/editor-md.test.cjs` e pela rodada de 26 mutações, todas acusadas, registradas na [etapa 01](01-pre-visualizacao.md); o último, pelo teste do autor, que confirmou o cartão com imagem no outro aparelho, depois da sincronização.

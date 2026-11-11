@@ -2,9 +2,9 @@
 tipo: plano
 id: "010"
 titulo: Faixa dos controles no navegador
-status: em_andamento
+status: concluido
 criado_em: 2026-11-11
-concluido_em:
+concluido_em: 2026-11-11
 ---
 
 # Plano 010: faixa dos controles no navegador
@@ -19,13 +19,13 @@ Depois de testar o editor de markdown, o autor pediu, em 2026-11-11, que a barra
 
 ## Critério de conclusão do plano
 
-- [ ] No navegador do computador, o autor vê os controles numa faixa só, no alto, como na casca, e usa as ferramentas, desfazer, o zoom e a sincronização por ela.
+- [x] No navegador do computador, o autor vê os controles numa faixa só, no alto, como na casca, e usa as ferramentas, desfazer, o zoom e a sincronização por ela.
 
 ## Etapas
 
 | Etapa | Título | Status |
 |---|---|---|
-| [01](etapas/01-faixa-no-navegador.md) | A mesma faixa da casca no navegador | em_andamento |
+| [01](etapas/01-faixa-no-navegador.md) | A mesma faixa da casca no navegador | concluida |
 
 ## Riscos
 
@@ -36,3 +36,7 @@ Depois de testar o editor de markdown, o autor pediu, em 2026-11-11, que a barra
 
 - Mudar o que cada botão faz ou a ordem das ferramentas.
 - O painel de quadros, que continua à esquerda.
+
+## Resultado
+
+Concluído em 2026-11-11, com a etapa 01 concluída. O critério do plano foi verificado pelo autor, que confirmou que a faixa no navegador deu certo.
