@@ -89,4 +89,8 @@ Adequar a leitura ao e-ink do Boox: destaques que se enxergam bem na tela, virad
 - Confirmação do autor, em 2026-11-10, depois da publicação do PR #52: "a barra apareceu no ipad". Vale para a barra de destaque num e-book aberto no navegador do iPad. O toque nos terços da página, o link do livro e o toque num destaque, no iPad e no iPhone, continuam sem a confirmação dele.
 - Confirmação do autor, em 2026-11-10, em seguida ao pedido de teste dos toques no iPad: "está passando". Foi entendida como a página que vira com o toque nos terços dela, o que mostra que, com o código permitido no quadro, os avisos da página do livro chegam ao leitor no iPad. O link do livro e o toque num destaque, que dependem dos mesmos avisos, não foram citados por ele.
 
+### 2026-11-13
+
+- Confirmação do autor no Boox: "O menu de seleção sumiu no leitor do Boox." Vale para a correção da casca 0.13.0, que deixa o menu de seleção do Android sem itens dentro do leitor, para ele não cobrir a barra da Prancheta. Os critérios desta etapa continuam abertos até o teste dos destaques no e-ink, do toque nas laterais, do sumário e da busca.
+
 ## Resultado
