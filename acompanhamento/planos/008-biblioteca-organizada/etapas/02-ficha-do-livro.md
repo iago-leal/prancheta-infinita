@@ -3,10 +3,10 @@ tipo: etapa
 plano: "008"
 etapa: "02"
 titulo: "A ficha do livro, com os destaques e os quadros que o citam"
-status: em_andamento
+status: concluida
 depende_de: ["01"]
 iniciada_em: 2026-11-10
-concluida_em:
+concluida_em: 2026-11-13
 ---
 
 # Etapa 02: a ficha do livro, com os destaques e os quadros que o citam
@@ -24,7 +24,7 @@ Dar a cada livro uma ficha, que reúne o que o autor já tirou dele: os destaque
 - [x] Um cartão levado ao quadro num aparelho aparece na ficha do livro no outro, depois da sincronização.
 - [x] Na lista da biblioteca, cada livro citado mostra em quantos quadros aparece, e um filtro mostra só os livros citados.
 - [x] Os testes automáticos cobrem a ficha, os destaques, os quadros que citam, os apagados e os dois aparelhos, e acusam mutações introduzidas.
-- [ ] O autor confirma no Boox que, pela ficha de um livro, chega a um destaque no livro e a um quadro que o cita.
+- [x] O autor confirma no Boox que, pela ficha de um livro, chega a um destaque no livro e a um quadro que o cita.
 
 ## Registro
 
@@ -49,4 +49,10 @@ Dar a cada livro uma ficha, que reúne o que o autor já tirou dele: os destaque
 - O detector da skill `impeccable` não apontou nada. A casca compila, e os testes nativos passam.
 - Critérios 1 a 7 verificados pelos testes, como descrito acima. Falta, para o critério 8, o teste do autor no Boox, com a casca 0.16.0.
 
+### 2026-11-13
+
+- O autor confirmou o teste no Boox: "A ficha do livro funcionou no Boox." Com isso, o critério 8 foi marcado.
+
 ## Resultado
+
+Concluída em 2026-11-13. Os critérios 1 a 7 foram verificados pelos 4 testes de `web/testes/ficha-do-livro.test.cjs` e pela rodada de 67 mutações, todas acusadas depois de reforçar os testes, como descrito no Registro. O critério 8 foi verificado pelo autor, que confirmou no Boox que a ficha do livro funcionou.

@@ -6,6 +6,17 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-13 · Plano 008 concluído
+
+### Feito
+
+- Mesclado o PR #56, com a conclusão dos planos 009 e 010.
+- O autor confirmou que a ficha do livro funcionou no Boox. Com isso, foram concluídas a [etapa 02](planos/008-biblioteca-organizada/etapas/02-ficha-do-livro.md) e o [plano 008](planos/008-biblioteca-organizada/plano.md), biblioteca organizada.
+
+### Pendências
+
+- Os testes do autor nos planos 006 e 007, e os testes avulsos no iPad e no Boox listados no estado.
+
 ## 2026-11-11 · Planos 009 e 010 concluídos
 
 ### Feito

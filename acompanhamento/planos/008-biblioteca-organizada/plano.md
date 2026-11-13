@@ -2,9 +2,9 @@
 tipo: plano
 id: "008"
 titulo: Biblioteca organizada
-status: em_andamento
+status: concluido
 criado_em: 2026-11-10
-concluido_em:
+concluido_em: 2026-11-13
 ---
 
 # Plano 008: biblioteca organizada
@@ -26,14 +26,14 @@ A biblioteca é uma lista no painel lateral, agrupada pelas pastas do servidor. 
 
 ## Critério de conclusão do plano
 
-- [ ] No Boox, o autor abre a biblioteca, acha um livro pela busca, abre-o e, pela ficha dele, chega a um quadro que cita um trecho do livro.
+- [x] No Boox, o autor abre a biblioteca, acha um livro pela busca, abre-o e, pela ficha dele, chega a um quadro que cita um trecho do livro.
 
 ## Etapas
 
 | Etapa | Título | Status |
 |---|---|---|
 | [01](etapas/01-tela-da-biblioteca.md) | A tela da biblioteca, com título, autor, busca e ordenação | concluida |
-| [02](etapas/02-ficha-do-livro.md) | A ficha do livro, com os destaques e os quadros que o citam | em_andamento |
+| [02](etapas/02-ficha-do-livro.md) | A ficha do livro, com os destaques e os quadros que o citam | concluida |
 
 ## Riscos
 
@@ -49,3 +49,7 @@ A biblioteca é uma lista no painel lateral, agrupada pelas pastas do servidor. 
 - Corrigir o título ou o autor de um livro pela Prancheta.
 - Enviar livros ao servidor pela Prancheta.
 - Escrever à mão sobre a página do livro.
+
+## Resultado
+
+Concluído em 2026-11-13, com as duas etapas concluídas. O critério do plano foi verificado pelo autor no Boox: na etapa 01, ele achou um livro pela busca e o abriu, em 2026-11-10; na etapa 02, confirmou que a ficha do livro funcionou, em 2026-11-13.
