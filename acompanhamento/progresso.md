@@ -6,6 +6,17 @@ tipo: progresso
 
 Diário do projeto. Cada sessão acrescenta uma entrada no topo; entradas antigas não são reescritas, e correções entram como entrada nova.
 
+## 2026-11-13 · O menu de seleção do Android sumiu no leitor
+
+### Feito
+
+- Mesclado o PR #57, com a conclusão do plano 008.
+- O autor confirmou no Boox que o menu de seleção do Android sumiu dentro do leitor, como previsto na casca 0.13.0. O registro está na [etapa 02 do plano 006](planos/006-melhorias-do-leitor/etapas/02-leitura-no-e-ink.md).
+
+### Pendências
+
+- Os demais testes do plano 006 no Boox e os do plano 007, com o KOReader.
+
 ## 2026-11-13 · Plano 008 concluído
 
 ### Feito
